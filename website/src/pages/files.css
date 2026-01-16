@@ -1,0 +1,260 @@
+/*
+ * author Julien Therrien
+ * created on 18-12-2025-13h-48m
+ * github: https://github.com/thebadlorax
+ * copyright 2025
+*/
+
+html {
+    overscroll-behavior: none;
+    font-family: "Jersey 20", sans-serif;
+    font-weight: 200;
+    font-size: 20px;
+    font-style: normal;
+}
+
+body {
+  background-image: url("../res/files_bg.png");
+  overflow: auto;
+  background-size: 100vw 100vw;/*1450px 1450px;*/
+  background-color: #4E4E4E;
+  background-repeat: no-repeat;
+  height: auto;
+}
+
+.basic-text {
+    text-align: left;
+    margin: 0;
+    color: snow;
+    font-size: 40px;
+}
+
+.basic-text-black {
+    text-align: left;
+    margin: 0;
+    color: black;
+    font-size: 40px;
+}
+
+.bottom-container {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+}
+
+.back-button {
+    background-image: url("../res/../res/back_button_transparent.png"); /* Set the image source */
+    background-repeat: no-repeat; /* Prevent the image from repeating */
+    background-size: cover; /* Optional: Resizes the image to cover the entire button area */
+    width: 3vw; /* Set the button width */
+    height: 3vw; /* Set the button height */
+    border: none; /* Remove default button border */
+    /* Hide the text visually while keeping it accessible for screen readers */
+    color: transparent;
+    font-size: 0; 
+    border-radius: 15px;
+}
+
+.main-container {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 12.5%;
+}
+
+.row-container {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    justify-content: center;
+    width: 80vw;
+    height: auto;
+}
+
+.link {
+    color: black;
+    text-decoration: none;
+    flex: 1 1;
+    margin: .5vw;
+    background-color: #f0f0f0;
+    border: .2vw solid #212121;
+    padding: .5vw;
+    text-align: center;
+    font-size: 1.8vw;
+    width: auto;
+    height: auto;
+}
+
+.progress-bar {
+    position: fixed;
+    display: none;
+    left: 42%;
+    top: 93%;
+    width: 25vw;
+    text-align: center;
+}
+
+.progress {
+    appearance: none;
+    width: 100%;
+    height: 100%;
+    border: 2 solid grey;
+}
+
+.unselectable {
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none;   /* Chrome, Safari, Opera */
+    -khtml-user-select: none;    /* Konqueror */
+    -moz-user-select: none;      /* Firefox */
+    -ms-user-select: none;       /* Internet Explorer/Edge */
+    user-select: none;           /* Standard syntax */
+  }
+
+.context-menu {
+    display: none; /* Hidden by default */
+    position: absolute;
+    z-index: 1000;
+    background-color: #fff;
+    border: .1vw solid black;
+    box-shadow: .2vw .2vw .5vw rgba(0,0,0,0.2);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.context-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.top-bar {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.dir-input {
+    font-family: "Jersey 20";
+    color: black;
+    position: absolute;
+    outline: none;
+    left: 90vw;
+    width: 8vw;
+    height: 1vw;
+}
+
+.dir-input::placeholder {
+    font-size: .8vw;
+}
+
+.context-menu li a {
+    display: block;
+    padding: .6vw 1.1vw;
+    text-decoration: none;
+    color: black;
+}
+
+.context-menu li a:hover {
+    background-color: #f2f2f2;
+}
+
+.context-menu .separator {
+    height: .1vw;
+    background-color: #ccc;
+    margin: .3vw 0;
+}
+
+.rename-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.rename-box {
+    background: white;
+    padding: 1.6vw;
+    border: .1vw solid black;
+    min-width: 25vw;
+    color: black;
+}
+
+.rename-box input {
+    width: 100%;
+    margin-top: .8vw;
+    padding: .4vw;
+    background: white;
+    color: black;
+    border: .1vw solid #555;
+    font-family: "Jersey 20";
+}
+
+.rename-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .8vw;
+    margin-top: 1vw;
+}
+
+.rename-actions button {
+    background: white;
+    color: black;
+    border: .1vw solid #555;
+    padding: .4vw .8vw;
+    cursor: pointer;
+    font-family: "Jersey 20";
+}
+
+.rename-overlay-2 {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.rename-box-2 {
+    background: white;
+    padding: 1.6vw;
+    border: .1vw solid black;
+    min-width: 25vw;
+    color: black;
+}
+
+.rename-box-2 input {
+    width: 100%;
+    margin-top: .8vw;
+    padding: .4vw;
+    background: white;
+    color: black;
+    border: .1vw solid #555;
+    font-family: "Jersey 20";
+}
+
+.rename-actions-2 {
+    display: flex;
+    justify-content: flex-end;
+    gap: .8vw;
+    margin-top: 1vw;
+}
+
+.rename-actions-2 button {
+    background: white;
+    color: black;
+    border: .1vw solid #555;
+    padding: .4vw .8vw;
+    cursor: pointer;
+    font-family: "Jersey 20";
+}
+
+.fixed-bottom {
+    position: fixed;
+    top: 93%;
+    font-size: 135%;
+}

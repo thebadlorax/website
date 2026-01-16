@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+
+<head>
+    <title>seeberg</title>
+    <link rel="icon" href="../res/favicon.ico">
+    <link rel="stylesheet" href="./seeberg.css">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jersey+20&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="audio-container">
+        <img src="../res/seeberg.png" style="position: relative;">
+            <button class="button" style="position: absolute; top: 55%; left: -12%;" id="play">
+                <img src="../res/play_button.png" style="height: 20%; width: 20%;">
+            </button>
+        </img>
+    </div>
+
+    <audio muted autoplay playsinline id="sound">
+        <source src="https://s5.reliastream.com/proxy/seeburg?mp=//;listen.pls" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const play_button = document.getElementById("play")
+        const sound = document.getElementById("sound")
+        play_button.addEventListener("click", () => {
+            sound.muted = false;
+        })
+    </script>
+</body>
+

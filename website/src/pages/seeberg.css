@@ -1,0 +1,15 @@
+body {
+    background-color: #313131;
+}
+
+.audio-container {
+    display: flex;
+    justify-content: center; /* Centers horizontally */
+    align-items: center;     /* Centers vertically */
+    height: 100vh;           /* Example: Centers in the full viewport height */
+}
+
+.button {
+    background: none;
+    border: none;
+}

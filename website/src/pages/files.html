@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!----yo---------------:-(-->
+<!----if you take my files-->
+<!----i will be sad=======-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>files</title>
+    <!--setup Jersey 20-->
+    <link rel="stylesheet" href="files.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jersey+20&display=swap" rel="stylesheet">
+    <script type="module" src="files.js"></script>
+    <script type="module" src="common.js"></script>
+    <link rel="icon" href="../res/favicon.ico">
+  </head>
+  <body>
+    <div id="context" class="context-menu">
+        <ul>
+            <li><a href="#!" id="download">Download</a></li>
+            <li class="separator", id="download-seperator"></li>
+            <li><a href="#!" id="delete">Delete</a></li>
+            <li><a href="#!" id="rename">Rename</a></li>
+            <li><a href="#!" id="link">Copy Link</a></li>
+            <li class="separator"></li>
+            <li><p id="file-size" class="unselectable" style="padding: 8px 12px; margin-top: 0px; margin-bottom: 0px; color: grey;"></p></li>
+            <li class="separator"></li>
+            <li><a href="#!" id="close">Close</a></li>
+        </ul>
+    </div>
+
+    <div class="top-bar">
+        <input class="dir-input" id="dir-input" placeholder="directory"></input>
+    </div>
+
+    <div class="bottom-container"><a href=/ class="back-button">test</a></div>
+
+    <div class="main-container">
+        <div class="row-container" id="file-container"></div>
+    </div>
+
+    <div class="progress-bar" id="downloadProgressContainer">
+        <progress id="downloadProgress" class="progress" value="0" max="100"></progress>
+    </div>
+
+    <div id="rename-overlay" class="rename-overlay">
+        <div class="rename-box">
+          <p class="basic-text-black">Rename file</p>
+          <input id="rename-input" type="text" autocomplete="off">
+          <div class="rename-actions">
+            <button id="confirmRename">OK</button>
+            <button id="cancelRename">Cancel</button>
+          </div>
+        </div>
+    </div>
+
+    <div id="folder-overlay" class="rename-overlay-2">
+        <div class="rename-box-2">
+          <p class="basic-text-black">Create folder</p>
+          <input id="folder-input" type="text" autocomplete="off" placeholder="folder name">
+          <div class="rename-actions-2">
+            <button id="confirmFolder">OK</button>
+            <button id="cancelFolder">Cancel</button>
+          </div>
+        </div>
+    </div>
+
+    <p class="fixed-bottom unselectable" id="warn">DO NOT MISUSE THIS SERVICE! >:(</p>
+  </body>

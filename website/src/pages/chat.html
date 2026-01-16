@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>chat</title>
+        <link rel="icon" href="../res/favicon.ico">
+        <link rel="stylesheet" href="chat.css">
+
+        <script type="module" src="chat.js"></script>
+        <script type="module" src="common.js"></script>
+
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Jersey+20&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div class="main-container">
+            <div class="banner-container">
+                <a href="/"><img src="../res/chatroom_banner.png" class="banner-image"></a>
+            </div>
+            <div class="row-container">
+                <div class="column-container" style="width: 65%;">
+                    <div class="large-item">
+                        chat
+                        <div id="message-box-container">
+                            <div id="message-box" style="height: 100%;" class="hide-scrollbar"></div>
+                        </div>
+                        <input class="input" id="input" maxlength="200" placeholder="type message here :3" style="position: absolute; width: 40vw; height: 1vw; left: 7vw; top: 50vw;"></input>
+                    </div>
+                </div>
+                <div class="column-container" style="width: 25%;">
+                    <div class="large-item" style="max-height: 50%;">
+                        information
+                        <!--<p style="margin-top: 2vw; color: #6D2B2C">WORK IN PROGRESS</p>-->
+                        <p class="basic-text" style="padding-left: 2vw;" id="chatters">Online Chatters: x</p>
+                    </div>
+                    <div class="large-item" style="max-height: 50%;">
+                        settings
+                        <div></div>
+                        <label>
+                            <div>
+                                <p class="basic-text" style="align-self: center; font-size: 1vw; margin-left: 4vw; margin-top: 12vw;">Show Connection Messages</p>
+                                <input type="checkbox" id="connection-messages" value="someValue">
+                            </div>
+                        </label>
+                        <input class="input" id="color" value="#000000" maxlength="7" style="width: 15vw; margin-top: 1vw; margin-left: 0vw;"></input>                 
+                        <input class="input" id="name" placeholder="Name" maxlength="15" style="width: 15vw; margin-top: 2vw; margin-left: 0vw;"></input>                 
+                    </div>
+                </div>
+            </div>
+            <p class="basic-text unselectable" id="warn" style="margin-top: 3vw; font-weight: 700; font-size: 2vw;">DO NOT MISUSE THIS SERVICE! >:(</p>
+        </div>
+        <div class="emoji-container">
+            <button id="emoji-btn" class="unselectable">😀</button>
+            <div id="emoji-picker" class="hidden">
+                <div class="emoji-header">
+                    <div class="emoji-header">
+                        <button class="emoji-cat active">All</button>
+                        <button class="emoji-cat">Kaomoji</button>
+                    </div>
+                </div>
+                <div class="emoji-grid"></div>
+            </div>
+        </div>   
+    </body>
+</html>

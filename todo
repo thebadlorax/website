@@ -1,0 +1,47 @@
+- blog / update log
+- status
+- guestbook
+- nothing here page for missing files
+- javascript runner page (for chromebooks)
+- maybe disallow js support for .html
+- compile site to static to improve performance
+- unique visitor count
+    - maybe w/ a stats api
+    - currently looking count?
+- update button
+- recreate all images to 2-3x upscale for niceness
+- make text consistant across the site
+- add cave decorations instead of basic elements (like stalagtites and shit)
+    - update context menu to have aesthetics
+- make a not shit favicon
+    - upscale that too (.ico magic)
+- update api's to not use the fucking 'content-disposition' header as the data transfer method
+- write the about me
+- meowl shrine
+- my cat shrine
+- ethan hate page
+- seasonal decorations (automatic application of them)
+- server stats page (disk space, cpu, etc.)
+- rate limits
+    - limit files to small size unless .big file ending
+- make server auto restart when updated via my script
+- find some way to autorenew ssl
+    - get my domain unblocked by the fucking DOE >:|
+    - get a wildcard ssl so i can swap the api from thebadlorax.dev/api to api.thebadlorax.dev
+        - add friends websites under {website name}.thebadlorax.dev (naujysk.thebadlorax.dev)
+- projects page
+    - run in browser?
+- upload bar on files page
+    - switch to xmlhttp for uploads
+- some script kiddie osint tool would be really funny (https://pizzint.watch/polyglobe)
+- add the seeberg 1000 <3
+- mobile support
+    - vertical aspect ratio = rectangular site
+    - figure out the script error
+- swap to ssh keys (at least for my account), passwords suck
+- add (limited) apt support to guest
+- add .zip file viewing support
+- swap banned file types from blacklist to whitelist for safety
+- add a stylized file viewer (esp for video)
+- compress files on disk
+- professional.thebadlorax.dev - resume & shit
