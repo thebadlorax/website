@@ -7,6 +7,7 @@
 
         <script type="module" src="chat.js"></script>
         <script type="module" src="common.js"></script>
+        <script type="module" src="voice.js"></script>
 
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -30,22 +31,27 @@
                     </div>
                 </div>
                 <div class="column-container" style="width: 25%;">
-                    <div class="large-item" style="max-height: 50%;">
+                    <div class="small-item" style="max-height: 33%;">
+                        voice
+                        <div></div>
+                        <button style="background-color: grey; width: 5vw; height: 2vw; font-size: 1vw; outline: solid black 1px;" id="startVoiceBtn">join</button>
+                    </div>
+                    <div class="small-item" style="max-height: 33%;">
                         information
                         <!--<p style="margin-top: 2vw; color: #6D2B2C">WORK IN PROGRESS</p>-->
-                        <p class="basic-text" style="padding-left: 2vw;" id="chatters">Online Chatters: x</p>
+                        <p class="basic-text" style="padding-left: 3vw;" id="chatters">Online Chatters: x</p>
                     </div>
-                    <div class="large-item" style="max-height: 50%;">
+                    <div class="small-item" style="max-height: 33%;">
                         settings
                         <div></div>
                         <label>
                             <div>
-                                <p class="basic-text" style="align-self: center; font-size: 1vw; margin-left: 4vw; margin-top: 12vw;">Show Connection Messages</p>
+                                <p class="basic-text" style="align-self: center; font-size: 1vw; margin-left: 4vw; margin-top: 2vw;">Show Connection Messages</p>
                                 <input type="checkbox" id="connection-messages" value="someValue">
                             </div>
                         </label>
-                        <input class="input" id="color" value="#000000" maxlength="7" style="width: 15vw; margin-top: 1vw; margin-left: 0vw;"></input>                 
-                        <input class="input" id="name" placeholder="Name" maxlength="15" style="width: 15vw; margin-top: 2vw; margin-left: 0vw;"></input>                 
+                        <input class="input" id="color" value="#000000" maxlength="7" style="width: 10vw; margin-top: 1vw; margin-left: 0vw;"></input>                 
+                        <input class="input" id="name" placeholder="Name" maxlength="15" style="width: 10vw; margin-top: 2vw; margin-left: 0vw;"></input>                 
                     </div>
                 </div>
             </div>

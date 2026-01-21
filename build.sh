@@ -62,7 +62,7 @@ mv build/include/* build
 rmdir build/include
 
 if [ "$1" = "send" ]; then
-    zip build/git_archive build/.git
-    rm -rf .git
+    zip -r build/git_archive build/.git
+    rm -rf build/.git
     scp -r build thebadlorax@thebadlorax.dev:~/
 fi

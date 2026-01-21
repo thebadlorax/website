@@ -1,9 +1,10 @@
 console.log("starting server :3")
 
-import { Glob, $ } from "bun";
+import { Glob, $, type ServerWebSocket } from "bun";
 import { rename, watch } from 'fs';
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { join, resolve } from 'node:path';
+import os from 'os';
 
 let STATIC_ROOTS = [
   resolve("src/res"),
@@ -245,6 +246,8 @@ let visitor_count = parseInt(await getElementInDB("visitors")) || 0;
 
 let websockets = new Array();
 let chat_websockets = new Array();
+let voice_websockets = new Array();
+const clientIds = new Map<ServerWebSocket<{source: string}>, string>();
 let chat_names = new Array();
 let chat_history = new Array();
 let chat_ids = new Array();
@@ -284,7 +287,7 @@ const server = Bun.serve({
         status: 204,
         headers: CORS_HEADERS,
       });
-    }
+    } // cors shit
 
     switch(subdomain) {
       case "api":
@@ -395,6 +398,12 @@ const server = Bun.serve({
                 headers: { "Content-Type": "application/json" },
               });
             }
+          case "/chat/voice":
+            const success2 = server.upgrade(req, {
+              data: { source: "/chat/voice" }, // Attach per-socket data
+            });
+            if(success2) return undefined;
+            return corsResponse("WebSocket upgrade failed", { status: 400 });
           case "/stats":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
             let visitor_count_2 = await getElementInDB("visitors") || 0;
@@ -402,13 +411,13 @@ const server = Bun.serve({
               "key": key, 
               "visitor-count": visitor_count_2, 
               "uptime": Math.floor((new Date().getTime() - starting_time.getTime())/ 1000),
-              "latest-commit": latest_commit,
+              "latest-commit": latest_commit
             }), { status: 200});
           case "/user/init":
             let id = generateRandomString(10);
             visitor_count += 1;
             await changeElementInDB("visitors", visitor_count.toString())
-            await changeElementInDB(id, "0")
+            await changeElementInDB(id, "0");
             return corsResponse(JSON.stringify({"id": `${key}-${id}`}), { status: 201})
           case "/user/points/query":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
@@ -453,6 +462,9 @@ const server = Bun.serve({
 
           case "/meowl":
             return corsResponse(Bun.file("src/pages/meowl.html"), { headers: { "Content-Type": "text/html" } });
+
+          case "/test":
+            return corsResponse(Bun.file("src/pages/test.html"), { headers: { "Content-Type": "text/html" } });
       
           default:
             return corsResponse(Bun.file("src/pages/error.html"), {
@@ -484,73 +496,118 @@ const server = Bun.serve({
     }
   },
   maxRequestBodySize: 500000000, // 500mb upload limit
-  websocket: {
-    data: {} as { source: string }, 
-    open(ws) {
-      switch(ws.data.source) {
-        case "/chat/live": {
-          chat_websockets.push(ws); 
-          chat_names.push("_UNREGISTERED")
-          chat_ids[chat_websockets.indexOf(ws)] = "No ID";
-          break;
-        }
-        default: websockets.push(ws);
-      }
-      
-    },
-    message(ws, message) {
-      switch(ws.data.source) {
-        case "/chat/live":
-          if(message[0] == "_") {
-            const method = message.slice(1, message.indexOf("="));
-            const value = message.slice(message.indexOf("=")+1);
 
-            switch(method) {
-              case "NAME":
-                chat_names[chat_websockets.indexOf(ws)] = value;
-                break;
-              case "ID":
-                chat_ids[chat_websockets.indexOf(ws)] = value;
-                break;
-              case "CONNECT":
-                let msg = `${chat_names[chat_websockets.indexOf(ws)]} has connected`
-                chat_history.push(msg);
-                chat_websockets.forEach(websocket => {
-                  websocket.send(msg);
-                  websocket.send(`_SETCHATTERS=${chat_websockets.length}`);
-                });
-            }
-          } else {
-            chat_history.push(message);
-            chat_websockets.forEach(websocket => {
-              websocket.send(message);
-            });
+websocket: {
+  data: {} as { source: string },
+
+  open(ws) {
+    switch (ws.data.source) {
+      case "/chat/live":
+        chat_websockets.push(ws);
+        chat_names.push("_UNREGISTERED");
+        chat_ids[chat_websockets.indexOf(ws)] = "No ID";
+        break;
+
+      case "/chat/voice":
+        voice_websockets.push(ws);
+        // Assign a unique client ID
+        const id = `user_${Math.floor(Math.random() * 1_000_000)}`;
+        clientIds.set(ws, id);
+        break;
+
+      default:
+        websockets.push(ws);
+    }
+  },
+
+  message(ws, message) {
+    switch (ws.data.source) {
+      case "/chat/live":
+        if (message[0] === "_") {
+          const method = message.slice(1, message.indexOf("="));
+          const value = message.slice(message.indexOf("=") + 1);
+
+          switch (method) {
+            case "NAME":
+              chat_names[chat_websockets.indexOf(ws)] = value;
+              break;
+            case "ID":
+              chat_ids[chat_websockets.indexOf(ws)] = value;
+              break;
+            case "CONNECT":
+              const msg = `${chat_names[chat_websockets.indexOf(ws)]} has connected`;
+              chat_history.push(msg);
+              chat_websockets.forEach((socket) => {
+                socket.send(msg);
+                socket.send(`_SETCHATTERS=${chat_websockets.length}`);
+              });
           }
-          break;
-        default: ws.send("where u come from :-(")
-      }
-      
-    },
-    close(ws, code, reason) {
-      switch(ws.data.source) {
-        case "/chat/live":
-          let index = chat_websockets.indexOf(ws);
-          chat_websockets.splice(index, 1) // deregister websocket
-          if(chat_names[index] != "_UNREGISTERED") {
-            let msg = `${chat_names[index]} has disconnected`
-            chat_history.push(msg)
-            chat_websockets.forEach(websocket => {
-              websocket.send(`_SETCHATTERS=${chat_websockets.length}`);
-              websocket.send(msg);
-            });
+        } else {
+          chat_history.push(message);
+          chat_websockets.forEach((socket) => socket.send(message));
+        }
+        break;
+
+      case "/chat/voice":
+        const senderId = clientIds.get(ws);
+        if (!senderId) return;
+
+        // Encode senderId into 36 bytes header
+        const encoder = new TextEncoder();
+        const idBytes = encoder.encode(senderId);
+        const header = new Uint8Array(36);
+        header.set(idBytes.slice(0, 36));
+
+        // Float32 message is already an ArrayBuffer
+        const audioBytes = new Uint8Array(message);
+
+        const packet = new Uint8Array(header.length + audioBytes.length);
+        packet.set(header, 0);
+        packet.set(audioBytes, header.length);
+
+        // Broadcast to all clients
+        for (const client of voice_websockets) {
+          if (client.readyState === WebSocket.OPEN) {
+            if(client == ws) continue;
+            client.send(packet.buffer);
           }
-          chat_names.splice(index, 1)
-          chat_ids.splice(index, 1)
-          break;
-      }
-    },
-    drain(ws) {}, // Handle backpressure
-  } as const,
+        }
+        break;
+
+      default:
+        ws.send("where u come from :-(");
+    }
+  },
+
+  close(ws) {
+    switch (ws.data.source) {
+      case "/chat/live":
+        const index = chat_websockets.indexOf(ws);
+        chat_websockets.splice(index, 1);
+        if (chat_names[index] !== "_UNREGISTERED") {
+          const msg = `${chat_names[index]} has disconnected`;
+          chat_history.push(msg);
+          chat_websockets.forEach((socket) => {
+            socket.send(`_SETCHATTERS=${chat_websockets.length}`);
+            socket.send(msg);
+          });
+        }
+        chat_names.splice(index, 1);
+        chat_ids.splice(index, 1);
+        break;
+
+      case "/chat/voice":
+        const index2 = voice_websockets.indexOf(ws);
+        if (index2 !== -1) voice_websockets.splice(index2, 1);
+        clientIds.delete(ws);
+        break;
+    }
+  },
+
+  drain(ws) {
+    // optional backpressure handling
+  },
+} as const
 });
 
 console.log("server initalized >:3")
