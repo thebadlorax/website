@@ -85,6 +85,10 @@ body {
     height: auto;
 }
 
+.link:hover {
+    cursor: pointer;
+  }
+
 .progress-bar {
     position: fixed;
     display: none;
@@ -142,6 +146,21 @@ body {
     left: 90vw;
     width: 8vw;
     height: 1vw;
+}
+
+.protected {
+    position: absolute;
+    left: 80vw;
+}
+
+.host {
+    position: absolute;
+    left: 70vw;
+}
+
+.top-bar {
+    font-family: "Jersey 20";
+    color: white;
 }
 
 .dir-input::placeholder {

@@ -32,10 +32,18 @@
     </div>
 
     <div class="top-bar">
-        <input class="dir-input" id="dir-input" placeholder="directory"></input>
+        <div class="protected" id="protected-div">
+          Protected
+          <input type="checkbox" id="protected">
+        </div>
+        <div class="host" id="host-div">
+          Host Website
+          <input type="checkbox" id="host">
+        </div>
+        <input class="dir-input" id="dir-input" placeholder="directory">
     </div>
 
-    <div class="bottom-container"><a href=/ class="back-button">test</a></div>
+    <div class="bottom-container"><a href=/ class="back-button"></a></div>
 
     <div class="main-container">
         <div class="row-container" id="file-container"></div>
@@ -66,6 +74,17 @@
           </div>
         </div>
     </div>
+
+    <div id="password-overlay" class="rename-overlay">
+      <div class="rename-box-2">
+        <p class="basic-text-black">Unprotect Directory</p>
+        <input id="password-input" type="text" autocomplete="off" placeholder="password">
+        <div class="rename-actions-2">
+          <button id="confirmPassword">OK</button>
+          <button id="cancelPassword">Cancel</button>
+        </div>
+      </div>
+  </div>
 
     <p class="fixed-bottom unselectable" id="warn">DO NOT MISUSE THIS SERVICE! >:(</p>
   </body>

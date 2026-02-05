@@ -4,7 +4,6 @@ import { Glob, $, type ServerWebSocket } from "bun";
 import { rename, watch } from 'fs';
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { join, resolve } from 'node:path';
-import os from 'os';
 
 let STATIC_ROOTS = [
   resolve("src/res"),
@@ -112,6 +111,10 @@ async function changeElementInDB(jsonElement: string, newData: string) {
     const file = Bun.file(DB_PATH)
     if(!await file.exists()) await file.write(`{"nothing":"wow"}`)
     const json = await file.json();
+
+    if(newData == "") {
+      delete json.jsonElement
+    }
 
     json[jsonElement] = newData
 
@@ -242,6 +245,11 @@ async function serveStaticIfAllowed(url: string) {
   return null;
 }
 
+async function directoryIsProtected(directory: string) {
+  let is_protected = await getElementInDB(directory);
+  return is_protected;
+}
+
 let visitor_count = parseInt(await getElementInDB("visitors")) || 0;
 
 let websockets = new Array();
@@ -321,6 +329,16 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
+            let password_2 = cd.split(";")[2];
+            let password_2_string = password_2?.split("=")[1];
+
+            let is_protected = await getElementInDB(`/${filePath}`.slice(0, -1))
+
+            if(is_protected) {
+              if(!password_2_string || !password_2_string === is_protected.split(";")[1]) {
+                return corsResponse(null, { status: 403 })
+              }
+            }
       
             const glob = new Glob(`public/${filePath}*`);
             var data = [];
@@ -369,6 +387,86 @@ const server = Bun.serve({
             if (!newName) return corsResponse(null, { status: 400 });
             await renameFile(filePath, newName);
             return corsResponse(null, { status: 201 });
+          case "/file/protect":
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            cd = req.headers.get("content-disposition");
+            if (!cd) return corsResponse(null, { status: 400 });
+            cdFileName = cd.split(";")[1];
+            if (!cdFileName) return corsResponse(null, { status: 400 });
+            filePath = cdFileName.split("=")[1];
+            if (!filePath) return corsResponse(null, { status: 400 });
+
+            if(filePath[0] != "/") return corsResponse(null, { status: 400 });
+            
+            let already_protected = await getElementInDB(filePath);
+            if(already_protected) return corsResponse(null, { status: 403 });
+            let password = generateRandomString(5);
+            await changeElementInDB(filePath, `true;${password}`);
+
+            return corsResponse(JSON.stringify({"password": password}), { status: 200 });
+          case "/file/protected":
+            if(req.method != "GET") return corsResponse(null, { status: 405 });
+            cd = req.headers.get("content-disposition");
+            if (!cd) return corsResponse(null, { status: 400 });
+            cdFileName = cd.split(";")[1];
+            if (!cdFileName) return corsResponse(null, { status: 400 });
+            filePath = cdFileName.split("=")[1];
+            if (!filePath) return corsResponse(null, { status: 400 });
+
+            let is_protected_2 = await getElementInDB(`/${filePath}`);
+            if(!is_protected_2) return corsResponse(null, { status: 400 })
+            if(is_protected_2 && is_protected_2.includes("true")) return corsResponse(null, { status: 200 })
+            return corsResponse(null, { status: 400 });
+          case "/file/unprotect":
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            cd = req.headers.get("content-disposition");
+            if (!cd) return corsResponse(null, { status: 400 });
+            cdFileName = cd.split(";")[1];
+            if (!cdFileName) return corsResponse(null, { status: 400 });
+            filePath = cdFileName.split("=")[1];
+            if (!filePath) return corsResponse(null, { status: 400 });
+            let rec_password = cd.split(";")[2];
+            let rec_password_string = rec_password?.split("=")[1];
+            if(!rec_password_string) return corsResponse(null, { status: 400 }); 
+
+            if(filePath[0] != "/") return corsResponse(null, { status: 400 });
+
+            let already_protected_2 = await getElementInDB(filePath);
+            if(!already_protected_2) return corsResponse(null, { status: 404 });
+            let true_pass = already_protected_2.split(";")[1]
+
+            if(rec_password_string === true_pass) {
+              await changeElementInDB(filePath, "")
+              return corsResponse(null, {status: 200})
+            }
+
+            return corsResponse(null, { status: 400 });
+          case "/hosting/toggle":
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            cd = req.headers.get("content-disposition");
+            if (!cd) return corsResponse(null, { status: 400 });
+            cdFileName = cd.split(";")[1];
+            if (!cdFileName) return corsResponse(null, { status: 400 });
+            filePath = cdFileName.split("=")[1];
+            if (!filePath) return corsResponse(null, { status: 400 });
+            if(filePath[0] != "/") return corsResponse(null, { status: 400 });
+
+            let is_hosting = await getElementInDB(filePath + "_hosting");
+            if(!is_hosting) await changeElementInDB(filePath + "_hosting", "true")
+            else await changeElementInDB(filePath + "_hosting", "")
+            return corsResponse(null, { status: 200 });
+          case "/hosting/query":
+            if(req.method != "GET") return corsResponse(null, { status: 405 });
+            cd = req.headers.get("content-disposition");
+            if (!cd) return corsResponse(null, { status: 400 });
+            cdFileName = cd.split(";")[1];
+            if (!cdFileName) return corsResponse(null, { status: 400 });
+            filePath = cdFileName.split("=")[1];
+            if (!filePath) return corsResponse(null, { status: 400 });
+
+            let is_hosting_2 = await getElementInDB(`/${filePath}_hosting`);
+            if(is_hosting_2) return corsResponse(null, { status: 200 })
+            return corsResponse(null, { status: 400 })
           case "/chat/live":
             const success = server.upgrade(req, {
               data: { source: "/chat/live" }, // Attach per-socket data
@@ -383,7 +481,7 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
-            return corsResponse(JSON.stringify(chat_history.slice(-parseInt(filePath))), { status: 200 })
+            return corsResponse(JSON.stringify(chat_history.slice(-parseInt(filePath))), { status: 200 });
           case "/chat/emojis":
             try {
               const emojis = Bun.file("src/res/emojis.json"); // path to your JSON
@@ -397,7 +495,7 @@ const server = Bun.serve({
                 status: 500,
                 headers: { "Content-Type": "application/json" },
               });
-            }
+            };
           case "/chat/voice":
             const success2 = server.upgrade(req, {
               data: { source: "/chat/voice" }, // Attach per-socket data
@@ -418,7 +516,7 @@ const server = Bun.serve({
             visitor_count += 1;
             await changeElementInDB("visitors", visitor_count.toString())
             await changeElementInDB(id, "0");
-            return corsResponse(JSON.stringify({"id": `${key}-${id}`}), { status: 201})
+            return corsResponse(JSON.stringify({"id": `${key}-${id}`}), { status: 201});
           case "/user/points/query":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
             cd = req.headers.get("content-disposition");
@@ -432,17 +530,25 @@ const server = Bun.serve({
       
             if(db_data == undefined) return corsResponse(null, { status: 404})
       
-            return corsResponse(JSON.stringify({"points": db_data}), { status: 200 })
+            return corsResponse(JSON.stringify({"points": db_data}), { status: 200 });
           case "/health":
-            return corsResponse("OK");
+            return corsResponse("OK"); 
           default:
             if(url.startsWith("/file/fetch/")) {
+              if(req.method != "GET") return corsResponse(null, { status: 405 });
+              cd = req.headers.get("content-disposition");
               let file_name = "public/" + url.split("fetch/")[1]
+              let is_protected = await directoryIsProtected(`/${file_name.split("/")[1]}`);
+              if(is_protected) {
+                if(!cd) return corsResponse(null, { status: 403 })
+                if(cd.split("=")[1] !== is_protected.split(";")[1]) return corsResponse(null, { status: 403 })
+              }
+                
               let file = Bun.file(file_name)
               if(await file.exists()) return corsResponse(file);
               else return corsResponse(null, { status: 400 });
             }
-            return corsResponse("endpoint not found", { status: 404 })
+            return corsResponse("endpoint not found", { status: 404 });
         }
       case "":
         const staticResponse = await serveStaticIfAllowed(url);
@@ -457,34 +563,41 @@ const server = Bun.serve({
           case "/chat":
             return corsResponse(Bun.file("src/pages/chat.html"), { headers: { "Content-Type": "text/html" } });
 
-          case "/seeburg":
+          /*case "/seeburg":
             return corsResponse(Bun.file("src/pages/seeburg.html"), { headers: { "Content-Type": "text/html" } });
 
           case "/meowl":
             return corsResponse(Bun.file("src/pages/meowl.html"), { headers: { "Content-Type": "text/html" } });
 
           case "/test":
-            return corsResponse(Bun.file("src/pages/test.html"), { headers: { "Content-Type": "text/html" } });
+            return corsResponse(Bun.file("src/pages/test.html"), { headers: { "Content-Type": "text/html" } });*/
       
           default:
             return corsResponse(Bun.file("src/pages/error.html"), {
               status: 404,
               headers: { "Content-Type": "text/html" },
             });
-        }
+        };
       case "professional": 
         return corsResponse("really professional website", {
           headers: { "Content-Type": "text/html" },
-        })
+        });
       default: 
         let index = Bun.file(`public/${subdomain}/index.html`);
-        if(await index.exists()) {
+        if(await index.exists() && await getElementInDB(`/${subdomain}_hosting`)) {
           if(url == "/") {
             return corsResponse(index, {
               headers: { "Content-Type": "text/html" },
             });
           } else {
-            return corsResponse(Bun.file(`public/${subdomain}/${url}`));
+            let file = Bun.file(`public/${subdomain}/${url}`);
+            if(await file.exists()) {
+              return corsResponse(file);
+            } else {
+              return corsResponse(Bun.file("src/pages/error.html"), {
+                headers: { "Content-Type": "text/html" },
+              });
+            }
           }
         } else {
           const staticResponse = await serveStaticIfAllowed(url);
@@ -492,7 +605,7 @@ const server = Bun.serve({
           return corsResponse(Bun.file("src/pages/error.html"), {
             headers: { "Content-Type": "text/html" },
           });
-        }
+        };
     }
   },
   maxRequestBodySize: 500000000, // 500mb upload limit
@@ -510,9 +623,18 @@ websocket: {
 
       case "/chat/voice":
         voice_websockets.push(ws);
-        // Assign a unique client ID
-        const id = `user_${Math.floor(Math.random() * 1_000_000)}`;
+
+        const id = `user_${crypto.randomUUID()}`;
         clientIds.set(ws, id);
+
+        const msg = JSON.stringify({ type: "voice-connect", clientId: id });
+        ws.send(JSON.stringify({type: "info", clientId: id}));
+        for (const client of voice_websockets) {
+          if (client.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "voice-connect", clientId: clientIds.get(client) }))
+            client.send(msg);
+          }
+        }
         break;
 
       default:
@@ -558,7 +680,6 @@ websocket: {
         const header = new Uint8Array(36);
         header.set(idBytes.slice(0, 36));
 
-        // Float32 message is already an ArrayBuffer
         const audioBytes = new Uint8Array(message);
 
         const packet = new Uint8Array(header.length + audioBytes.length);
@@ -596,11 +717,21 @@ websocket: {
         chat_ids.splice(index, 1);
         break;
 
-      case "/chat/voice":
-        const index2 = voice_websockets.indexOf(ws);
-        if (index2 !== -1) voice_websockets.splice(index2, 1);
-        clientIds.delete(ws);
-        break;
+        case "/chat/voice": {
+          const id = clientIds.get(ws);
+          clientIds.delete(ws);
+        
+          const index = voice_websockets.indexOf(ws);
+          if (index !== -1) voice_websockets.splice(index, 1);
+        
+          const msg = JSON.stringify({ type: "voice-disconnect", clientId: id });
+          for (const client of voice_websockets) {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(msg);
+            }
+          }
+          break;
+        }
     }
   },
 

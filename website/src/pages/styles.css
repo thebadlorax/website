@@ -13,6 +13,13 @@ html {
     font-style: normal;
 }
 
+.input {
+    font-family: "Jersey 20", sans-serif;
+    font-weight: 200;
+    font-size: 20px;
+    font-style: normal;
+}
+
 body {
   background-image: url("../res/bg.png");
   background-color: black;

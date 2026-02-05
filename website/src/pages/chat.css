@@ -303,7 +303,6 @@ display: none;             /* Chrome, Safari, Opera */
 }
 
 .basic-link {
-    color: grey;
     text-decoration: underline;
     font-weight: 400;
 
@@ -313,35 +312,7 @@ display: none;             /* Chrome, Safari, Opera */
 .basic-link:hover {
     color: black;
     font-weight: 700;
-}
-
-.error-text {
-    font-size: 55px;
-    color: white;
-    margin: 0;
-}
-
-.back-button {
-    margin-top: auto;
-    background-image: url("../res/back_button_transparent.png"); /* Set the image source */
-    background-repeat: no-repeat; /* Prevent the image from repeating */
-    background-size: cover; /* Optional: Resizes the image to cover the entire button area */
-    width: 100px; /* Set the button width */
-    height: 100px; /* Set the button height */
-    border: none; /* Remove default button border */
-    /* Hide the text visually while keeping it accessible for screen readers */
-    color: transparent;
-    font-size: 0; 
-    border-radius: 8px;
-}
-
-.fixed-footer {
-    display: flex;
-    position: fixed;
-    flex-direction: column;
-    align-items: center;
-    top: 50%;
-    left: 50%;
+    filter: brightness(80%);
 }
 
 .unselectable {

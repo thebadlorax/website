@@ -5,7 +5,6 @@
         <link rel="icon" href="../res/favicon.ico">
         <link rel="stylesheet" href="chat.css">
 
-        <script type="module" src="chat.js"></script>
         <script type="module" src="common.js"></script>
         <script type="module" src="voice.js"></script>
 
@@ -34,7 +33,7 @@
                     <div class="small-item" style="max-height: 33%;">
                         voice
                         <div></div>
-                        <button style="background-color: grey; width: 5vw; height: 2vw; font-size: 1vw; outline: solid black 1px;" id="startVoiceBtn">join</button>
+                        <button style="background-color: grey; width: 5vw; height: 2vw; font-size: 1vw; outline: solid black 1px;" id="startVoiceBtn">connect</button>
                     </div>
                     <div class="small-item" style="max-height: 33%;">
                         information
@@ -44,14 +43,13 @@
                     <div class="small-item" style="max-height: 33%;">
                         settings
                         <div></div>
-                        <label>
-                            <div>
-                                <p class="basic-text" style="align-self: center; font-size: 1vw; margin-left: 4vw; margin-top: 2vw;">Show Connection Messages</p>
-                                <input type="checkbox" id="connection-messages" value="someValue">
+                        <input class="input" id="color" value="#000000" maxlength="7" style="width: 10vw; margin-top: 1vw; margin-left: 0vw; margin-top: 2vw;"></input>                 
+                        <input class="input" id="name" placeholder="Name" maxlength="15" style="width: 10vw; margin-top: 2vw; margin-left: 0vw;"></input>             
+                        <!--<label>
+                            <div style="font-size: 1vw; margin-top:1vw;">
+                                <input type="checkbox" id="invisible"> invisible
                             </div>
-                        </label>
-                        <input class="input" id="color" value="#000000" maxlength="7" style="width: 10vw; margin-top: 1vw; margin-left: 0vw;"></input>                 
-                        <input class="input" id="name" placeholder="Name" maxlength="15" style="width: 10vw; margin-top: 2vw; margin-left: 0vw;"></input>                 
+                        </label>-->
                     </div>
                 </div>
             </div>
@@ -70,4 +68,6 @@
             </div>
         </div>   
     </body>
+
+    <script type="module" src="chat.js"></script>
 </html>

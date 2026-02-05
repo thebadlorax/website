@@ -17,6 +17,16 @@ const emojiGrid = document.querySelector(".emoji-grid");
 const categoryButtons = document.querySelectorAll(".emoji-cat");
 const color_input = document.getElementById("color");
 const chatter_text = document.getElementById("chatters");
+const startBtn = document.getElementById("startVoiceBtn");
+let in_vc = false;
+startBtn.addEventListener("click", () => {
+    in_vc = !in_vc;
+    if(in_vc) {
+        ws.send(`${name} has entered voice chat`)
+    } else {
+        ws.send(`${name} has exited voice chat`)
+    }
+})
 
 let color = getCookie("color") || "#000000"
 color_input.value = color;
@@ -113,7 +123,7 @@ function update_messages(newMessage) {
         matches.forEach(match => {
             ele.innerHTML = ele.innerHTML.replace(
                 match,
-                `<a class="basic-link" target="_blank" rel="noopener noreferrer" href="${match}">${match}</a>`
+                `<a class="basic-link" style="color: ${ele.style.color}" target="_blank" rel="noopener noreferrer" href="${match}">${match}</a>`
             );
         });
     } else {

@@ -1,38 +1,29 @@
 // ---------------------------
-// Placeholder button ID
+// 🔘 Button placeholder
 // ---------------------------
-const startBtn = document.getElementById("startVoiceBtn");
+const voiceButton = document.getElementById("startVoiceBtn");
+let audioContext, stream, ws;
+let micNode, playbackNode;
+let remoteStreams = new Map();
+let connectedIds = new Set();
+let lastRms = 0, sentPackets = 0;
+let animationFrameId;
+let debugPanel;
+let selfId;
 
-startBtn.addEventListener("click", async () => {
-  startBtn.disabled = true;
-  startBtn.innerText = "Connecting...";
-
-  // ---------------------------
-  // 1️⃣ Setup AudioContext & Mic
-  // ---------------------------
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const audioContext = new AudioContext({ latencyHint: "interactive" });
-
-  // ---------------------------
-  // 2️⃣ Assign client ID
-  // ---------------------------
-  const clientId = `user_${Math.floor(Math.random() * 1_000_000)}`;
-
-  // ---------------------------
-  // 3️⃣ WebSocket Setup
-  // ---------------------------
-  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  const wsUri = location.host.includes("66.65.25.15")
-    ? `${protocol}//${location.host}/subdomain=api/chat/voice`
-    : `${protocol}//api.${location.host}/chat/voice`;
-
-  const ws = new WebSocket(wsUri);
-  ws.binaryType = "arraybuffer";
-
-  ws.onopen = () => startBtn.innerText = "Connected";
+// ---------------------------
+// 1️⃣ Helper: intialize audio
+// ---------------------------
+async function startVoice() {
+  voiceButton.innerText = "connecting"
+  // AudioContext
+  audioContext = new AudioContext({ latencyHint: "interactive" });
+  
+  // Mic
+  stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
   // ---------------------------
-  // 4️⃣ Mic AudioWorklet Processor with compressor
+  // AudioWorklet: mic processor
   // ---------------------------
   await audioContext.audioWorklet.addModule(
     'data:application/javascript,' +
@@ -50,15 +41,12 @@ class MicProcessor extends AudioWorkletProcessor {
       for (let i = 0; i < input.length; i++) {
         let sample = input[i];
         if (Math.abs(sample) > this.compressorThreshold) {
-          sample = Math.sign(sample) *
-            (this.compressorThreshold +
-             (Math.abs(sample)-this.compressorThreshold)/this.compressorRatio);
+          sample = Math.sign(sample)*(this.compressorThreshold + (Math.abs(sample)-this.compressorThreshold)/this.compressorRatio);
         }
         this.buffer.push(Math.max(-1, Math.min(1, sample)));
       }
-      if (this.buffer.length >= 1024) {
-        const chunk = this.buffer.splice(0, 1024);
-        this.port.postMessage(chunk);
+      if (this.buffer.length >= 512) {
+        this.port.postMessage(this.buffer.splice(0, 512));
       }
     }
     return true;
@@ -68,55 +56,49 @@ registerProcessor('mic-processor', MicProcessor);
 `)
   );
 
-  const micNode = new AudioWorkletNode(audioContext, 'mic-processor');
+  micNode = new AudioWorkletNode(audioContext, 'mic-processor');
   const source = audioContext.createMediaStreamSource(stream);
   source.connect(micNode);
 
   // ---------------------------
-  // 5️⃣ Debug Panel + Visual Meter
+  // Debug panel
   // ---------------------------
-  let lastRms = 0;
-  let sentPackets = 0;
-
-  const debugPanel = document.createElement('div');
-  debugPanel.style = `
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: rgba(0,0,0,0.7);
-    color: white;
-    font-family: monospace;
-    padding: 5px;
-    display: block;
-  `;
-  const meter = document.createElement('div');
-  meter.style = `
-    height: 10px;
-    width: 100%;
-    background: #333;
-    margin-top: 4px;
-    position: relative;
-  `;
-  const meterFill = document.createElement('div');
-  meterFill.style = `
-    height: 100%;
-    width: 0%;
-    background: lime;
-  `;
-  meter.appendChild(meterFill);
-  debugPanel.appendChild(document.createElement('div')); // text placeholder
-  debugPanel.appendChild(meter);
-  document.body.appendChild(debugPanel);
+  debugPanel = document.getElementById("voiceDebug");
+  if (!debugPanel) {
+    debugPanel = document.createElement('div');
+    debugPanel.id = "voiceDebug";
+    debugPanel.style = "position:fixed;bottom:0;left:0;width:100%;background:rgba(0,0,0,0.7);color:white;font-family:monospace;padding:5px;";
+    const meter = document.createElement('div');
+    meter.style = "height:10px;width:100%;background:#333;margin-top:4px;position:relative";
+    const meterFill = document.createElement('div');
+    meterFill.style = "height:100%;width:0%;background:lime";
+    meter.appendChild(meterFill);
+    debugPanel.appendChild(document.createElement('div'));
+    debugPanel.appendChild(meter);
+    document.body.appendChild(debugPanel);
+  }
+  debugPanel.style.display = "block";
 
   // ---------------------------
-  // 6️⃣ Send mic audio over WebSocket
+  // WebSocket
+  // ---------------------------
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUri = location.host.includes("66.65.25.15")
+    ? `${protocol}//${location.host}/subdomain=api/chat/voice`
+    : `${protocol}//api.${location.host}/chat/voice`;
+
+  ws = new WebSocket(wsUri);
+  ws.binaryType = "arraybuffer";
+
+  ws.onopen = () => voiceButton.innerText = "disconnect";
+
+  // ---------------------------
+  // Send mic packets
   // ---------------------------
   micNode.port.onmessage = (e) => {
     const chunk = e.data;
-    const rms = Math.sqrt(chunk.reduce((sum, v) => sum + v*v, 0)/chunk.length);
+    const rms = Math.sqrt(chunk.reduce((sum,v)=>sum+v*v,0)/chunk.length);
     lastRms = rms;
-
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(new Float32Array(chunk).buffer);
       sentPackets++;
@@ -124,96 +106,162 @@ registerProcessor('mic-processor', MicProcessor);
   };
 
   // ---------------------------
-  // 7️⃣ Remote playback with jitter buffer
+  // Receive remote audio
   // ---------------------------
-  const remoteStreams = new Map(); // clientId -> queue of Float32Arrays
-  const MIN_BUFFER_CHUNKS = 3;
-
-  function updateDebug() {
-    debugPanel.children[0].innerText =
-      `Mic RMS: ${lastRms.toFixed(3)} | Sent packets: ${sentPackets} | Connected clients: ${remoteStreams.size+1}`;
-    
-    let level = Math.min(1, lastRms / 0.6);
-    meterFill.style.width = `${(level*100).toFixed(1)}%`;
-    meterFill.style.background = level > 1 ? 'red' : 'lime';
-
-    requestAnimationFrame(updateDebug);
-  }
-  updateDebug();
-
-  ws.onmessage = (event) => {
-    const packet = new Uint8Array(event.data);
-    const header = packet.slice(0, 36);
-    const audioData = packet.slice(36);
-
-    const decoder = new TextDecoder();
-    const senderId = decoder.decode(header).replace(/\0/g, '');
-    
-    if (senderId === clientId) return;
-
-    const float32Chunk = new Float32Array(audioData.buffer);
-
-    if (!remoteStreams.has(senderId)) remoteStreams.set(senderId, []);
+  ws.onmessage = async (event) => {
+    // ------------------------
+    // TEXT / JSON messages
+    // ------------------------
+    if (typeof event.data === "string") {
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
+  
+      if (msg.type === "voice-connect") {
+        connectedIds.add(msg.clientId);
+        if (!remoteStreams.has(msg.clientId)) {
+          remoteStreams.set(msg.clientId, []);
+        }
+      }
+  
+      if (msg.type === "voice-disconnect") {
+        connectedIds.delete(msg.clientId);
+        remoteStreams.delete(msg.clientId);
+      }
+  
+      if (msg.type === "info") {
+        selfId = msg.clientId;
+      }
+      return;
+    }
+  
+    // ------------------------
+    // BINARY audio packets
+    // ------------------------
+  
+    let buffer;
+    if (event.data instanceof Blob) {
+      buffer = await event.data.arrayBuffer();
+    } else if (event.data instanceof ArrayBuffer) {
+      buffer = event.data;
+    } else {
+      return;
+    }
+  
+    if (buffer.byteLength <= 36) return;
+  
+    const packet = new Uint8Array(buffer);
+    const header = packet.subarray(0, 36);
+    const audioData = packet.subarray(36);
+  
+    const senderId = new TextDecoder().decode(header).replace(/\0/g, "");
+  
+    if (senderId === selfId) return;
+  
+    // Ensure queue exists
+    if (!remoteStreams.has(senderId)) {
+      remoteStreams.set(senderId, []);
+      connectedIds.add(senderId);
+    }
+  
     const queue = remoteStreams.get(senderId);
+  
+    const float32Chunk = new Float32Array(
+      audioData.buffer,
+      audioData.byteOffset,
+      audioData.byteLength / 4
+    );
+  
     queue.push(float32Chunk);
     if (queue.length > 50) queue.splice(0, queue.length - 50);
   };
+  
+  
 
   // ---------------------------
-  // 8️⃣ Playback AudioWorklet
+  // Playback processor
   // ---------------------------
   await audioContext.audioWorklet.addModule(
-    'data:application/javascript,' +
-      encodeURIComponent(`
+    'data:application/javascript,'+
+    encodeURIComponent(`
 class PlaybackProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.remoteStreams = {};
+    this.remoteStreams={};
     this.port.onmessage = (e) => {
-      if (e.data.type === 'update') this.remoteStreams = e.data.streams;
-    };
-  }
-  process(_, outputs) {
-    const output = outputs[0][0];
-    output.fill(0);
-
-    for (const chunks of Object.values(this.remoteStreams)) {
-      if (!chunks.length) continue;
-      const chunk = chunks[0];
-      const len = Math.min(output.length, chunk.length);
-      for (let i = 0; i < len; i++) output[i] += chunk[i];
-      if (chunk.length <= output.length) chunks.shift();
-      else chunks[0] = chunk.slice(output.length);
+      if(e.data.type==='update') this.remoteStreams=e.data.streams;
     }
-
-    for (let i = 0; i < output.length; i++)
-      output[i] = Math.max(-1, Math.min(1, output[i]));
-
+  }
+  process(_,outputs) {
+    const output=outputs[0][0];
+    output.fill(0);
+    for(const chunks of Object.values(this.remoteStreams)){
+      if(!chunks.length) continue;
+      const chunk=chunks[0];
+      const len=Math.min(output.length,chunk.length);
+      for(let i=0;i<len;i++) output[i]+=chunk[i];
+      if(chunk.length<=output.length) chunks.shift();
+      else chunks[0]=chunk.slice(output.length);
+    }
+    for(let i=0;i<output.length;i++) output[i]=Math.max(-1,Math.min(1,output[i]));
     return true;
   }
 }
-registerProcessor('playback-processor', PlaybackProcessor);
+registerProcessor('playback-processor',PlaybackProcessor);
 `)
   );
 
-  const playbackNode = new AudioWorkletNode(audioContext, 'playback-processor');
+  playbackNode = new AudioWorkletNode(audioContext,'playback-processor');
   playbackNode.connect(audioContext.destination);
 
   // ---------------------------
-  // 9️⃣ Update playback queues each frame
+  // Update playback streams
   // ---------------------------
-  function updatePlaybackStreams() {
-    const streamsObj = {};
-    for (const [id, queue] of remoteStreams.entries()) {
-      if (queue.length >= MIN_BUFFER_CHUNKS) streamsObj[id] = queue;
+  function updatePlaybackStreams(){
+    const streamsObj={};
+    for(const [id,queue] of remoteStreams.entries()){
+      if(queue.length>=3) streamsObj[id]=queue;
     }
-    playbackNode.port.postMessage({ type: 'update', streams: streamsObj });
-    requestAnimationFrame(updatePlaybackStreams);
+    playbackNode.port.postMessage({type:'update',streams:streamsObj});
+
+    // Update debug
+    debugPanel.children[0].innerText=
+      `Mic RMS: ${lastRms.toFixed(3)} | Sent packets: ${sentPackets} | Connected clients: ${connectedIds.size} | ID: ${selfId}`;
+    const meterFill = debugPanel.children[1].children[0];
+    let level=Math.min(1,lastRms/0.6);
+    meterFill.style.width=`${(level*100).toFixed(1)}%`;
+    meterFill.style.background=level>1?'red':'lime';
+
+    animationFrameId=requestAnimationFrame(updatePlaybackStreams);
   }
   updatePlaybackStreams();
 
-  // ---------------------------
-  // 🔟 Resume AudioContext
-  // ---------------------------
-  if (audioContext.state !== "running") await audioContext.resume();
+  // Resume on gesture
+  if(audioContext.state!=='running') await audioContext.resume();
+}
+
+// ---------------------------
+// 🔄 Disconnect cleanup
+// ---------------------------
+function stopVoice(){
+  if(ws) ws.close();
+  if(micNode) micNode.disconnect();
+  if(playbackNode) playbackNode.disconnect();
+  if(animationFrameId) cancelAnimationFrame(animationFrameId);
+  debugPanel.style.display = "none";
+  voiceButton.innerText = "connect"
+  remoteStreams.clear();
+  connectedIds.clear();
+  lastRms=0;
+  sentPackets=0;
+}
+
+// ---------------------------
+// 🎛 Toggle connect/disconnect
+// ---------------------------
+voiceButton.addEventListener('click',()=>{
+  if(ws && ws.readyState===WebSocket.OPEN){
+    stopVoice();
+  }else{
+    startVoice();
+  }
 });
