@@ -55,7 +55,7 @@ async function isDirectory(path: string) {
   }
 }
 
-async function getDirectories(dirPath: string): Promise<string[]> {
+/*async function getDirectories(dirPath: string): Promise<string[]> {
   try {
     const entries = await readdir(dirPath, { withFileTypes: true });
     const directories = entries
@@ -75,7 +75,7 @@ async function createDirectory(dirPath: string) {
   } catch (error) {
     throw error;
   }
-}
+}*/
 
 async function deleteFile(filePath: string) {
   let is_dir = await isDirectory(filePath);
@@ -187,7 +187,7 @@ const fileCache: Map<string, { content: Uint8Array, type: string, etag: string, 
 
 try {
   for (const root of STATIC_ROOTS) {
-    watch(root, { recursive: true }, (eventType, filename) => {
+    watch(root, { recursive: true }, (filename) => {
       if (!filename) return;
       const path = resolve(root, filename);
       if (fileCache.has(path)) {
@@ -288,14 +288,14 @@ const server = Bun.serve({
       }
     } else {
       subdomain = getSubdomain(subdomain);
-    }
+    };
 
     if (req.method === "OPTIONS") {
       return corsResponse(null, {
         status: 204,
         headers: CORS_HEADERS,
       });
-    } // cors shit
+    }; // cors shit
 
     switch(subdomain) {
       case "api":
@@ -361,7 +361,21 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             let fileName = cdFileName.split("=")[1];
             if (!fileName) return corsResponse(null, { status: 400 });
+            let password_3 = cd.split(";")[2];
+            let password_3_string = password_3?.split("=")[1];
+
+            let is_protected_3 = await getElementInDB(`/${fileName.split("/").at(0)}`)
+
+            console.log(is_protected_3);
+
+            if(is_protected_3) {
+              if(!password_3_string || !password_3_string === is_protected_3.split(";")[1]) {
+                return corsResponse(null, { status: 403 })
+              }
+            }
+
             filePath = `public/${fileName}`;
+            if(filePath == `public/tutorial.txt`) return corsResponse(null, { status: 403 }); 
             await Bun.write(filePath.replaceAll(" ", ""), await streamToBlob(req.body));
             return corsResponse(null, { status: 201 });
           case "/file/delete":
@@ -372,6 +386,7 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
+            if(filePath.includes("tutorial.txt")) return corsResponse(null, { status: 403 }); 
             await deleteFile(filePath);
             return corsResponse(null, { status: 201 });
           case "/file/rename":
@@ -382,6 +397,7 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
+            if(filePath.includes("tutorial.txt")) return corsResponse(null, { status: 403 }); 
             const newNamecd = cd.split(";")[2];
             let newName = newNamecd?.split("=")[1];
             if (!newName) return corsResponse(null, { status: 400 });
@@ -396,7 +412,8 @@ const server = Bun.serve({
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
 
-            if(filePath[0] != "/") return corsResponse(null, { status: 400 });
+            if(filePath[0] != "/") return corsResponse(null, { status: 404 });
+            if(filePath == "/") return corsResponse(null, { status: 403 });
             
             let already_protected = await getElementInDB(filePath);
             if(already_protected) return corsResponse(null, { status: 403 });
@@ -466,7 +483,7 @@ const server = Bun.serve({
 
             let is_hosting_2 = await getElementInDB(`/${filePath}_hosting`);
             if(is_hosting_2) return corsResponse(null, { status: 200 })
-            return corsResponse(null, { status: 400 })
+            return corsResponse(null, { status: 400 });
           case "/chat/live":
             const success = server.upgrade(req, {
               data: { source: "/chat/live" }, // Attach per-socket data
@@ -535,13 +552,11 @@ const server = Bun.serve({
             return corsResponse("OK"); 
           default:
             if(url.startsWith("/file/fetch/")) {
-              if(req.method != "GET") return corsResponse(null, { status: 405 });
-              cd = req.headers.get("content-disposition");
               let file_name = "public/" + url.split("fetch/")[1]
               let is_protected = await directoryIsProtected(`/${file_name.split("/")[1]}`);
+              let pass = req.url.split("?")[1]?.split("password=")[1] || "";
               if(is_protected) {
-                if(!cd) return corsResponse(null, { status: 403 })
-                if(cd.split("=")[1] !== is_protected.split(";")[1]) return corsResponse(null, { status: 403 })
+                if(pass !== is_protected.split(";")[1]) return corsResponse(null, { status: 403 })
               }
                 
               let file = Bun.file(file_name)
@@ -549,9 +564,9 @@ const server = Bun.serve({
               else return corsResponse(null, { status: 400 });
             }
             return corsResponse("endpoint not found", { status: 404 });
-        }
+        };
       case "":
-        const staticResponse = await serveStaticIfAllowed(url);
+        let staticResponse = await serveStaticIfAllowed(url);
         if (staticResponse) return staticResponse;
         switch (url) {
           case "/":
@@ -579,10 +594,12 @@ const server = Bun.serve({
             });
         };
       case "professional": 
+        let staticResponse_2 = await serveStaticIfAllowed(url);
+        if (staticResponse_2) return staticResponse_2;
         return corsResponse("really professional website", {
           headers: { "Content-Type": "text/html" },
         });
-      default: 
+      default: // hosted websites & errors
         let index = Bun.file(`public/${subdomain}/index.html`);
         if(await index.exists() && await getElementInDB(`/${subdomain}_hosting`)) {
           if(url == "/") {
@@ -606,9 +623,9 @@ const server = Bun.serve({
             headers: { "Content-Type": "text/html" },
           });
         };
-    }
+    };
   },
-  maxRequestBodySize: 500000000, // 500mb upload limit
+  maxRequestBodySize: 500000000, // 500mb hard upload limit (limited to 50mb clientside)
 
 websocket: {
   data: {} as { source: string },

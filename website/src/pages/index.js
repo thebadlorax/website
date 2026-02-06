@@ -109,3 +109,4 @@ await update_stats(false);
 setInterval(() => {
     update_stats(true)
 }, 3000);
+

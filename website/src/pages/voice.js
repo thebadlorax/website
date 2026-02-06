@@ -1,6 +1,3 @@
-// ---------------------------
-// 🔘 Button placeholder
-// ---------------------------
 const voiceButton = document.getElementById("startVoiceBtn");
 let audioContext, stream, ws;
 let micNode, playbackNode;
@@ -11,20 +8,11 @@ let animationFrameId;
 let debugPanel;
 let selfId;
 
-// ---------------------------
-// 1️⃣ Helper: intialize audio
-// ---------------------------
 async function startVoice() {
   voiceButton.innerText = "connecting"
-  // AudioContext
   audioContext = new AudioContext({ latencyHint: "interactive" });
-  
-  // Mic
   stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-  // ---------------------------
-  // AudioWorklet: mic processor
-  // ---------------------------
   await audioContext.audioWorklet.addModule(
     'data:application/javascript,' +
       encodeURIComponent(`
@@ -60,9 +48,6 @@ registerProcessor('mic-processor', MicProcessor);
   const source = audioContext.createMediaStreamSource(stream);
   source.connect(micNode);
 
-  // ---------------------------
-  // Debug panel
-  // ---------------------------
   debugPanel = document.getElementById("voiceDebug");
   if (!debugPanel) {
     debugPanel = document.createElement('div');
@@ -79,9 +64,6 @@ registerProcessor('mic-processor', MicProcessor);
   }
   debugPanel.style.display = "block";
 
-  // ---------------------------
-  // WebSocket
-  // ---------------------------
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUri = location.host.includes("66.65.25.15")
     ? `${protocol}//${location.host}/subdomain=api/chat/voice`
@@ -92,9 +74,6 @@ registerProcessor('mic-processor', MicProcessor);
 
   ws.onopen = () => voiceButton.innerText = "disconnect";
 
-  // ---------------------------
-  // Send mic packets
-  // ---------------------------
   micNode.port.onmessage = (e) => {
     const chunk = e.data;
     const rms = Math.sqrt(chunk.reduce((sum,v)=>sum+v*v,0)/chunk.length);
@@ -105,13 +84,7 @@ registerProcessor('mic-processor', MicProcessor);
     }
   };
 
-  // ---------------------------
-  // Receive remote audio
-  // ---------------------------
   ws.onmessage = async (event) => {
-    // ------------------------
-    // TEXT / JSON messages
-    // ------------------------
     if (typeof event.data === "string") {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
@@ -134,10 +107,6 @@ registerProcessor('mic-processor', MicProcessor);
       return;
     }
   
-    // ------------------------
-    // BINARY audio packets
-    // ------------------------
-  
     let buffer;
     if (event.data instanceof Blob) {
       buffer = await event.data.arrayBuffer();
@@ -157,7 +126,6 @@ registerProcessor('mic-processor', MicProcessor);
   
     if (senderId === selfId) return;
   
-    // Ensure queue exists
     if (!remoteStreams.has(senderId)) {
       remoteStreams.set(senderId, []);
       connectedIds.add(senderId);
@@ -174,12 +142,7 @@ registerProcessor('mic-processor', MicProcessor);
     queue.push(float32Chunk);
     if (queue.length > 50) queue.splice(0, queue.length - 50);
   };
-  
-  
 
-  // ---------------------------
-  // Playback processor
-  // ---------------------------
   await audioContext.audioWorklet.addModule(
     'data:application/javascript,'+
     encodeURIComponent(`
@@ -213,9 +176,6 @@ registerProcessor('playback-processor',PlaybackProcessor);
   playbackNode = new AudioWorkletNode(audioContext,'playback-processor');
   playbackNode.connect(audioContext.destination);
 
-  // ---------------------------
-  // Update playback streams
-  // ---------------------------
   function updatePlaybackStreams(){
     const streamsObj={};
     for(const [id,queue] of remoteStreams.entries()){
@@ -223,7 +183,6 @@ registerProcessor('playback-processor',PlaybackProcessor);
     }
     playbackNode.port.postMessage({type:'update',streams:streamsObj});
 
-    // Update debug
     debugPanel.children[0].innerText=
       `Mic RMS: ${lastRms.toFixed(3)} | Sent packets: ${sentPackets} | Connected clients: ${connectedIds.size} | ID: ${selfId}`;
     const meterFill = debugPanel.children[1].children[0];
@@ -235,13 +194,9 @@ registerProcessor('playback-processor',PlaybackProcessor);
   }
   updatePlaybackStreams();
 
-  // Resume on gesture
   if(audioContext.state!=='running') await audioContext.resume();
 }
 
-// ---------------------------
-// 🔄 Disconnect cleanup
-// ---------------------------
 function stopVoice(){
   if(ws) ws.close();
   if(micNode) micNode.disconnect();
@@ -255,9 +210,6 @@ function stopVoice(){
   sentPackets=0;
 }
 
-// ---------------------------
-// 🎛 Toggle connect/disconnect
-// ---------------------------
 voiceButton.addEventListener('click',()=>{
   if(ws && ws.readyState===WebSocket.OPEN){
     stopVoice();

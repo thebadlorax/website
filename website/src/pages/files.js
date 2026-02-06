@@ -181,22 +181,26 @@ async function fetchDataFromServer() {
           "Content-Disposition": `attachment; filepath=${current_dir};password=${getCookie(`/${dirInput.value.trim()}`)}`
         }
     });
-    const is_protected = await fetch(getApiLink("/file/protected"), {
+    fetch(getApiLink("/file/protected"), {
         method: "GET",
         headers: {
           "Content-Disposition": `attachment; filepath=${current_dir.slice(0, -1)};`
         }
+    }).then((response) => {
+        if(response.status == 200) protect_check.checked = true;
+        else protect_check.checked = false;
     });
-    if(is_protected.status == 200) protect_check.checked = true;
-    else protect_check.checked = false;
-    let is_hosting = await fetch(getApiLink("/hosting/query"), {
+    
+    fetch(getApiLink("/hosting/query"), {
         method: "GET",
         headers: {
           "Content-Disposition": `attachment; filepath=${current_dir.slice(0, -1)}`
         }
+    }).then((response) => {
+        if(response.status == 200) host_check.checked = true;
+        else host_check.checked = false;
     });
-    if(is_hosting.status == 200) host_check.checked = true;
-    else host_check.checked = false;
+    
     
     if(response.status == 403) {
         container.innerHTML = `<p class="basic-text unselectable">PROTECTED DIRECTORY</p>`
@@ -230,36 +234,10 @@ async function fetchDataFromServer() {
         container.appendChild(element)
         if(!banned_click_extensions.some(v => file_name.includes(v))) {
             element.addEventListener("click", async (e) => {
-                e.preventDefault();
-                let file = await fetch(getApiLink(`/file/fetch/${file_path}`), {
-                    method: "GET",
-                    headers: {
-                    "content-disposition": `pass=${getCookie(`/${dirInput.value.trim()}`)}`
-                    }
-                }).then((response) => {
-                    const reader = response.body.getReader();
-                    return new ReadableStream({
-                      start(controller) {
-                        return pump();
-                        function pump() {
-                          return reader.read().then(({ done, value }) => {
-                            if (done) {
-                              controller.close();
-                              return;
-                            }
-                            controller.enqueue(value);
-                            return pump();
-                          });
-                        }
-                      },
-                    });
-                  })
-                  .then((stream) => new Response(stream))
-                  .then((response) => response.blob())
-                  .then((blob) => URL.createObjectURL(blob))
-                  .then((url) => window.open(url))
-                  .catch((err) => console.error(err));
-                
+                let password = getCookie(`/${current_dir.slice(0, -1)}`) || ""
+                let url_path = `${location.protocol}//api.${location.host}/file/fetch/${file_path}${password ? `?password=${password}` : ``}`
+                url_path = url_path.replace("fetch//", "fetch/")
+                window.open(url_path);
             })
         }
         element.addEventListener("contextmenu", (e) => {
@@ -291,15 +269,15 @@ document.addEventListener("drop", async (e) => {
             let file_name = file.name;
             if(file.name.includes(".big")) {
                 file_name = file.name.replace(".big", "").split(".").slice(0, -1).join(".");
-            } else if(file.size > 25000000) {
-                alert(`${file.name.replaceAll(" ", "_")} is too big (25mb max)`)
+            } else if(file.size > 50000000) {
+                alert(`${file.name.replaceAll(" ", "_")} is too big (50mb max)`)
                 continue;
             }
            
             const res = await fetch(getApiLink("/file/upload"), {
                 method: "POST",
                 headers: {
-                    "Content-Disposition": `attachment; filename=${current_dir + file_name}`,
+                    "Content-Disposition": `attachment; filename=${current_dir + file_name};password=${getCookie(`/${current_dir.slice(0, -1)}`) || ""}`,
                     "Content-Type": "application/octet-stream"
                 },
                 body: file
@@ -382,7 +360,7 @@ protect_check.addEventListener("change", async () => {
 })
 
 host_check.addEventListener("change", async (e) => {
-    let response = await fetch(getApiLink("/hosting/toggle"), {
+    await fetch(getApiLink("/hosting/toggle"), {
         method: "POST",
         headers: {
           "Content-Disposition": `attachment; filepath=/${current_dir.slice(0, -1)}`

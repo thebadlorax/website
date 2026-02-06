@@ -38,7 +38,6 @@ cp -r website/src staging/src
 if [ "$1" = "public" ]; then
     cp -r website/public staging/public
 fi
-#cp website/database.json staging/database.json
 cp -r .git staging/.git
 
 for file in staging/src/pages/*; do # minify

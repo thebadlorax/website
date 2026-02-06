@@ -1,0 +1,7 @@
+build
+include
+website/public
+website/.DS_Store
+website/node_modules
+website/database.json
+.vscode
