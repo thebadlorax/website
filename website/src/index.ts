@@ -2,8 +2,8 @@ console.log("starting server :3")
 
 import { Glob, $, type ServerWebSocket } from "bun";
 import { rename, watch } from 'fs';
-import { mkdir, readdir, rm, stat } from "node:fs/promises";
-import { join, resolve } from 'node:path';
+import { rm, stat } from "node:fs/promises";
+import { resolve } from 'node:path';
 
 let STATIC_ROOTS = [
   resolve("src/res"),
@@ -196,8 +196,7 @@ try {
       }
     });
   }
-} 
-catch (error) {
+} catch (error) {
   console.log("cache reload failed: " + error)
 }
 
@@ -306,8 +305,9 @@ const server = Bun.serve({
             cd = req.headers.get("content-disposition");
             if (!cd) return corsResponse(null, { status: 400 });
           
-            filePath = cd.split("filepath=")[1];
+            filePath = cd.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
+            filePath = filePath.replaceAll("../", "")
           
             const file = Bun.file(filePath);
             if (!(await file.exists())) return corsResponse("no file", { status: 404 });
@@ -329,6 +329,7 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
+            filePath = filePath.replaceAll(".", "")
             let password_2 = cd.split(";")[2];
             let password_2_string = password_2?.split("=")[1];
 
@@ -366,8 +367,6 @@ const server = Bun.serve({
 
             let is_protected_3 = await getElementInDB(`/${fileName.split("/").at(0)}`)
 
-            console.log(is_protected_3);
-
             if(is_protected_3) {
               if(!password_3_string || !password_3_string === is_protected_3.split(";")[1]) {
                 return corsResponse(null, { status: 403 })
@@ -386,6 +385,7 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
+            filePath = filePath.replaceAll("../", "")
             if(filePath.includes("tutorial.txt")) return corsResponse(null, { status: 403 }); 
             await deleteFile(filePath);
             return corsResponse(null, { status: 201 });
@@ -397,6 +397,7 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
+            filePath = filePath.replaceAll("../", "")
             if(filePath.includes("tutorial.txt")) return corsResponse(null, { status: 403 }); 
             const newNamecd = cd.split(";")[2];
             let newName = newNamecd?.split("=")[1];
@@ -562,8 +563,7 @@ const server = Bun.serve({
               let file = Bun.file(file_name)
               if(await file.exists()) return corsResponse(file);
               else return corsResponse(null, { status: 400 });
-            }
-            return corsResponse("endpoint not found", { status: 404 });
+            } else return corsResponse("endpoint not found", { status: 404 });
         };
       case "":
         let staticResponse = await serveStaticIfAllowed(url);
