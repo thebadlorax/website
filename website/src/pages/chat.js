@@ -85,7 +85,6 @@ const kaomojis = [
 
 const emojiRowHeight = 35;
 
-// ------------------ CHAT FUNCTIONS ------------------
 await init();
 
 msg_input.addEventListener("keydown", (event) => { 
@@ -117,18 +116,7 @@ function update_messages(newMessage) {
         newMessage = newMessage.slice(7)
     }
 
-    const matches = newMessage.match(urlRegex);
-    if(matches) {
-        ele.textContent = newMessage;
-        matches.forEach(match => {
-            ele.innerHTML = ele.innerHTML.replace(
-                match,
-                `<a class="basic-link" style="color: ${ele.style.color}" target="_blank" rel="noopener noreferrer" href="${match}">${match}</a>`
-            );
-        });
-    } else {
-        ele.textContent = newMessage;
-    }
+    c
 
     message_box.appendChild(ele);
     message_box.scrollTop = message_box.scrollHeight;
@@ -149,10 +137,8 @@ async function fetch_history(length) {
     return await res.json();
 }
 
-// ------------------ RESPONSIVE VIRTUAL SCROLL EMOJI PICKER FIX ------------------
 const bufferRows = 3;
 
-// Load all emojis once
 async function loadAllEmojis() {
     try {
         const res = await fetch(getApiLink("/chat/emojis"));
@@ -164,7 +150,6 @@ async function loadAllEmojis() {
     }
 }
 
-// Clear emojiGrid completely
 function clearEmojiGrid() {
     emojiGrid.innerHTML = "";
     emojiGrid.removeEventListener("scroll", emojiGrid._virtualScrollHandler);
@@ -173,7 +158,6 @@ function clearEmojiGrid() {
     emojiGrid.style.position = "";
 }
 
-// Render All emojis with responsive virtual scroll
 function renderAllEmojisVirtual() {
     if (!allEmojis.length) return;
 
@@ -190,7 +174,6 @@ function renderAllEmojisVirtual() {
     const render = () => {
         const scrollTop = emojiGrid.scrollTop;
 
-        // Columns based on current width
         const pickerWidth = emojiGrid.clientWidth;
         const emojiSize = 40; // button + margin
         const columns = Math.max(1, Math.floor(pickerWidth / emojiSize));
@@ -201,10 +184,8 @@ function renderAllEmojisVirtual() {
         const startRow = Math.max(0, Math.floor(scrollTop / emojiRowHeight) - bufferRows);
         const endRow = Math.min(totalRows, Math.ceil((scrollTop + emojiGrid.clientHeight) / emojiRowHeight) + bufferRows);
 
-        // Remove previous buttons
         spacer.querySelectorAll(".emoji").forEach(e => e.remove());
 
-        // Render visible buttons
         for (let row = startRow; row < endRow; row++) {
             for (let col = 0; col < columns; col++) {
                 const index = row * columns + col;
@@ -225,20 +206,16 @@ function renderAllEmojisVirtual() {
         }
     };
 
-    // Store the handler so we can remove it later
     emojiGrid._virtualScrollHandler = render;
     emojiGrid.addEventListener("scroll", render);
     render();
 
-    // Re-render on resize
     window.addEventListener("resize", render);
 }
 
-// Render Kaomoji
 function renderKaomoji() {
     emojiGrid.innerHTML = "";
 
-    // Use grid layout
     emojiGrid.style.height = "";
     emojiGrid.style.overflowY = "auto";
     emojiGrid.style.position = "static";
@@ -263,8 +240,6 @@ function renderKaomoji() {
         btn.style.justifyContent = "center";
         btn.style.padding = "2px";
 
-        // Dynamically scale font to fit button
-        // Start large and shrink until it fits
         let fontSize = 24; // px, starting point
         btn.style.fontSize = fontSize + "px";
 
@@ -289,7 +264,6 @@ emojiGrid.addEventListener("click", e => {
 });
 
 
-// ------------------ CATEGORY BUTTONS ------------------
 categoryButtons.forEach(btn => {
     btn.addEventListener("click", async () => {
         categoryButtons.forEach(b => b.classList.remove("active"));
@@ -304,7 +278,6 @@ categoryButtons.forEach(btn => {
     });
 });
 
-// ------------------ PICKER TOGGLE ------------------
 emoji_btn.addEventListener("click", async () => {
     emoji_picker.classList.toggle("hidden");
 
@@ -320,8 +293,6 @@ emoji_btn.addEventListener("click", async () => {
     }
 });
 
-
-// ------------------ CLOSE PICKER ON OUTSIDE CLICK ------------------
 document.addEventListener("click", (e) => {
     if (!emoji_picker.contains(e.target) && e.target !== emoji_btn) {
         emoji_picker.classList.add("hidden");

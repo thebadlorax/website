@@ -18,6 +18,12 @@ export function setCookie(cname, cvalue, exdays) {
     document.cookie = `${cname}=${cvalue};expires=${d.toUTCString()};path=/`;
 }
 
+export function* range(start, end, step = 1) {
+    for (let i = start; i < end; i += step) {
+        yield i;
+    }
+}
+
 export function getCookie(cname) {
     let name = cname + "=";
     let decodedCookie = decodeURIComponent(document.cookie);

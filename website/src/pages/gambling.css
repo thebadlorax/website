@@ -1,0 +1,106 @@
+/*
+ * author thebadlorax
+ * created on 12-02-2026-18h-54m
+ * github: https://github.com/thebadlorax
+ * copyright 2026
+*/
+
+html {
+    overscroll-behavior: none;
+    font-family: "Jersey 20", sans-serif;
+    font-weight: 200;
+    font-size: 20px;
+    font-style: normal;
+}
+
+body {
+  background-image: url("../res/gambling_bg.png");
+  background-color: white;
+  background-repeat: no-repeat;
+  background-size: 100vw;
+  color: black;
+  text-decoration: none;
+  height: 318vw;
+}
+
+.basic-text {
+    color: black;
+}
+
+.button {
+    background: none;
+    border: none;
+    transition: transform 0.2s ease-in-out; 
+}
+
+.picked {
+    transform: scale(1.1) rotate(-10deg); 
+}
+
+.button:hover {
+    transform: scale(1.1) rotate(5deg); 
+}
+
+.winning-snail {
+    filter: hue-rotate(90deg); 
+}
+
+.unselectable {
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none;   /* Chrome, Safari, Opera */
+    -khtml-user-select: none;    /* Konqueror */
+    -moz-user-select: none;      /* Firefox */
+    -ms-user-select: none;       /* Internet Explorer/Edge */
+    user-select: none;           /* Standard syntax */
+}
+
+.receipt {
+    position: fixed; 
+    transform: scale(0.8) rotate(30deg);
+    top: 60%; 
+    left: -25%;
+    z-index: 999;
+    width: 50vw;
+    height: 50vw;
+    transition: transform 0.3s ease-in-out; 
+}
+
+.receipt:hover {
+    transform: scale(1.0) translate(50%, -45%) rotate(1.5deg);
+}
+
+.receipt * {
+    transition: transform 0.3s ease-in-out; 
+}
+
+.survey {
+    position: absolute;
+    font-size: 1.5vw; 
+    color: black; 
+    transform: scale(1.0) translate(5vw, 40vw);
+    text-decoration: underline;
+}
+
+.hide {
+    display: none;
+}
+
+.survey-div p {
+    position: absolute;
+    font-size: 1.5vw;
+    color: black;
+}
+
+.survey-div input {
+    position: absolute;
+    background: none;
+    font-size: 1vw;
+    border: none;
+    outline: none;
+    font-family: "Jersey 20", sans-serif;
+}
+
+.survey:hover {
+    font-size: 1.55vw;
+    cursor: pointer;
+}

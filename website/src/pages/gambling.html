@@ -1,0 +1,55 @@
+<!--
+ * author thebadlorax
+ * created on 12-02-2026-18h-50m
+ * github: https://github.com/thebadlorax
+ * copyright 2026
+-->
+
+<!DOCTYPE html>
+<!----ok bro----------------:)---------------->
+<!----dont think u can hack my website-------->
+<!----im better than u <3--------------------->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>gambling</title>
+    <!--setup Jersey 20-->
+    <link rel="stylesheet" href="gambling.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Jersey+20&display=swap" rel="stylesheet">
+
+    <link rel="icon" href="../res/favicon.ico" type="image/x-icon">
+
+    <script type="module" src="common.js"></script>
+    <script type="module" src="snail_racing.js"></script>
+    <script type="module" src="blackjack.js"></script>
+
+    <meta name="description" content="Let's go gambling! (with our points)">
+</head>
+
+<!--<p class="unselectable" id="points" style="position: absolute; left: 90vw; top: -1.5vw; font-size: 2vw; text-align: right;">x points.</p>-->
+
+<div id="receipt" class="receipt">
+  <p id="points" style="position: absolute; color: black; transform: translate(5vw, 23vw); font-size: 1.5vw;">x points</p>
+  <p id="survey" class="survey unselectable">take our survey</p>
+  <div id="survey-div" class="survey-div hide">
+    <p id="survey-close" class="survey unselectable">thank you!</p>
+    <p style="transform: translate(2vw, 19vw);">What's your name?</p>
+    <input style="transform: translate(15.8vw, 20.5vw); width: 14.5vw;" id="name-picker" maxlength="15">
+    <p style="transform: translate(2vw, 25vw);">What's your favorite color?</p>
+    <input style="transform: translate(20vw, 26.5vw); width: 16.7vw;" value="#000000" maxlength="7" id="color-picker">
+  </div>
+  <img id="receipt-bg" draggable="false" class="unselectable" src="../res/gambling_balance.png" style="top: auto; width: 100%;">
+</div>
+
+<div id="snail-racing" style="width: 30%;">
+  <p class="unselectable" id="winner" style="position: absolute; left: 37vw; font-size: 4.5vw; top: 20vw; display: none;">Snail x wins!</p>
+</div>
+
+<div id="blackjack">
+  <button type="button" id="join-table" style="position: absolute; top: 68vw; left: 45vw;">join table</button>
+  <button type="button" id="leave-table" style="position: absolute; top: 68vw; left: 55vw; display: none;">leave table</button>
+  <p class="unselectable" id="bj-your-name" style="position: absolute; top: 70vw; left: 20vw; display: none;">your name</p>
+</div>

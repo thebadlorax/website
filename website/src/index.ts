@@ -22,6 +22,32 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 } satisfies HeadersInit;
 
+function* range(start: number, end: number, step = 1) {
+  for (let i = start; i < end; i += step) {
+      yield i;
+  }
+}  
+
+class Deck {
+  public cards: Array<number>;
+  constructor() {
+      this.cards = [...range(0, 52)];
+  }
+
+  public draw() {
+      if(this.cards.length == 0) {
+        this.shuffle();
+      };
+      let card = this.cards[Math.floor(Math.random() * this.cards.length)];
+      this.cards = this.cards.filter(num => num !== card); 
+      return card;
+  }
+
+  public shuffle() {
+      this.cards = [...range(0, 52)];
+  }
+}
+
 function generateRandomString(length: number) {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
@@ -229,7 +255,7 @@ async function serveStaticIfAllowed(url: string) {
       const type = file.type || "application/octet-stream";
 
       // Cache it
-      fileCache.set(resolvedPath, { content, type, etag, lastModified });
+      //fileCache.set(resolvedPath, { content, type, etag, lastModified });
 
       return corsResponse(content, {
         headers: {
@@ -258,6 +284,8 @@ const clientIds = new Map<ServerWebSocket<{source: string}>, string>();
 let chat_names = new Array();
 let chat_history = new Array();
 let chat_ids = new Array();
+
+let decks = new Map<string, Deck>();
 
 let key = await getElementInDB("key")
 if(!key) {
@@ -485,6 +513,18 @@ const server = Bun.serve({
             let is_hosting_2 = await getElementInDB(`/${filePath}_hosting`);
             if(is_hosting_2) return corsResponse(null, { status: 200 })
             return corsResponse(null, { status: 400 });
+          case "/gambling/cards/create":
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let instance_id = generateRandomString(5);
+            decks.set(instance_id, new Deck());
+            return corsResponse(JSON.stringify({"id": instance_id}), { status: 201});
+          case "/gambling/cards/draw":
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json()
+            let deck_id = json["id"];
+            let deck = decks.get(deck_id);
+            if(!deck) return corsResponse(null, { status: 404 });
+            return corsResponse(JSON.stringify({"card": deck.draw()}), { status: 201});
           case "/chat/live":
             const success = server.upgrade(req, {
               data: { source: "/chat/live" }, // Attach per-socket data
@@ -577,6 +617,9 @@ const server = Bun.serve({
       
           case "/chat":
             return corsResponse(Bun.file("src/pages/chat.html"), { headers: { "Content-Type": "text/html" } });
+
+          case "/gambling":
+            return corsResponse(Bun.file("src/pages/gambling.html"), { headers: { "Content-Type": "text/html" } });
 
           /*case "/seeburg":
             return corsResponse(Bun.file("src/pages/seeburg.html"), { headers: { "Content-Type": "text/html" } });
