@@ -275,6 +275,8 @@ async function directoryIsProtected(directory: string) {
   return is_protected;
 }
 
+
+
 let visitor_count = parseInt(await getElementInDB("visitors")) || 0;
 
 let websockets = new Array();
@@ -282,8 +284,19 @@ let chat_websockets = new Array();
 let voice_websockets = new Array();
 const clientIds = new Map<ServerWebSocket<{source: string}>, string>();
 let chat_names = new Array();
-let chat_history = new Array();
 let chat_ids = new Array();
+
+type blackjackInstance = {
+  players: Map<ServerWebSocket<{ source: string}>, Array<string>>;
+  deck: Deck;
+  isStarted: boolean;
+}
+
+let blackjack: blackjackInstance = {
+  players: new Map(),
+  deck: new Deck(),
+  isStarted: false
+}
 
 let decks = new Map<string, Deck>();
 
@@ -293,11 +306,60 @@ if(!key) {
   await changeElementInDB("key", key);
 }
 
+type message = {
+  type: string;
+  content: string;
+  timestamp: number;
+}
+
+const formatMessage = (message: message) => JSON.stringify({"type": message.type, "content": message.content, "timestamp": message.timestamp})
+
+try {
+  JSON.parse(await getElementInDB("chat"))["history"]
+} catch (error) { // no history in db
+  changeElementInDB("chat", JSON.stringify({"history": [`{"type": "message", "content": "Welcome to chat!", "timestamp": "${Date.now()}"}`]}))
+}
+
+const appendMessageToHistory = async (message: message) => {
+  let data = JSON.parse(await getElementInDB("chat"));
+  let messages = data["history"];
+  messages.push(formatMessage(message))
+  data.history = messages;
+  await changeElementInDB("chat", JSON.stringify(data));
+}
+
+async function fetchMessagesFromHistory(amt: number, con_msgs: (string | boolean)) {
+  let data = JSON.parse(await getElementInDB("chat"));
+  let messages: Array<string> = data["history"];
+  con_msgs = (con_msgs === "true")
+  if(!con_msgs) {
+    messages = messages
+    .map(item => JSON.parse(item))
+    .filter(item => item.type !== "connection")
+    .map(item => JSON.stringify(item));
+  }
+  if(amt != -1) messages = messages.slice(-amt);
+  let new_messages = new Array();
+  for(let x = 0; x < messages.length; x++) {
+    let parsed = JSON.parse(messages[x]!);
+    let new_message: message = {
+      type: parsed.type,
+      content: parsed.content,
+      timestamp: parsed.timestamp
+    };
+    new_messages.push(new_message);
+  }
+  return new_messages
+}
+
+const clamp = (num: number, min: number, max: number) => Math.min(Math.max(num, min), max);
+
+console.log("server initalized >:3")
 const server = Bun.serve({
   port: 8081,
   /*tls: {
-    cert: Bun.file("/etc/letsencrypt/live/thebadlorax.dev-0001/fullchain.pem"),
-    key: Bun.file("/etc/letsencrypt/live/thebadlorax.dev-0001/privkey.pem"),
+    cert: Bun.file("/home/thebadlorax/certs/fullchain.pem"),
+    key: Bun.file("/home/thebadlorax/certs/privkey.pem"),
   },*/
   async fetch(req) { // api
     const req_url = new URL(req.url);
@@ -525,6 +587,72 @@ const server = Bun.serve({
             let deck = decks.get(deck_id);
             if(!deck) return corsResponse(null, { status: 404 });
             return corsResponse(JSON.stringify({"card": deck.draw()}), { status: 201});
+          case "/gambling/snail/bet":
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let rec_json = await req.json();
+            let bet_snail = rec_json["bet"];
+            let wager = rec_json["wager"]
+            let user_id = rec_json["id"];
+            let user_points = parseInt(await getElementInDB(`${user_id.split("-")![1]}_points`));
+            let speed_division = Math.floor((Math.random() * 3)+1);
+            let speed_multipler = (Math.random()*0.5) + 0.5;
+            const fps = 60;
+            const time = 15;
+            let historical_speeds: Array<Array<number>> = []
+            let speeds = [0, 0, 0, 0]
+            let positions = [6, 6, 6, 6]
+            const finish = 87;
+            let winner = null;
+            let frame_won = -1;
+            let frame_count = -1;
+            wager = clamp(wager, 0, user_points); // maximum and minimum bet serverside
+
+            for(let x = 0; x < time*speed_division; x++) { // simulate
+              historical_speeds.push(speeds);
+              speeds = [
+                ((Math.random() * 4)+1)*speed_multipler, 
+                ((Math.random() * 4)+1)*speed_multipler, 
+                ((Math.random() * 4)+1)*speed_multipler, 
+                ((Math.random() * 4)+1)*speed_multipler,
+              ] // refresh speeds
+              for(let y = 0; y < fps/speed_division; y++) {
+                frame_count += 1;
+                positions[0]! += (.07*speeds[0]!)
+                positions[1]! += (.07*speeds[1]!)
+                positions[2]! += (.07*speeds[2]!)
+                positions[3]! += (.07*speeds[3]!)
+
+                if(winner == null) {
+                  for(let z = 0; z < positions.length; z++) {
+                    if(positions[z]! >= finish) {
+                      winner = z; frame_won = frame_count;
+                    }
+                  }
+                }
+              }
+            }
+            historical_speeds.push(speeds); historical_speeds.shift(); // first speeds are [0, 0, 0, 0]
+
+            if(winner == bet_snail && user_points) {
+              await changeElementInDB(`${user_id.split("-")[1]}_points`, user_points + wager);
+            } else if(winner != bet_snail && bet_snail != null) {
+              await changeElementInDB(`${user_id.split("-")[1]}_points`, (user_points - wager).toString());
+            }
+
+            return corsResponse(JSON.stringify({
+              "speed-division": speed_division,
+              "time": time,
+              "fps": fps,
+              "speeds": historical_speeds, 
+              "winner": winner,
+              "frame-won": frame_won
+            }), { status: 200 });
+          case "/gambling/blackjack/join":
+            const success_2 = server.upgrade(req, {
+              data: { source: "/gambling/blackjack/join" }, // Attach per-socket data
+            });
+            if(success_2) return undefined;
+            return corsResponse("WebSocket upgrade failed", { status: 400 });
           case "/chat/live":
             const success = server.upgrade(req, {
               data: { source: "/chat/live" }, // Attach per-socket data
@@ -532,14 +660,11 @@ const server = Bun.serve({
             if(success) return undefined;
             return corsResponse("WebSocket upgrade failed", { status: 400 });
           case "/chat/history":
-            if(req.method != "GET") return corsResponse(null, { status: 405 });
-            cd = req.headers.get("content-disposition");
-            if (!cd) return corsResponse(null, { status: 400 });
-            cdFileName = cd.split(";")[1];
-            if (!cdFileName) return corsResponse(null, { status: 400 });
-            filePath = cdFileName.split("=")[1];
-            if (!filePath) return corsResponse(null, { status: 400 });
-            return corsResponse(JSON.stringify(chat_history.slice(-parseInt(filePath))), { status: 200 });
+            let rec_json2 = await req.json();
+            let amt = rec_json2["amount"];
+            let con_msgs = rec_json2["connection_messages"];
+            let history = await fetchMessagesFromHistory(amt, con_msgs);
+            return corsResponse(JSON.stringify(history), { status: 200 });
           case "/chat/emojis":
             try {
               const emojis = Bun.file("src/res/emojis.json"); // path to your JSON
@@ -573,19 +698,13 @@ const server = Bun.serve({
             let id = generateRandomString(10);
             visitor_count += 1;
             await changeElementInDB("visitors", visitor_count.toString())
-            await changeElementInDB(id, "0");
+            await changeElementInDB(`${id}_points`, "50");
             return corsResponse(JSON.stringify({"id": `${key}-${id}`}), { status: 201});
           case "/user/points/query":
-            if(req.method != "GET") return corsResponse(null, { status: 405 });
-            cd = req.headers.get("content-disposition");
-            if (!cd) return corsResponse(null, { status: 400 });
-            cdFileName = cd.split(";")[1];
-            if (!cdFileName) return corsResponse(null, { status: 400 });
-            filePath = cdFileName.split("=")[1];
-            if (!filePath) return corsResponse(null, { status: 400 });
-      
-            let db_data = await getElementInDB(filePath);
-      
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let rec_json_2 = await req.json();
+            let rec_id = rec_json_2["id"];
+            let db_data = await getElementInDB(`${rec_id.split("-")[1]}_points`);
             if(db_data == undefined) return corsResponse(null, { status: 404})
       
             return corsResponse(JSON.stringify({"points": db_data}), { status: 200 });
@@ -697,6 +816,17 @@ websocket: {
         }
         break;
 
+      case "/gambling/blackjack/join":
+        blackjack.players.set(ws, []);
+        let _msg = `_STATE=${false};`;
+        blackjack.players.values().forEach((v) => {
+          let name = v[1];
+          if(name) _msg += `${name};`
+        })
+        if(blackjack.players.size == 0) break;
+        ws.send(_msg);
+        break;
+      
       default:
         websockets.push(ws);
     }
@@ -718,14 +848,22 @@ websocket: {
               break;
             case "CONNECT":
               const msg = `${chat_names[chat_websockets.indexOf(ws)]} has connected`;
-              chat_history.push(msg);
+              appendMessageToHistory({
+                type: "connection",
+                content: msg,
+                timestamp: Date.now()
+              });
               chat_websockets.forEach((socket) => {
                 socket.send(msg);
                 socket.send(`_SETCHATTERS=${chat_websockets.length}`);
               });
           }
         } else {
-          chat_history.push(message);
+          appendMessageToHistory({
+            type: "message",
+            content: message,
+            timestamp: Date.now()
+          });
           chat_websockets.forEach((socket) => socket.send(message));
         }
         break;
@@ -755,6 +893,30 @@ websocket: {
         }
         break;
 
+      case "/gambling/blackjack/join":
+        if(message[0] == "_") {
+          const method = message.slice(1, message.indexOf("="));
+          const value = message.slice(message.indexOf("=") + 1);
+
+          switch(method) {
+            case "INIT":
+              blackjack.players.get(ws)?.unshift(value.split(";")[0]);
+              blackjack.players.get(ws)?.push(value.split(";")[1]);
+              blackjack.players.keys().forEach((key) => key.send(`_JOIN=${value.split(";")[1]}`));
+              break;
+            case "NAMEUPDATE":
+              blackjack.players.keys().forEach((key) => key.send(`_NAMEUPDATE=${blackjack.players.get(ws)![1]};${value}`))
+              blackjack.players.get(ws)![1] = value;
+              break;
+            case "LEAVE":
+              blackjack.players.keys().forEach((k) => k.send(`_DISCONNECT=${blackjack.players.get(ws)![1]}`))
+              blackjack.players.set(ws, []);
+              break;
+            default: break;
+          }
+        }
+        break;
+
       default:
         ws.send("where u come from :-(");
     }
@@ -767,7 +929,11 @@ websocket: {
         chat_websockets.splice(index, 1);
         if (chat_names[index] !== "_UNREGISTERED") {
           const msg = `${chat_names[index]} has disconnected`;
-          chat_history.push(msg);
+          appendMessageToHistory({
+            type: "connection",
+            content: msg,
+            timestamp: Date.now()
+          });
           chat_websockets.forEach((socket) => {
             socket.send(`_SETCHATTERS=${chat_websockets.length}`);
             socket.send(msg);
@@ -777,21 +943,26 @@ websocket: {
         chat_ids.splice(index, 1);
         break;
 
-        case "/chat/voice": {
-          const id = clientIds.get(ws);
-          clientIds.delete(ws);
-        
-          const index = voice_websockets.indexOf(ws);
-          if (index !== -1) voice_websockets.splice(index, 1);
-        
-          const msg = JSON.stringify({ type: "voice-disconnect", clientId: id });
-          for (const client of voice_websockets) {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(msg);
-            }
+      case "/chat/voice": {
+        const id = clientIds.get(ws);
+        clientIds.delete(ws);
+      
+        const index = voice_websockets.indexOf(ws);
+        if (index !== -1) voice_websockets.splice(index, 1);
+      
+        const msg = JSON.stringify({ type: "voice-disconnect", clientId: id });
+        for (const client of voice_websockets) {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(msg);
           }
-          break;
         }
+        break;
+      }
+
+      case "/gambling/blackjack/join":
+        blackjack.players.keys().forEach((k) => k.send(`_DISCONNECT=${blackjack.players.get(ws)![1]}`))
+        blackjack.players.delete(ws);
+        break;
     }
   },
 
@@ -800,7 +971,5 @@ websocket: {
   },
 } as const
 });
-
-console.log("server initalized >:3")
 
 console.log("server started :33")

@@ -57,7 +57,7 @@ body {
 .receipt {
     position: fixed; 
     transform: scale(0.8) rotate(30deg);
-    top: 60%; 
+    top: 70%; 
     left: -25%;
     z-index: 999;
     width: 50vw;
@@ -66,7 +66,7 @@ body {
 }
 
 .receipt:hover {
-    transform: scale(1.0) translate(50%, -45%) rotate(1.5deg);
+    transform: scale(1.0) translate(50%, -55%) rotate(1.5deg);
 }
 
 .receipt * {
@@ -98,6 +98,34 @@ body {
     border: none;
     outline: none;
     font-family: "Jersey 20", sans-serif;
+}
+
+.slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none; /* Remove default styling */
+    appearance: none;
+    height: 30px; /* Set the desired height for your image */
+    width: 30px; /* Set the desired width for your image */
+    cursor: pointer; /* Change the cursor to a hand pointer */
+    
+    /* Apply your background image */
+    background-image: url('../res/gambling_chip_red.png'); 
+    background-size: contain; /* Ensures the image fits within the dimensions */
+    background-repeat: no-repeat; /* Prevents image from repeating */
+    background-position: center; /* Centers the image */
+}
+
+.slider-input::-moz-slider-thumb {
+    -webkit-appearance: none; /* Remove default styling */
+    appearance: none;
+    height: 30px; /* Set the desired height for your image */
+    width: 30px; /* Set the desired width for your image */
+    cursor: pointer; /* Change the cursor to a hand pointer */
+    
+    /* Apply your background image */
+    background-image: url('../res/gambling_chip_red.png'); 
+    background-size: contain; /* Ensures the image fits within the dimensions */
+    background-repeat: no-repeat; /* Prevents image from repeating */
+    background-position: center; /* Centers the image */
 }
 
 .survey:hover {

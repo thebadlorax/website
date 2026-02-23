@@ -7,20 +7,25 @@
 
 import { getApiLink, setCookie, getCookie } from "./common.js";
 
-let points = 0;
-
 let color_picker = document.getElementById("color-picker");
 let name_picker = document.getElementById("name-picker");
 let color = getCookie("color") || "#000000"
 let name = getCookie("username") || ""
+let receiptMenu = null;
 
-export function addPoints(point_count) {
-    points += point_count;
+export async function refreshPoints() {
+    let points = await getPoints();
     document.getElementById("points").textContent = `${points} points.`
 }
 
-export function getPoints() {
-    return points;
+export async function getPoints() {
+    let res = await fetch(getApiLink("/user/points/query"), {
+        method: "POST",
+        body: JSON.stringify({"id": getCookie("id")})
+    });
+    let json = await res.json();
+    let res_points = json["points"];
+    return res_points;
 }
 
 export class ServersideDeck {
@@ -56,6 +61,7 @@ function showSurveyMenu() {
     document.getElementById("survey").classList.add("hide")
     document.getElementById("points").classList.add("hide");
     document.getElementById("survey-div").classList.remove("hide")
+    document.getElementById("receipt-snail-racing").style.display = "none";
 }
 
 function hideSurveyMenu() {
@@ -63,6 +69,23 @@ function hideSurveyMenu() {
     document.getElementById("survey").classList.remove("hide")
     document.getElementById("points").classList.remove("hide");
     document.getElementById("survey-div").classList.add("hide");
+
+    showReceiptMenu(receiptMenu);
+}
+
+export function showReceiptMenu(divname) {
+    if(receiptMenu != null) document.getElementById(receiptMenu).style.display = "none";
+    if(divname == null) return;
+    //hideSurveyMenu();
+    receiptMenu = divname;
+    document.getElementById(divname).style.display = "block";
+}
+
+export function hideReceiptMenu(divname) {
+    if(divname == null) return;
+    //hideSurveyMenu();
+    document.getElementById(divname).style.display = "none";
+    receiptMenu = null;
 }
 
 document.getElementById("survey").addEventListener("click", () => { showSurveyMenu(); })

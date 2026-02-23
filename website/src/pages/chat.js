@@ -18,6 +18,12 @@ const categoryButtons = document.querySelectorAll(".emoji-cat");
 const color_input = document.getElementById("color");
 const chatter_text = document.getElementById("chatters");
 const startBtn = document.getElementById("startVoiceBtn");
+const connection_check = document.getElementById("show-con-messages");
+connection_check.checked = (getCookie("con-msg") === true)
+connection_check.addEventListener("click", () => {
+    setCookie("con-msg", connection_check.checked, 90);
+    init();
+})
 let in_vc = false;
 startBtn.addEventListener("click", () => {
     in_vc = !in_vc;
@@ -48,6 +54,8 @@ if(location.host.includes("66.65.25.15")) {
 } else {
     wsUri = `${protocol}//api.${location.host}/chat/live`;
 }
+let messages = [];
+await init();
 const ws = new WebSocket(wsUri);
 ws.addEventListener('message', (e) => {
     if(e.data[0] == "_") {
@@ -71,7 +79,6 @@ ws.addEventListener("open", () => {
 
 let name = getCookie("username") || "No Name";
 name_input.value = name;
-let messages = [];
 
 let allEmojis = [];
 const kaomojis = [
@@ -84,8 +91,6 @@ const kaomojis = [
 ];
 
 const emojiRowHeight = 35;
-
-await init();
 
 msg_input.addEventListener("keydown", (event) => { 
     if (event.key === "Enter") {
@@ -116,25 +121,43 @@ function update_messages(newMessage) {
         newMessage = newMessage.slice(7)
     }
 
-    c
+    const matches = newMessage.match(urlRegex);
+    if(matches) {
+        ele.textContent = newMessage;
+        matches.forEach(match => {
+            ele.innerHTML = ele.innerHTML.replace(
+                match,
+                `<a class="basic-link" style="color: ${ele.style.color}" target="_blank" rel="noopener noreferrer" href="${match}">${match}</a>`
+            );
+        });
+    } else {
+        ele.textContent = newMessage;
+    }
 
     message_box.appendChild(ele);
     message_box.scrollTop = message_box.scrollHeight;
 }
 
 async function init() {
+    message_box.replaceChildren();
     messages = await fetch_history(100);
     messages.forEach(msg => update_messages(msg));
 }
 
 async function fetch_history(length) {
     const res = await fetch(getApiLink("/chat/history"), {
-        method: "GET",
-        headers: { "Content-Disposition": `attachment; history=${length}` }
+        method: "POST",
+        body: JSON.stringify({"amount": length, "connection_messages": getCookie("con-msg")})
     });
 
     if (!res.ok || !res.body) return [];
-    return await res.json();
+    let new_messages = new Array();
+    let rec_messages = await res.json();
+    for(let x = 0; x < rec_messages.length; x++) {
+        let msg = rec_messages[x];
+        new_messages.push(msg.content);
+    }
+    return new_messages;
 }
 
 const bufferRows = 3;

@@ -29,10 +29,14 @@
     <meta name="description" content="Let's go gambling! (with our points)">
 </head>
 
-<!--<p class="unselectable" id="points" style="position: absolute; left: 90vw; top: -1.5vw; font-size: 2vw; text-align: right;">x points.</p>-->
-
 <div id="receipt" class="receipt">
-  <p id="points" style="position: absolute; color: black; transform: translate(5vw, 23vw); font-size: 1.5vw;">x points</p>
+  <p id="points" class="unselectable" style="position: absolute; color: black; transform: translate(5vw, 20vw); font-size: 2.5vw;">x points</p>
+  <div id="receipt-snail-racing" style="display: none;">
+    <p class="unselectable" style="position: absolute; color: black; transform: translate(30vw, 20vw); font-size: 3vw;">Snail Racing</p>
+    <p id="snail-wager" class="unselectable" style="position: absolute; color: black; transform: translate(35vw, 25vw); font-size: 1.5vw;">Wager:</p>
+    <input class="slider-input" type="range" style="position: absolute; color: black; transform: translate(35vw, 30vw);" id="snail-racing-wager" name="wager" min="0" max="100" value="5">
+    <p id="snail-wager-text" class="unselectable" style="position: absolute; color: black; transform: translate(38vw, 32vw); font-size: 1.5vw;">x points bet.</p>
+  </div>
   <p id="survey" class="survey unselectable">take our survey</p>
   <div id="survey-div" class="survey-div hide">
     <p id="survey-close" class="survey unselectable">thank you!</p>
@@ -51,5 +55,4 @@
 <div id="blackjack">
   <button type="button" id="join-table" style="position: absolute; top: 68vw; left: 45vw;">join table</button>
   <button type="button" id="leave-table" style="position: absolute; top: 68vw; left: 55vw; display: none;">leave table</button>
-  <p class="unselectable" id="bj-your-name" style="position: absolute; top: 70vw; left: 20vw; display: none;">your name</p>
 </div>

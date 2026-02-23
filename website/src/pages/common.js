@@ -24,6 +24,18 @@ export function* range(start, end, step = 1) {
     }
 }
 
+export async function updateId() {
+    let key_data = await fetch(getApiLink("/stats"), { method: "GET" });
+    key_data = await key_data.json();
+    let key = key_data["key"]
+
+    if(getCookie("id") == "" || !getCookie("id").includes(key)) {
+        const res = await fetch(getApiLink("/user/init"));
+        const data = await res.json();
+        setCookie("id", data["id"], 90);
+    }
+}
+
 export function getCookie(cname) {
     let name = cname + "=";
     let decodedCookie = decodeURIComponent(document.cookie);
@@ -73,3 +85,5 @@ export function getApiLink(route) {
     }
     return link
 }
+
+await updateId();

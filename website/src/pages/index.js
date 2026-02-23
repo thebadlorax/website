@@ -76,15 +76,18 @@ function update_messages() {
 
 async function fetch_history(length) {
     const res = await fetch(getApiLink("/chat/history"), {
-        method: "GET",
-        headers: {
-          "Content-Disposition": `attachment; history=${length}`
-        }
+        method: "POST",
+        body: JSON.stringify({"amount": length, "connection_messages": false})
     });
-    if (!res.ok || !res.body) return;
 
-    const json = await res.json();
-    return json;
+    if (!res.ok || !res.body) return [];
+    let new_messages = new Array();
+    let rec_messages = await res.json();
+    for(let x = 0; x < rec_messages.length; x++) {
+        let msg = rec_messages[x];
+        new_messages.push(msg.content);
+    }
+    return new_messages;
 }
 
 let data = initial_data;
