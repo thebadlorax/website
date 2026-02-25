@@ -1,29 +1,29 @@
-- TODO: blog / update log
-- TODO: status
-- TODO: guestbook
-- TODO: send button on mobile chat
-- TODO: javascript runner page (for chromebooks)
-- TODO: recreate all images to 2-3x upscale for niceness
-- TODO: add cave decorations instead of basic elements (like stalagtites and shit)
-    - TODO: update context menu to have aesthetics
-- TODO: make a not shit favicon
-    - TODO: upscale that too (.ico magic)
-- TODO: write the about me
-- TODO: meowl shrine
-- TODO: my cat shrine
-- TODO: ethan hate page
-- TODO: seasonal decorations (automatic application of them)
-- TODO: server stats page (disk space, cpu, etc.)
-- TODO: rate limits
-- TODO: find some way to autorenew ssl
-- TODO: projects page
-    - TODO: run in browser?
-- TODO: some script kiddie osint tool would be really funny (https://pizzint.watch/polyglobe)
-- TODO: add the seeberg 1000 <3
-- TODO: mobile support
-    - TODO: vertical aspect ratio = rectangular site
-    - TODO: figure out the script error
-- TODO: swap banned file types from blacklist to whitelist for safety
-- TODO: add a stylized file viewer (esp for video)
-- TODO: compress files on disk
-- TODO: professional.thebadlorax.dev - resume & shit
+- blog / update log
+- status
+- guestbook
+- send button on mobile chat
+- javascript runner page (for chromebooks)
+- recreate all images to 2-3x upscale for niceness
+- add cave decorations instead of basic elements (like stalagtites and shit)
+    - update context menu to have aesthetics
+- make a not shit favicon
+    - upscale that too (.ico magic)
+- write the about me
+- meowl shrine
+- my cat shrine
+- ethan hate page
+- seasonal decorations (automatic application of them)
+- server stats page (disk space, cpu, etc.)
+- rate limits
+- find some way to autorenew ssl
+- projects page
+    - run in browser?
+- some script kiddie osint tool would be really funny (https://pizzint.watch/polyglobe)
+- add the seeberg 1000 <3
+- mobile support
+    - vertical aspect ratio = rectangular site
+    - figure out the script error
+- swap banned file types from blacklist to whitelist for safety
+- add a stylized file viewer (esp for video)
+- compress files on disk
+- professional.thebadlorax.dev - resume & shit

@@ -55,6 +55,16 @@ fi
 bun build --minify staging/src/index.ts --outfile staging/src/index.js --target bun --sourcemap
 rm staging/src/index.ts
 
+for file in staging/src/backend/*; do # minify
+    if [[ -f "$file" && "$file" == *.ts ]]; then
+        echo "Minifying $file"
+        bun build --minify $file --outfile ${file%.ts}.js --target bun 
+        #mv "$file.temp" "$file"
+        rm $file
+        echo "Replaced $file with minified version."
+    fi
+done
+
 mv staging build
 cp -r website/include build
 mv build/include/* build

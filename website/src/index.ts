@@ -1,240 +1,38 @@
-console.log("starting server :3")
-
 import { Glob, $, type ServerWebSocket } from "bun";
-import { rename, watch } from 'fs';
-import { rm, stat } from "node:fs/promises";
 import { resolve } from 'node:path';
 
-let STATIC_ROOTS = [
-  resolve("src/res"),
-  resolve("src/pages")
-];
-const DB_PATH = "database.json"
-if(!await Bun.file(DB_PATH).exists()) {
-  await Bun.file(DB_PATH).write(`{"nothing":"wow"}`);
-}
-const starting_time = new Date();
-const latest_commit = await $`git log -1 --pretty=format:"%s" `.text();
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Content-Disposition",
-  "Access-Control-Max-Age": "86400",
-} satisfies HeadersInit;
+import { generateRandomString, clamp, getSubdomain, streamToBlob } from "./backend/utils";
+import { deleteFile, renameFile } from "./backend/file";
+import { Database } from "./backend/db"
+import { Deck } from "./backend/games";
+import { corsResponse, CORS_HEADERS } from "./backend/connectivity";
+import { ChatInstance } from "./backend/chat";
+import { CacheWizard } from "./backend/cache";
+import { type blackjackInstance } from "./backend/games";
+import { LogWizard } from "./backend/logging";
 
-function* range(start: number, end: number, step = 1) {
-  for (let i = start; i < end; i += step) {
-      yield i;
-  }
-}  
+let log = new LogWizard();
+await log.init();
+log.log("starting server :3", "SERVER")
+const cache = new CacheWizard();
+cache.addRoot("src/res")
+cache.addRoot("src/pages")
+const db = new Database("database.json");
+await db.init();
+// TODO: multiple chats, like dms
+const chat = new ChatInstance(db);
+await chat.init();
 
-class Deck {
-  public cards: Array<number>;
-  constructor() {
-      this.cards = [...range(0, 52)];
-  }
-
-  public draw() {
-      if(this.cards.length == 0) {
-        this.shuffle();
-      };
-      let card = this.cards[Math.floor(Math.random() * this.cards.length)];
-      this.cards = this.cards.filter(num => num !== card); 
-      return card;
-  }
-
-  public shuffle() {
-      this.cards = [...range(0, 52)];
-  }
-}
-
-function generateRandomString(length: number) {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * characters.length);
-    result += characters.charAt(randomIndex);
-  }
-  return result;
-}
-
-async function streamToBlob(stream: ReadableStream, mimeType?: string) {
-  // Create a corsResponse object with the stream as the body.
-  const response = corsResponse(stream, {
-    headers: {
-      'Content-Type': mimeType || 'application/octet-stream' // Set an appropriate default MIME type if none is provided
-    }
-  });
-
-  // Consume the response as a blob.
-  const blob = await response.blob();
-  return blob;
-}
-
-async function isDirectory(path: string) {
-  try {
-    const stats = await stat(path);
-    return stats.isDirectory();
-  } catch (error) {
-    // Handle error if the path does not exist or other issues occur
-    throw(error);
-  }
-}
-
-/*async function getDirectories(dirPath: string): Promise<string[]> {
-  try {
-    const entries = await readdir(dirPath, { withFileTypes: true });
-    const directories = entries
-      .filter(entry => entry.isDirectory())
-      // Use join to get the full path, as readdir returns only the name
-      .map(entry => join(dirPath, entry.name));
-    return directories;
-  } catch (error) {
-    return [];
-  }
-}
-
-async function createDirectory(dirPath: string) {
-  try {
-    // The recursive: true option ensures parent directories are created if they don't exist
-    await mkdir(dirPath, { recursive: true });
-  } catch (error) {
-    throw error;
-  }
-}*/
-
-async function deleteFile(filePath: string) {
-  let is_dir = await isDirectory(filePath);
-  if(is_dir) {
-    try {
-      await rm(filePath, {
-        recursive: true, // Required for deleting subdirectories and files
-        force: true,     // Prevents errors if the directory doesn't exist
-      });
-      console.log(`Directory ${filePath} has been deleted.`);
-    } catch (error) {
-      throw(error);
-    }
-  } else {
-    try {
-      const file = Bun.file(filePath);
-      await file.delete(); // The delete() method removes the file from the filesystem
-  
-    } catch (error) {
-      console.error(`Error deleting file: ${error}`);
-    }
-  }
-}
-
-async function renameFile(filePath: string, newName: string) {
-  rename(filePath, newName, (err) => {
-    if (err) throw err;
-  });
-}
-
-async function changeElementInDB(jsonElement: string, newData: string) {
-  try {
-    const file = Bun.file(DB_PATH)
-    if(!await file.exists()) await file.write(`{"nothing":"wow"}`)
-    const json = await file.json();
-
-    if(newData == "") {
-      delete json.jsonElement
-    }
-
-    json[jsonElement] = newData
-
-    await Bun.write(file, JSON.stringify(json));
-  } catch (error) {
-    console.log(`[ERROR] - ${jsonElement}, fuckkkk the database is cooked 🥀:\n${error}`)
-  }
-}
-
-async function getElementInDB(jsonElement: string) {
-  if(!await Bun.file(DB_PATH).exists()) {
-    await Bun.file(DB_PATH).write(`{"nothing":"wow"}`);
-  }
-  try {
-    const file = Bun.file(DB_PATH)
-    let json = await file.json();
-    let layers = new Array();
-    jsonElement.split(".").forEach(element => {
-      layers.push(element)
-    });
-
-    for(let i = 0; i < layers.length; i++) {
-      if (json && typeof json === 'object' && layers[i] in json) {
-        json = json[layers[i]];
-      } else {
-          return undefined; // Path not found
-      }
-    }
-    return json
-  } catch (error) {
-    console.log(`[ERROR] - yo theres acc nothing in here :(:\n${error}`)
-  }
-}
-
-const getSubdomain = (hostname: string) => {
-  // Split the hostname by dots
-  const parts = hostname.split('.');
-
-  // A simple approach: assume the last two parts are the domain and TLD (e.g., domain.com)
-  // Everything before that is the subdomain(s)
-  if(hostname.includes("66.65.25.15")) {
-    if (parts.length > 2) {
-      return parts.slice(0, -5).join('.');
-    }
-  } else {
-    if (parts.length > 2) {
-      // Slice off the last two parts and join the rest
-      return parts.slice(0, -2).join('.');
-    }
-  }
-  
-  // If only two parts (e.g., example.com), there is no subdomain (or www is considered none)
-  return ''; 
-};
-
-function corsResponse(
-  body: BodyInit | null,
-  init: ResponseInit = {}
-): Response {
-  return new Response(body, {
-    ...init,
-    headers: {
-      ...CORS_HEADERS,
-      ...(init.headers ?? {}),
-    },
-  });
-}
-
-const fileCache: Map<string, { content: Uint8Array, type: string, etag: string, lastModified: string }> = new Map();
-
-try {
-  for (const root of STATIC_ROOTS) {
-    watch(root, { recursive: true }, (filename) => {
-      if (!filename) return;
-      const path = resolve(root, filename);
-      if (fileCache.has(path)) {
-        fileCache.delete(path);
-        console.log(`[CACHE] Cleared cache for ${path}`);
-      }
-    });
-  }
-} catch (error) {
-  console.log("cache reload failed: " + error)
-}
-
+// TODO: move these
 async function serveStaticIfAllowed(url: string) {
   if(url.includes("/res/")) url = url.replace("/res", "");
-  for (const root of STATIC_ROOTS) {
+  for (const root of cache.getRoots()) {
     const resolvedPath = resolve(root, "." + url);
 
     if (!resolvedPath.startsWith(root)) continue;
 
-    if (fileCache.has(resolvedPath)) {
-      const cached = fileCache.get(resolvedPath)!;
+    if (cache.fileInCache(resolvedPath)) {
+      const cached = cache.getCachedFile(resolvedPath)!;
       return corsResponse(cached.content, {
         headers: {
           "Content-Type": cached.type,
@@ -255,7 +53,7 @@ async function serveStaticIfAllowed(url: string) {
       const type = file.type || "application/octet-stream";
 
       // Cache it
-      //fileCache.set(resolvedPath, { content, type, etag, lastModified });
+      cache.addToCache(resolvedPath, { content, type, etag, lastModified });
 
       return corsResponse(content, {
         headers: {
@@ -269,92 +67,34 @@ async function serveStaticIfAllowed(url: string) {
   }
   return null;
 }
-
 async function directoryIsProtected(directory: string) {
-  let is_protected = await getElementInDB(directory);
+  let is_protected = await db.fetch(directory);
   return is_protected;
 }
-
-
-
-let visitor_count = parseInt(await getElementInDB("visitors")) || 0;
-
+let visitor_count = parseInt(await db.fetch("visitors")) || 0;
 let websockets = new Array();
 let chat_websockets = new Array();
 let voice_websockets = new Array();
 const clientIds = new Map<ServerWebSocket<{source: string}>, string>();
 let chat_names = new Array();
 let chat_ids = new Array();
-
-type blackjackInstance = {
-  players: Map<ServerWebSocket<{ source: string}>, Array<string>>;
-  deck: Deck;
-  isStarted: boolean;
+const starting_time = new Date();
+const latest_commit = await $`git log -1 --pretty=format:"%s" `.text();
+let key = await db.fetch("key")
+if(!key) {
+  key = generateRandomString(5);
+  await db.modify("key", key);
 }
+// end
 
 let blackjack: blackjackInstance = {
   players: new Map(),
   deck: new Deck(),
   isStarted: false
 }
-
 let decks = new Map<string, Deck>();
 
-let key = await getElementInDB("key")
-if(!key) {
-  key = generateRandomString(5);
-  await changeElementInDB("key", key);
-}
-
-type message = {
-  type: string;
-  content: string;
-  timestamp: number;
-}
-
-const formatMessage = (message: message) => JSON.stringify({"type": message.type, "content": message.content, "timestamp": message.timestamp})
-
-try {
-  JSON.parse(await getElementInDB("chat"))["history"]
-} catch (error) { // no history in db
-  changeElementInDB("chat", JSON.stringify({"history": [`{"type": "message", "content": "Welcome to chat!", "timestamp": "${Date.now()}"}`]}))
-}
-
-const appendMessageToHistory = async (message: message) => {
-  let data = JSON.parse(await getElementInDB("chat"));
-  let messages = data["history"];
-  messages.push(formatMessage(message))
-  data.history = messages;
-  await changeElementInDB("chat", JSON.stringify(data));
-}
-
-async function fetchMessagesFromHistory(amt: number, con_msgs: (string | boolean)) {
-  let data = JSON.parse(await getElementInDB("chat"));
-  let messages: Array<string> = data["history"];
-  con_msgs = (con_msgs === "true")
-  if(!con_msgs) {
-    messages = messages
-    .map(item => JSON.parse(item))
-    .filter(item => item.type !== "connection")
-    .map(item => JSON.stringify(item));
-  }
-  if(amt != -1) messages = messages.slice(-amt);
-  let new_messages = new Array();
-  for(let x = 0; x < messages.length; x++) {
-    let parsed = JSON.parse(messages[x]!);
-    let new_message: message = {
-      type: parsed.type,
-      content: parsed.content,
-      timestamp: parsed.timestamp
-    };
-    new_messages.push(new_message);
-  }
-  return new_messages
-}
-
-const clamp = (num: number, min: number, max: number) => Math.min(Math.max(num, min), max);
-
-console.log("server initalized >:3")
+log.log("server initalized >:3", "SERVER")
 const server = Bun.serve({
   port: 8081,
   /*tls: {
@@ -423,7 +163,7 @@ const server = Bun.serve({
             let password_2 = cd.split(";")[2];
             let password_2_string = password_2?.split("=")[1];
 
-            let is_protected = await getElementInDB(`/${filePath}`.slice(0, -1))
+            let is_protected = await db.fetch(`/${filePath}`.slice(0, -1))
 
             if(is_protected) {
               if(!password_2_string || !password_2_string === is_protected.split(";")[1]) {
@@ -455,7 +195,7 @@ const server = Bun.serve({
             let password_3 = cd.split(";")[2];
             let password_3_string = password_3?.split("=")[1];
 
-            let is_protected_3 = await getElementInDB(`/${fileName.split("/").at(0)}`)
+            let is_protected_3 = await db.fetch(`/${fileName.split("/").at(0)}`)
 
             if(is_protected_3) {
               if(!password_3_string || !password_3_string === is_protected_3.split(";")[1]) {
@@ -466,6 +206,7 @@ const server = Bun.serve({
             filePath = `public/${fileName}`;
             if(filePath == `public/tutorial.txt`) return corsResponse(null, { status: 403 }); 
             await Bun.write(filePath.replaceAll(" ", ""), await streamToBlob(req.body));
+            log.log(`User uploaded file: ${filePath}`, "API");
             return corsResponse(null, { status: 201 });
           case "/file/delete":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
@@ -478,6 +219,7 @@ const server = Bun.serve({
             filePath = filePath.replaceAll("../", "")
             if(filePath.includes("tutorial.txt")) return corsResponse(null, { status: 403 }); 
             await deleteFile(filePath);
+            log.log(`User deleted file: ${filePath}`, "API");
             return corsResponse(null, { status: 201 });
           case "/file/rename":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
@@ -493,6 +235,7 @@ const server = Bun.serve({
             let newName = newNamecd?.split("=")[1];
             if (!newName) return corsResponse(null, { status: 400 });
             await renameFile(filePath, newName);
+            log.log(`User renamed file ${filePath} to ${newName}`, "API");
             return corsResponse(null, { status: 201 });
           case "/file/protect":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
@@ -506,10 +249,12 @@ const server = Bun.serve({
             if(filePath[0] != "/") return corsResponse(null, { status: 404 });
             if(filePath == "/") return corsResponse(null, { status: 403 });
             
-            let already_protected = await getElementInDB(filePath);
+            let already_protected = await db.fetch(filePath);
             if(already_protected) return corsResponse(null, { status: 403 });
             let password = generateRandomString(5);
-            await changeElementInDB(filePath, `true;${password}`);
+            await db.modify(filePath, `true;${password}`);
+
+            log.log(`Protected directory ${filePath}, password: ${password}`, "API");
 
             return corsResponse(JSON.stringify({"password": password}), { status: 200 });
           case "/file/protected":
@@ -521,7 +266,7 @@ const server = Bun.serve({
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
 
-            let is_protected_2 = await getElementInDB(`/${filePath}`);
+            let is_protected_2 = await db.fetch(`/${filePath}`);
             if(!is_protected_2) return corsResponse(null, { status: 400 })
             if(is_protected_2 && is_protected_2.includes("true")) return corsResponse(null, { status: 200 })
             return corsResponse(null, { status: 400 });
@@ -539,12 +284,13 @@ const server = Bun.serve({
 
             if(filePath[0] != "/") return corsResponse(null, { status: 400 });
 
-            let already_protected_2 = await getElementInDB(filePath);
+            let already_protected_2 = await db.fetch(filePath);
             if(!already_protected_2) return corsResponse(null, { status: 404 });
             let true_pass = already_protected_2.split(";")[1]
 
             if(rec_password_string === true_pass) {
-              await changeElementInDB(filePath, "")
+              await db.modify(filePath, "")
+              log.log(`Unprotected directory: ${filePath}`, "API");
               return corsResponse(null, {status: 200})
             }
 
@@ -559,9 +305,10 @@ const server = Bun.serve({
             if (!filePath) return corsResponse(null, { status: 400 });
             if(filePath[0] != "/") return corsResponse(null, { status: 400 });
 
-            let is_hosting = await getElementInDB(filePath + "_hosting");
-            if(!is_hosting) await changeElementInDB(filePath + "_hosting", "true")
-            else await changeElementInDB(filePath + "_hosting", "")
+            let is_hosting = await db.fetch(filePath + "_hosting");
+            if(!is_hosting) await db.modify(filePath + "_hosting", "true")
+            else await db.modify(filePath + "_hosting", "")
+            log.log(`Hosting toggled on directory: ${filePath}`, "API");
             return corsResponse(null, { status: 200 });
           case "/hosting/query":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
@@ -572,7 +319,7 @@ const server = Bun.serve({
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
 
-            let is_hosting_2 = await getElementInDB(`/${filePath}_hosting`);
+            let is_hosting_2 = await db.fetch(`/${filePath}_hosting`);
             if(is_hosting_2) return corsResponse(null, { status: 200 })
             return corsResponse(null, { status: 400 });
           case "/gambling/cards/create":
@@ -593,7 +340,7 @@ const server = Bun.serve({
             let bet_snail = rec_json["bet"];
             let wager = rec_json["wager"]
             let user_id = rec_json["id"];
-            let user_points = parseInt(await getElementInDB(`${user_id.split("-")![1]}_points`));
+            let user_points = parseInt(await db.fetch(`${user_id.split("-")![1]}_points`));
             let speed_division = Math.floor((Math.random() * 3)+1);
             let speed_multipler = (Math.random()*0.5) + 0.5;
             const fps = 60;
@@ -634,9 +381,9 @@ const server = Bun.serve({
             historical_speeds.push(speeds); historical_speeds.shift(); // first speeds are [0, 0, 0, 0]
 
             if(winner == bet_snail && user_points) {
-              await changeElementInDB(`${user_id.split("-")[1]}_points`, user_points + wager);
+              await db.modify(`${user_id.split("-")[1]}_points`, user_points + wager);
             } else if(winner != bet_snail && bet_snail != null) {
-              await changeElementInDB(`${user_id.split("-")[1]}_points`, (user_points - wager).toString());
+              await db.modify(`${user_id.split("-")[1]}_points`, (user_points - wager).toString());
             }
 
             return corsResponse(JSON.stringify({
@@ -663,7 +410,7 @@ const server = Bun.serve({
             let rec_json2 = await req.json();
             let amt = rec_json2["amount"];
             let con_msgs = rec_json2["connection_messages"];
-            let history = await fetchMessagesFromHistory(amt, con_msgs);
+            let history = await chat.fetchMessagesFromHistory(amt, con_msgs);
             return corsResponse(JSON.stringify(history), { status: 200 });
           case "/chat/emojis":
             try {
@@ -687,7 +434,7 @@ const server = Bun.serve({
             return corsResponse("WebSocket upgrade failed", { status: 400 });
           case "/stats":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
-            let visitor_count_2 = await getElementInDB("visitors") || 0;
+            let visitor_count_2 = await db.fetch("visitors") || 0;
             return corsResponse(JSON.stringify({
               "key": key, 
               "visitor-count": visitor_count_2, 
@@ -697,14 +444,14 @@ const server = Bun.serve({
           case "/user/init":
             let id = generateRandomString(10);
             visitor_count += 1;
-            await changeElementInDB("visitors", visitor_count.toString())
-            await changeElementInDB(`${id}_points`, "50");
+            await db.modify("visitors", visitor_count.toString())
+            await db.modify(`${id}_points`, "50");
             return corsResponse(JSON.stringify({"id": `${key}-${id}`}), { status: 201});
           case "/user/points/query":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let rec_json_2 = await req.json();
             let rec_id = rec_json_2["id"];
-            let db_data = await getElementInDB(`${rec_id.split("-")[1]}_points`);
+            let db_data = await db.fetch(`${rec_id.split("-")[1]}_points`);
             if(db_data == undefined) return corsResponse(null, { status: 404})
       
             return corsResponse(JSON.stringify({"points": db_data}), { status: 200 });
@@ -763,7 +510,7 @@ const server = Bun.serve({
         });
       default: // hosted websites & errors
         let index = Bun.file(`public/${subdomain}/index.html`);
-        if(await index.exists() && await getElementInDB(`/${subdomain}_hosting`)) {
+        if(await index.exists() && await db.fetch(`/${subdomain}_hosting`)) {
           if(url == "/") {
             return corsResponse(index, {
               headers: { "Content-Type": "text/html" },
@@ -848,7 +595,7 @@ websocket: {
               break;
             case "CONNECT":
               const msg = `${chat_names[chat_websockets.indexOf(ws)]} has connected`;
-              appendMessageToHistory({
+              chat.appendMessageToHistory({
                 type: "connection",
                 content: msg,
                 timestamp: Date.now()
@@ -859,7 +606,7 @@ websocket: {
               });
           }
         } else {
-          appendMessageToHistory({
+          chat.appendMessageToHistory({
             type: "message",
             content: message,
             timestamp: Date.now()
@@ -929,7 +676,7 @@ websocket: {
         chat_websockets.splice(index, 1);
         if (chat_names[index] !== "_UNREGISTERED") {
           const msg = `${chat_names[index]} has disconnected`;
-          appendMessageToHistory({
+          chat.appendMessageToHistory({
             type: "connection",
             content: msg,
             timestamp: Date.now()
@@ -972,4 +719,4 @@ websocket: {
 } as const
 });
 
-console.log("server started :33")
+log.log("server started :33", "SERVER")

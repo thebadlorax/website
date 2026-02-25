@@ -267,6 +267,7 @@ document.addEventListener("drop", async (e) => {
     try {
         for (const file of files) {
             let file_name = file.name;
+            file_name.replaceAll(" ", "_");
             if(file.name.includes(".big")) {
                 file_name = file.name.replace(".big", "").split(".").slice(0, -1).join(".");
             } else if(file.size > 50000000) {
