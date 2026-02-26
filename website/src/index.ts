@@ -10,20 +10,25 @@ import { ChatInstance } from "./backend/chat";
 import { CacheWizard } from "./backend/cache";
 import { type blackjackInstance } from "./backend/games";
 import { LogWizard } from "./backend/logging";
+import { AuthorizationWizard, userToJSON, JSONToUser } from "./backend/auth";
+import { TimeWizard } from "./backend/time";
 
 let log = new LogWizard();
 await log.init();
 log.log("starting server :3", "SERVER")
+const db = new Database("database.json");
+await db.init();
+const auth = new AuthorizationWizard(db);
+await auth.init();
 const cache = new CacheWizard();
 cache.addRoot("src/res")
 cache.addRoot("src/pages")
-const db = new Database("database.json");
-await db.init();
 // TODO: multiple chats, like dms
 const chat = new ChatInstance(db);
 await chat.init();
+const time = new TimeWizard();
 
-// TODO: move these
+// TODO: move these to different files/structures
 async function serveStaticIfAllowed(url: string) {
   if(url.includes("/res/")) url = url.replace("/res", "");
   for (const root of cache.getRoots()) {
@@ -455,6 +460,45 @@ const server = Bun.serve({
             if(db_data == undefined) return corsResponse(null, { status: 404})
       
             return corsResponse(JSON.stringify({"points": db_data}), { status: 200 });
+          case "/user/account/create":
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let req_json;
+            try { req_json = await req.json(); }
+            catch { return corsResponse(null, { status: 400 }); }
+            if(await auth.fetchAccount(req_json["name"], req_json["pass"])) return corsResponse(null, { status: 400 });
+            let acc = await auth.createAccount(req_json["name"], req_json["pass"]);
+            if(!acc) return corsResponse(null, { status: 400 });
+            return corsResponse(userToJSON(acc), { status: 201 });
+          case "/user/account/fetch":
+              if(req.method != "POST") return corsResponse(null, { status: 405 });
+              let req_json_2;
+              try { req_json_2 = await req.json(); }
+              catch { return corsResponse(null, { status: 404 }); }
+              let acc_2 = await auth.fetchAccount(req_json_2["name"], req_json_2["pass"]);
+              if(!acc_2) return corsResponse(null, { status: 404 });
+              return corsResponse(userToJSON(acc_2), { status: 200 });
+          case "/user/account/rename":
+              if(req.method != "POST") return corsResponse(null, { status: 405 });
+              let req_json_4;
+              try { req_json_4 = await req.json(); }
+              catch { return corsResponse(null, { status: 404 }); }
+              let acc_4 = await auth.renameAccount(req_json_4["name"], req_json_4["pass"], req_json_4["new_name"]);
+              return corsResponse(null, { status: 200 });
+          case "/user/account/exists":
+              if(req.method != "POST") return corsResponse(null, { status: 405 });
+              let req_json_5; try { req_json_5 = await req.json(); }
+              catch { return corsResponse(null, { status: 404 }); }
+              let acc_5 = await auth.exists(req_json_5["name"]);
+              if(acc_5) return corsResponse(null, { status: 200 });
+              else return corsResponse(null, { status: 404 });
+          case "/user/account/delete":
+              if(req.method != "POST") return corsResponse(null, { status: 405 });
+              let req_json_3;
+              try { req_json_3 = await req.json(); }
+              catch { return corsResponse(null, { status: 404 }); }
+              if(!await auth.exists(req_json_3["name"])) return corsResponse(null, { status: 404 });
+              let acc_3 = await auth.deleteAccount(req_json_3["name"], req_json_3["pass"]);
+              return corsResponse(null, { status: 200 });
           case "/health":
             return corsResponse("OK"); 
           default:
@@ -486,15 +530,6 @@ const server = Bun.serve({
 
           case "/gambling":
             return corsResponse(Bun.file("src/pages/gambling.html"), { headers: { "Content-Type": "text/html" } });
-
-          /*case "/seeburg":
-            return corsResponse(Bun.file("src/pages/seeburg.html"), { headers: { "Content-Type": "text/html" } });
-
-          case "/meowl":
-            return corsResponse(Bun.file("src/pages/meowl.html"), { headers: { "Content-Type": "text/html" } });
-
-          case "/test":
-            return corsResponse(Bun.file("src/pages/test.html"), { headers: { "Content-Type": "text/html" } });*/
       
           default:
             return corsResponse(Bun.file("src/pages/error.html"), {

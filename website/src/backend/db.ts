@@ -37,7 +37,7 @@ export class Database {
             await Bun.write(file, (isValidJSON(json) ? json : JSON.stringify(json)));
           } catch (error) {
             // TODO: new logging
-            console.log(`[ERROR] - ${element}, modification error:\n${error}`)
+            this.log.error(`Error modifiying ${element}: ${error}`, "DATABASE", "MODIFICATION");
           }
     }
 
@@ -62,4 +62,6 @@ export class Database {
             console.log(`[ERROR] - yo theres acc nothing in here :(:\n${error}`)
         }
     }
+
+    async exists(element: string) { return await this.fetch(element) != undefined; }
 }

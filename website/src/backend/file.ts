@@ -56,4 +56,4 @@ export async function renameFile(filePath: string, newName: string) {
     });
 }
 
-export async function createFile(filePath: string, content: string = "") { if(!await Bun.file(filePath).exists()) await Bun.file(filePath).write(`${content}`); }
+export async function createFile(filePath: string, content: string = "") { if(!await Bun.file(filePath).exists()) { await Bun.file(filePath).write(`${content}`); return true;} return false;}

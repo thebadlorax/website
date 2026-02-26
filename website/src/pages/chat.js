@@ -47,12 +47,11 @@ color_input.addEventListener("input", () => {
 })
 
 const urlRegex = /(https?:\/\/[^\s]+)/g;
-const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 let wsUri; 
 if(location.host.includes("66.65.25.15")) {
-    wsUri = `${protocol}//${location.host}/subdomain=api/chat/live`;
+    wsUri = `${location.protocol}//${location.host}/subdomain=api/chat/live`;
 } else {
-    wsUri = `${protocol}//api.${location.host}/chat/live`;
+    wsUri = `${location.protocol}//api.${location.host}/chat/live`;
 }
 let messages = [];
 await init();

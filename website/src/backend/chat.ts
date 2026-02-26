@@ -28,10 +28,11 @@ export class ChatInstance {
         try {
             JSON.parse(await this.db.fetch("chat"))["history"]
         } catch (error) { // no history in db
-            this.db.modify("chat", JSON.stringify({"history": [`{"type": "message", "content": "Welcome to chat!", "timestamp": "${Date.now()}"}`]}))
+            await this.db.modify("chat", JSON.stringify({"history": [`{"type": "message", "content": "Welcome to chat!", "timestamp": "${Date.now()}"}`]}))
         }
     }
 
+    // TODO: make the triple escape bug in the db go away its inflating the size of it
     async appendMessageToHistory(message: message) {
         let data = JSON.parse(await this.db.fetch("chat"));
         let messages = data["history"];
