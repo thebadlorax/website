@@ -15,10 +15,11 @@
     <link rel="icon" href="../res/favicon.ico" type="image/x-icon">
     <script type="module" src="index.js"></script>
     <script type="module" src="common.js"></script>
+    <script type="module" src="account.js"></script>
     <meta name="description" content="Thebadlorax's silly website">
   </head>
   <body>
-    <div class="main-container"> <!--evil flexbox >:)-->
+    <div class="main-container" id="main-container"> <!--evil flexbox >:)-->
         <div class="banner-container">
             <img src="../res/transparent_banner.png" class="banner-image">
         </div>
@@ -49,10 +50,10 @@
             <div class="column-container">
                 <div class="small-item">
                     socials
-                    <p class="basic-text">discord: thebadlorax</p>
-                    <p class="basic-text">github: thebadlorax</p>
+                    <p class="basic-text">discord: <a href="https://discord.gg/pkunjr8r" class="basic-link" target="_blank" rel="noopener noreferrer">thebadlorax</a></p>
+                    <p class="basic-text">github: <a href="https://github.com/thebadlorax" class="basic-link" target="_blank" rel="noopener noreferrer">thebadlorax</a></p>
                 </div>
-                <div class="small-item">
+                <div class="small-item unselectable" id="recent-chats">
                     recent chats
                     <div id="message-box"></div>
                 </div>
@@ -65,6 +66,30 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+    <p class="basic-link unselectable" id="account-button" style="position: absolute; left: 75%; top: 11%; font-size: 2vw;">Account Management</p>
+    <div id="account-menu" style="display: none;">
+        <div id="sign-in">
+            <p class="basic-text unselectable" style="position: absolute; left: 40%; top: 50%; font-size: 6vw;">Sign In</p>
+            <input class="input" id="name" placeholder="Username" style="position: absolute; top: 80%; left: 35%; width: 30vw; height: 1.5vw;"></input>
+            <input class="input" id="pass" placeholder="Password" style="position: absolute; top: 90%; left: 35%; width: 30vw; height: 1.5vw;"></input>
+            <p class="basic-link unselectable" id="sign-in-button" style="position: absolute; left: 35%; top: 95%; font-size: 2vw;">Sign In</p>
+            
+            <p class="basic-link unselectable" id="create-account-button" style="position: absolute; left: 54%; top: 95%; font-size: 2vw;">Create Account</p>
+        </div>
+        <div id="account-management">
+            <p class="basic-text unselectable" id="mng-txt" style="position: absolute; left: 30%; top: 30%; font-size: 6vw;">Manage Account</p>
+            <input class="input" id="new-name" placeholder="" style="position: absolute; top: 60%; left: 25%; width: 30vw; height: 1.5vw;"></input>
+            <p class="basic-text unselectable" style="position: absolute; left: 22.5%; top: 55%; font-size: 2vw;">Username</p>
+            <input class="input" id="new-pass" placeholder="" style="position: absolute; top: 70%; left: 25%; width: 30vw; height: 1.5vw;"></input>
+            <p class="basic-text unselectable" style="position: absolute; left: 22.5%; top: 66%; font-size: 2vw;">Password</p>
+            <p class="basic-link unselectable" id="sign-out-button" style="position: absolute; left: 35%; top: 95%; font-size: 3vw;">Sign Out</p>
+            <p class="basic-link unselectable" id="update-button" style="position: absolute; left: 55%; top: 95%; font-size: 3vw;">Update</p>
+            <p class="basic-text unselectable" id="points-acc"style="position: absolute; left: 55%; top: 55%; font-size: 2.25vw;">Points: x</p>
+            <p class="basic-text unselectable" id="display-name-acc"style="position: absolute; left: 55%; top: 65%; font-size: 2.25vw;">xxx</p>
+            <p class="basic-text unselectable" id="timestamp-acc"style="position: absolute; left: 55%; top: 75%; font-size: 2.25vw;">Created: x</p>
+            <p class="basic-text unselectable" id="id-acc"style="display: none; position: absolute; left: 20%; top: 20%; font-size: 2.5vw;">ID: x</p>
         </div>
     </div>
   </body>

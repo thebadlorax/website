@@ -74,6 +74,7 @@ async function runSnailRace() {
 
     let points = await getPoints();
     wager_slider.max = points;
+    wager_slider.value = points/2;
     wager_slider.disabled = false;
 
     let winner = null;
@@ -113,19 +114,23 @@ async function runSnailRace() {
     can_bet = false;
     wager_slider.disabled = true;
 
+    let user = JSON.parse(window.localStorage.getItem("user"));
+
+
     let req = await fetch(getApiLink("/gambling/snail/bet"), {
         method: "POST",
         body: JSON.stringify({
             "bet": picked,
-            "id": getCookie("id"),
-            "wager": wager_slider.value
+            "wager": wager_slider.value,
+            "name": user["account"]["name"],
+            "pass": user["account"]["pass"]
         })
     })
     let json = await req.json();
 
-    speed_division = json["speed-division"]
+    speed_division = json["speed-division"];
     time = json["time"];
-    speeds = json["speeds"]
+    speeds = json["speeds"];
     fps = json["fps"];
     speed = -1;
     let frame_count = -1;

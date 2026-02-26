@@ -147,6 +147,7 @@ body {
 .basic-link:hover {
     color: black;
     font-weight: 700;
+    cursor: pointer;
 }
 
 .error-text {

@@ -27,16 +27,17 @@ export class Database {
             const file = Bun.file(this.path)
             if(!await file.exists()) await file.write(`{"nothing":"wow"}`)
             const json = await file.json();
+
+            json[element] = data
         
             if(data == "") {
-              delete json.jsonElement
+              delete json[element]
             }
         
-            json[element] = data
+            
         
             await Bun.write(file, (isValidJSON(json) ? json : JSON.stringify(json)));
           } catch (error) {
-            // TODO: new logging
             this.log.error(`Error modifiying ${element}: ${error}`, "DATABASE", "MODIFICATION");
           }
     }
@@ -59,7 +60,7 @@ export class Database {
             }
             return json
         } catch (error) {
-            console.log(`[ERROR] - yo theres acc nothing in here :(:\n${error}`)
+            this.log.error(`Error fetching element ${element}`, "DATABASE", "FETCHING")
         }
     }
 

@@ -5,12 +5,13 @@
  * copyright 2026
 */
 
-import { getApiLink, setCookie, getCookie } from "./common.js";
+import { getApiLink, getSettingOnAccount, changeSettingOnAccount, refreshAccount } from "./common.js";
 
 let color_picker = document.getElementById("color-picker");
 let name_picker = document.getElementById("name-picker");
-let color = getCookie("color") || "#000000"
-let name = getCookie("username") || ""
+try { let color = getSettingOnAccount("color") }
+catch { alert("make an account"); window.location.href = `${location.protocol}//${location.host}/`;}
+let name = getSettingOnAccount("display_name")
 let receiptMenu = null;
 
 export async function refreshPoints() {
@@ -19,13 +20,9 @@ export async function refreshPoints() {
 }
 
 export async function getPoints() {
-    let res = await fetch(getApiLink("/user/points/query"), {
-        method: "POST",
-        body: JSON.stringify({"id": getCookie("id")})
-    });
-    let json = await res.json();
-    let res_points = json["points"];
-    return res_points;
+    await refreshAccount();
+    let saved_data = JSON.parse(window.localStorage.getItem("user"));
+    return saved_data["statistics"]["points"];
 }
 
 export class ServersideDeck {
@@ -98,13 +95,13 @@ color_picker.addEventListener("input", () => {
     if(color_picker.value.length == 7) {
         color = color_picker.value;
         color_picker.style.color = color;
-        setCookie("color", color, 90);
+        changeSettingOnAccount("color", color);
     }
 })
 name_picker.value = name;
 name_picker.addEventListener("input", () => {
     name = name_picker.value;
-    setCookie("username", name, 90);
+    changeSettingOnAccount("display_name", name);
 })
 
 document.getElementById("receipt").addEventListener("mouseleave", () => { // hide survey menu after 1sec of being put away

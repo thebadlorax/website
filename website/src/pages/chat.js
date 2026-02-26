@@ -1,4 +1,4 @@
-const { setCookie, getCookie, getApiLink } = await import('./common.js');
+const {getApiLink, changeSettingOnAccount, getSettingOnAccount, getCookie, setCookie } = await import('./common.js');
 
 const message_box = document.getElementById("message-box");
 message_box.addEventListener("wheel", (e) => {
@@ -34,7 +34,8 @@ startBtn.addEventListener("click", () => {
     }
 })
 
-let color = getCookie("color") || "#000000"
+try { let color = getSettingOnAccount("color") }
+catch { alert("make an account"); window.location.href = `${location.protocol}//${location.host}/`;}
 color_input.value = color;
 color_input.style.color = color;
 color_input.addEventListener("input", () => {
@@ -42,7 +43,7 @@ color_input.addEventListener("input", () => {
     if(color_input.value.length == 7) {
         color = color_input.value;
         color_input.style.color = color;
-        setCookie("color", color, 90);
+        changeSettingOnAccount("color", color);
     }
 })
 
@@ -72,11 +73,10 @@ ws.addEventListener('message', (e) => {
 });
 ws.addEventListener("open", () => {
     ws.send(`_NAME=${name}`);
-    ws.send(`_ID=${getCookie("id")}`)
     ws.send(`_CONNECT=null`);
 })
 
-let name = getCookie("username") || "No Name";
+let name = getSettingOnAccount("display_name") || "No Name";
 name_input.value = name;
 
 let allEmojis = [];
@@ -104,7 +104,7 @@ name_input.addEventListener("keydown", (event) => {
         let new_name = name_input.value || "No Name";
         ws.send(`${name} changed their name to ${new_name}`);
         name = new_name;
-        setCookie("username", name, 90);
+        changeSettingOnAccount("display_name", name);
         ws.send(`_NAME=${name}`);
     }
 });

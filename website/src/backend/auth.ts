@@ -7,7 +7,7 @@
 
 import type { Database } from "./db";
 import { LogWizard } from "./logging";
-import { generateRandomString } from "./utils";
+import { generateRandomString, clamp } from "./utils";
 
 type Account = {
     name: string;
@@ -20,10 +20,15 @@ type UserSettings = {
     color: string;
 }
 
+type Statistics = {
+    cTime: number;
+    uniquesOnCreation: number;
+    points: number;
+}
+
 export type User = {
     account: Account;
-    points: number;
-    timeCreated: number;
+    statistics: Statistics;
     settings: UserSettings;
 }
 
@@ -38,8 +43,12 @@ export const userToJSON = (user: User) => {
             "display_name": user.settings.display_name,
             "color": user.settings.color
         },
-        "points": user.points,
-        "timeCreated:": user.timeCreated
+        "statistics": {
+            "points": user.statistics.points,
+            "cTime": user.statistics.cTime,
+            "uniquesOnCreation": user.statistics.uniquesOnCreation
+        }
+        
     });
 };
 
@@ -54,25 +63,33 @@ export const JSONToUser = (json: any) => {
             display_name: json.settings.display_name,
             color: json.settings.color
         },
-        points: json.points,
-        timeCreated: json.timeCreated
+        statistics: {
+            points: json.statistics.points,
+            cTime: json.statistics.cTime,
+            uniquesOnCreation: json.statistics.uniquesOnCreation
+        }
+        
     }
     return newUser
 }
 
-const generateUser = (name: string, pass: string) => {
+const generateUser = (name: string, pass: string, uniques: number) => {
     let user: User = {
         account: {
             name: name,
             pass: pass,
             id: generateRandomString(15)
         },
-        points: 100,
         settings: {
             display_name: name,
             color: "#000000"
         },
-        timeCreated: Date.now()
+        statistics: {
+            points: 100,
+            cTime: Date.now(),
+            uniquesOnCreation: uniques
+        }
+        
     }
     return user
 }
@@ -87,16 +104,17 @@ export class AuthorizationWizard {
     }
 
     async init() {
-        let admin_user: User = generateUser("admin", "admin")
+        let admin_user: User = generateUser("admin", "admin", parseInt(await this.db.fetch("visitors")) || 0)
         if(!await this.db.exists("auth")) await this.db.modify("auth", JSON.stringify({"users": {"admin": userToJSON(admin_user)}}))
         this.log.log("Initialized", "AUTHWIZARD");
     }
 
     async createAccount(name: string, pass: string) {
         if(await this.exists(name)) return undefined;
-        let user: User = generateUser(name, pass)
+        let user: User = generateUser(name, pass, parseInt(await this.db.fetch("visitors")) || 0)
         let json = await this._getAccounts();
         json[name] = userToJSON(user);
+        this.log.log(`Creating new account "${name}"`, "AUTHWIZARD")
         await this.db.modify("auth", JSON.stringify({"users": json}));
         return user;
     }
@@ -138,13 +156,35 @@ export class AuthorizationWizard {
     async updateAccount(name: string, pass: string, updated: User) {
         if(!await this._confirmAccessAndExistance(name, pass)) return undefined;
         let json = await this._getAccounts();
-        json[name] = userToJSON(updated);
+        if(updated.account.name !== name) {
+            await this.renameAccount(name, pass, updated.account.name);
+        }
+        let old = await this.fetchAccount(name, pass);
+        if(!old) return undefined;
+        old.account.name = updated.account.name;
+        old.account.pass = updated.account.pass;
+        old.settings.display_name = updated.settings.display_name;
+        old.settings.color = updated.settings.color;
+        json[updated.account.name] = userToJSON(old);
         await this.db.modify("auth", JSON.stringify({"users": json}));
         return updated;
     }
 
+    async changePoints(name: string, pass: string, amt: number) {
+        if(!await this._confirmAccessAndExistance(name, pass)) return undefined;
+        let json = await this._getAccounts();
+        let user = await this.fetchAccount(name, pass);
+        if(!user) return undefined;
+        user.statistics.points += amt;
+        if(user.statistics.points < 0) user.statistics.points = 0;
+        let JSON_user = userToJSON(user);
+        json[name] = JSON_user
+        await this.db.modify("auth", JSON.stringify({"users": json}));
+    }
+
     async deleteAccount(name: string, pass: string) {
         if(!await this._confirmAccessAndExistance(name, pass)) return undefined;
+        this.log.log(`Deleting Account "${name}"`, "AUTHWIZARD")
         let json = await this._getAccounts();
         delete json[name];
         await this.db.modify("auth", JSON.stringify({"users": json}));
@@ -155,11 +195,11 @@ export class AuthorizationWizard {
         let json = await this._getAccounts();
         let acc = await this.fetchAccount(name, pass);
 
-        acc = JSONToUser(acc);
+        if(!acc) return undefined;
         acc.account.name = newName;
-        json[newName] = userToJSON(acc);
-
+        json[newName] = JSON.parse(userToJSON(acc));
+        this.log.log(`Renaming Account "${name}" to "${newName}"`, "AUTHWIZARD")
         await this.db.modify("auth", JSON.stringify({"users": json}));
-        await this.deleteAccount(name, pass);
+        setTimeout(async () => {await this.deleteAccount(name, pass);}, 250);
     }
 }

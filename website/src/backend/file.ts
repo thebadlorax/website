@@ -35,7 +35,6 @@ export async function deleteFile(filePath: string) {
           recursive: true, // Required for deleting subdirectories and files
           force: true,     // Prevents errors if the directory doesn't exist
         });
-        console.log(`Directory ${filePath} has been deleted.`);
       } catch (error) {
         throw(error);
       }

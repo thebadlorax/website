@@ -10,7 +10,7 @@ import { ChatInstance } from "./backend/chat";
 import { CacheWizard } from "./backend/cache";
 import { type blackjackInstance } from "./backend/games";
 import { LogWizard } from "./backend/logging";
-import { AuthorizationWizard, userToJSON, JSONToUser } from "./backend/auth";
+import { AuthorizationWizard, userToJSON } from "./backend/auth";
 import { TimeWizard } from "./backend/time";
 
 let log = new LogWizard();
@@ -200,6 +200,8 @@ const server = Bun.serve({
             let password_3 = cd.split(";")[2];
             let password_3_string = password_3?.split("=")[1];
 
+            // add who uploaded and time to context menu
+
             let is_protected_3 = await db.fetch(`/${fileName.split("/").at(0)}`)
 
             if(is_protected_3) {
@@ -344,8 +346,12 @@ const server = Bun.serve({
             let rec_json = await req.json();
             let bet_snail = rec_json["bet"];
             let wager = rec_json["wager"]
-            let user_id = rec_json["id"];
-            let user_points = parseInt(await db.fetch(`${user_id.split("-")![1]}_points`));
+            let user_name = rec_json["name"];
+            let user_pass = rec_json["pass"]
+            let user = await auth.fetchAccount(user_name, user_pass);
+            let user_points;
+            if(!user) { wager = 0; user_points = 0;}
+            else user_points = user.statistics.points;
             let speed_division = Math.floor((Math.random() * 3)+1);
             let speed_multipler = (Math.random()*0.5) + 0.5;
             const fps = 60;
@@ -385,10 +391,10 @@ const server = Bun.serve({
             }
             historical_speeds.push(speeds); historical_speeds.shift(); // first speeds are [0, 0, 0, 0]
 
-            if(winner == bet_snail && user_points) {
-              await db.modify(`${user_id.split("-")[1]}_points`, user_points + wager);
-            } else if(winner != bet_snail && bet_snail != null) {
-              await db.modify(`${user_id.split("-")[1]}_points`, (user_points - wager).toString());
+            if(winner == bet_snail && user_points && user) {
+              auth.changePoints(user_name, user_pass, wager);
+            } else if(winner != bet_snail && bet_snail != null && user) {
+              auth.changePoints(user_name, user_pass, -wager);
             }
 
             return corsResponse(JSON.stringify({
@@ -450,24 +456,16 @@ const server = Bun.serve({
             let id = generateRandomString(10);
             visitor_count += 1;
             await db.modify("visitors", visitor_count.toString())
-            await db.modify(`${id}_points`, "50");
-            return corsResponse(JSON.stringify({"id": `${key}-${id}`}), { status: 201});
-          case "/user/points/query":
-            if(req.method != "POST") return corsResponse(null, { status: 405 });
-            let rec_json_2 = await req.json();
-            let rec_id = rec_json_2["id"];
-            let db_data = await db.fetch(`${rec_id.split("-")[1]}_points`);
-            if(db_data == undefined) return corsResponse(null, { status: 404})
-      
-            return corsResponse(JSON.stringify({"points": db_data}), { status: 200 });
+            return corsResponse(JSON.stringify({"id": `${key}-${id}`}), { status: 200});
           case "/user/account/create":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let req_json;
             try { req_json = await req.json(); }
-            catch { return corsResponse(null, { status: 400 }); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(req_json["name"].trim() == "") return corsResponse(null, { status: 404 });
             if(await auth.fetchAccount(req_json["name"], req_json["pass"])) return corsResponse(null, { status: 400 });
             let acc = await auth.createAccount(req_json["name"], req_json["pass"]);
-            if(!acc) return corsResponse(null, { status: 400 });
+            if(!acc) return corsResponse(null, { status: 401 });
             return corsResponse(userToJSON(acc), { status: 201 });
           case "/user/account/fetch":
               if(req.method != "POST") return corsResponse(null, { status: 405 });
@@ -499,6 +497,15 @@ const server = Bun.serve({
               if(!await auth.exists(req_json_3["name"])) return corsResponse(null, { status: 404 });
               let acc_3 = await auth.deleteAccount(req_json_3["name"], req_json_3["pass"]);
               return corsResponse(null, { status: 200 });
+          case "/user/account/update":
+              if(req.method != "POST") return corsResponse(null, { status: 405 });
+              let req_json_6;
+              try { req_json_6 = await req.json(); }
+              catch { return corsResponse(null, { status: 404 }); }
+              if(!await auth.exists(req_json_6["name"])) return corsResponse(null, { status: 404 });
+              let acc_6 = await auth.updateAccount(req_json_6["name"], req_json_6["pass"], req_json_6["updated"]);
+              if(!acc_6) return corsResponse(null, { status: 400 });
+              return corsResponse(userToJSON(acc_6), { status: 200 });
           case "/health":
             return corsResponse("OK"); 
           default:
@@ -755,3 +762,5 @@ websocket: {
 });
 
 log.log("server started :33", "SERVER")
+
+await auth.changePoints("admin", "admin", 10);

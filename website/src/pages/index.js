@@ -1,4 +1,4 @@
-const { getCookie, setCookie, formatSeconds, getApiLink } = await import('./common.js');
+const { getCookie, setCookie, formatSeconds, getApiLink, formatNumber } = await import('./common.js');
 
 const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'; // dynamic swap for testing
 let wsUri;
@@ -13,6 +13,10 @@ const message_box = document.getElementById("message-box");
 const uptime_text = document.getElementById("uptime");
 const visitor_text = document.getElementById("visitors");
 const commit_text = document.getElementById("commit");
+document.getElementById("recent-chats").addEventListener("click", () => {
+    let new_location = `${location.protocol}//${location.host}/chat`;
+    window.location.href = new_location;
+})
 let show_full_stats = false;
 const stats_div = document.getElementById("stats");
 stats_div.addEventListener("click", () => {
@@ -63,7 +67,7 @@ function update_messages() {
         if(message[0] != "[") continue;
         let ele = document.createElement("p");
         ele.textContent = message;
-        ele.classList.add("basic-text");
+        ele.classList.add("basic-text", "unselectable");
         ele.style.position = "absolute"
         ele.style.marginLeft = ".5vw"
         ele.style.fontSize = "1vw"
@@ -105,11 +109,10 @@ async function update_stats(do_fetch) {
         commit_text.textContent = ``;
         uptime_text.textContent = ``;
     }
-    visitor_text.textContent = `Unique Visitors: ${data["visitor-count"]}`;
+    visitor_text.textContent = `Unique Visitors: ${formatNumber(data["visitor-count"])}`;
 }
 
 await update_stats(false);
 setInterval(() => {
     update_stats(true)
 }, 3000);
-

@@ -64,6 +64,20 @@ export function formatSeconds(seconds) {
     return text;
 }
 
+export function formatNumber(number) {
+    let text = `${number}`
+    if(number >= 1000) { // thousand
+        text = `${(number/1000).toFixed(2)}k`;
+    } if(number >= 10000000) { // million
+        text = `${(number/1000).toFixed(3)}m`;
+    } if(number >= 1000000000) { // billion
+        text = `${(number/1000).toFixed(4)}b`;
+    } if(number >= 1000000000000) { // trillion
+        text = `${(number/1000).toFixed(4)}t`;
+    }
+    return text;
+}
+
 export async function getPoints() {
     const res = await fetch("/user/points/query", {
         method: "GET",
@@ -84,6 +98,41 @@ export function getApiLink(route) {
         link = location.protocol + '//' + 'api.' + location.host + route
     }
     return link
+}
+
+export async function changeSettingOnAccount(setting, value) {
+    let saved_data = JSON.parse(window.localStorage.getItem("user"));
+    let name = saved_data["account"]["name"];
+    let pass = saved_data["account"]["pass"];
+    saved_data.settings[setting] = value;
+    let req = await fetch(getApiLink("/user/account/update"), {
+        method: "POST",
+        body: JSON.stringify({"name": name, "pass": pass, "updated": saved_data})
+    });
+    if(req.status != 200) {
+        alert(`error updating setting ${setting} to ${value} on your account`);
+    }
+    let new_data = await req.json();
+    window.localStorage.setItem("user", JSON.stringify(new_data));
+}
+
+export function getSettingOnAccount(setting) { // local only
+    let saved_data = JSON.parse(window.localStorage.getItem("user"));
+    return saved_data.settings[setting];
+}
+
+export function getAccountCredentials() {
+    let saved_data = JSON.parse(window.localStorage.getItem("user"));
+    return JSON.stringify({"name": saved_data["account"]["name"], "pass": saved_data["account"]["pass"]})
+}
+
+export async function refreshAccount() {
+    let req = await fetch(getApiLink("/user/account/fetch"), {
+        method: "POST",
+        body: getAccountCredentials()
+    });
+    let json = await req.json();
+    window.localStorage.setItem("user", JSON.stringify(json));
 }
 
 await updateId();
