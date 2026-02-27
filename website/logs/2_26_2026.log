@@ -7993,3 +7993,28 @@ LOG GENERATED ON 2_26_2026 - 10:00:41 AM
 7:26:54 PM - [CHAT]: admin has connected
 7:27:04 PM - [CHAT]: #000000[admin]: yoyo
 7:27:06 PM - [CHAT]: admin has disconnected
+------ STARTING ------
+8:13:31 PM - [LOGWIZARD]: Initialized
+8:13:31 PM - [SERVER]: starting server :3
+8:13:31 PM - [DATABASE]: Initialized
+8:13:31 PM - [AUTHWIZARD]: Initialized
+8:13:31 PM - [CACHEWIZARD]: Initialized
+8:13:31 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+8:13:31 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+8:13:31 PM - [TIMEWIZARD]: Initialized
+8:13:31 PM - [SERVER]: server initalized >:3
+8:13:31 PM - [SERVER]: server started :33
+8:14:34 PM - [AUTHWIZARD]: Creating new account "sigma" w/ password "sigma"
+8:18:29 PM - [AUTHWIZARD]: Deleting Account "sigma"
+8:19:17 PM - [AUTHWIZARD]: Creating new account "sigma" w/ password "sigma"
+8:19:21 PM - [AUTHWIZARD]: Deleting Account "sigma"
+8:20:10 PM - [AUTHWIZARD]: Creating new account "sigma" w/ password "sigma"
+8:20:24 PM - [AUTHWIZARD]: Deleting Account "sigma"
+8:21:16 PM - [AUTHWIZARD]: Creating new account "sigma" w/ password "sigma"
+8:21:21 PM - [AUTHWIZARD]: Deleting Account "sigma"
+8:21:51 PM - [AUTHWIZARD]: Creating new account "sigma" w/ password "sigma"
+8:22:37 PM - [AUTHWIZARD]: Deleting Account "sigma"
+8:22:55 PM - [AUTHWIZARD]: Creating new account "sigma" w/ password "sigma"
+8:22:59 PM - [AUTHWIZARD]: Deleting Account "sigma"
+8:23:22 PM - [AUTHWIZARD]: Creating new account "sigma" w/ password "sigma"
+8:23:24 PM - [AUTHWIZARD]: Deleting Account "sigma"

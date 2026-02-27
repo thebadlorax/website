@@ -14,9 +14,9 @@ const uptime_text = document.getElementById("uptime");
 const visitor_text = document.getElementById("visitors");
 const commit_text = document.getElementById("commit");
 document.getElementById("recent-chats").addEventListener("click", () => {
-    let new_location = `${location.protocol}//${location.host}/chat`;
-    window.location.href = new_location;
+    window.location.href = `${location.protocol}//${location.host}/chat`;
 })
+// TODO: remove id and api.user/init
 let show_full_stats = false;
 const stats_div = document.getElementById("stats");
 stats_div.addEventListener("click", () => {

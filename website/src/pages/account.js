@@ -9,6 +9,7 @@ import { getApiLink } from "./common.js";
 
 const account_button = document.getElementById("account-button");
 const sign_in_button = document.getElementById("sign-in-button");
+const delete_button = document.getElementById("delete-button");
 const manage_text = document.getElementById("mng-txt");
 const sign_out_button = document.getElementById("sign-out-button");
 const update_button = document.getElementById("update-button");
@@ -214,6 +215,20 @@ document.body.addEventListener("keydown", (e) => {
     if(e.key == "Escape") {
         hideMenu();
     }
+})
+
+delete_button.addEventListener("click", async () => {
+    if(!confirm("are you sure")) return;
+    let saved_data = JSON.parse(window.localStorage.getItem("user"));
+    let name = saved_data["account"]["name"];
+    let pass = saved_data["account"]["pass"];
+    let req = await fetch(getApiLink("/user/account/delete"), {
+        method: "POST",
+        body: JSON.stringify({"name": name, "pass": pass})
+    });
+    if(req.status != 200) { alert("something went wrong deleting your account"); return; }
+    name_input.value = "";
+    openMenu();
 })
 
 const sanitize_input = (input) => {
