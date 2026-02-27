@@ -4,11 +4,10 @@ import { resolve } from 'node:path';
 import { generateRandomString, clamp, getSubdomain, streamToBlob } from "./backend/utils";
 import { deleteFile, renameFile } from "./backend/file";
 import { Database } from "./backend/db"
-import { Deck } from "./backend/games";
+import { BlackjackInstance, Deck } from "./backend/games";
 import { corsResponse, CORS_HEADERS } from "./backend/connectivity";
 import { ChatInstance } from "./backend/chat";
 import { CacheWizard } from "./backend/cache";
-import { type blackjackInstance } from "./backend/games";
 import { LogWizard } from "./backend/logging";
 import { AuthorizationWizard, userToJSON } from "./backend/auth";
 import { TimeWizard } from "./backend/time";
@@ -92,11 +91,7 @@ if(!key) {
 }
 // end
 
-let blackjack: blackjackInstance = {
-  players: new Map(),
-  deck: new Deck(),
-  isStarted: false
-}
+let blackjack: BlackjackInstance = new BlackjackInstance();
 let decks = new Map<string, Deck>();
 
 log.log("server initalized >:3", "SERVER")
@@ -604,17 +599,8 @@ websocket: {
           }
         }
         break;
-
-      case "/gambling/blackjack/join":
-        blackjack.players.set(ws, []);
-        let _msg = `_STATE=${false};`;
-        blackjack.players.values().forEach((v) => {
-          let name = v[1];
-          if(name) _msg += `${name};`
-        })
-        if(blackjack.players.size == 0) break;
-        ws.send(_msg);
-        break;
+      
+      case "/gambling/blackjack/join": blackjack.handleConnection(ws); break;
       
       default:
         websockets.push(ws);
@@ -682,29 +668,7 @@ websocket: {
         }
         break;
 
-      case "/gambling/blackjack/join":
-        if(message[0] == "_") {
-          const method = message.slice(1, message.indexOf("="));
-          const value = message.slice(message.indexOf("=") + 1);
-
-          switch(method) {
-            case "INIT":
-              blackjack.players.get(ws)?.unshift(value.split(";")[0]);
-              blackjack.players.get(ws)?.push(value.split(";")[1]);
-              blackjack.players.keys().forEach((key) => key.send(`_JOIN=${value.split(";")[1]}`));
-              break;
-            case "NAMEUPDATE":
-              blackjack.players.keys().forEach((key) => key.send(`_NAMEUPDATE=${blackjack.players.get(ws)![1]};${value}`))
-              blackjack.players.get(ws)![1] = value;
-              break;
-            case "LEAVE":
-              blackjack.players.keys().forEach((k) => k.send(`_DISCONNECT=${blackjack.players.get(ws)![1]}`))
-              blackjack.players.set(ws, []);
-              break;
-            default: break;
-          }
-        }
-        break;
+      case "/gambling/blackjack/join": blackjack.handleRecieved(ws, message); break;
 
       default:
         ws.send("where u come from :-(");
@@ -749,8 +713,7 @@ websocket: {
       }
 
       case "/gambling/blackjack/join":
-        blackjack.players.keys().forEach((k) => k.send(`_DISCONNECT=${blackjack.players.get(ws)![1]}`))
-        blackjack.players.delete(ws);
+        blackjack.deregisterPlayer(ws);
         break;
     }
   },

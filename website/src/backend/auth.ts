@@ -121,7 +121,8 @@ export class AuthorizationWizard {
 
     async _getAccounts() {
         let json = await this.db.fetch("auth");
-        json = JSON.parse(json);
+        try { json = JSON.parse(json); }
+        catch { return; }
         let accounts = json["users"];
         return accounts
     }

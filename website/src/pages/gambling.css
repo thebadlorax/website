@@ -57,7 +57,7 @@ body {
 .receipt {
     position: fixed; 
     transform: scale(0.8) rotate(30deg);
-    top: 50%; 
+    top: 65%; 
     left: -25%;
     z-index: 999;
     width: 50vw;
@@ -66,7 +66,7 @@ body {
 }
 
 .receipt:hover {
-    transform: scale(1.0) translate(50%, -35%) rotate(1.5deg);
+    transform: scale(1.0) translate(48%, -50%) rotate(2.5deg);
 }
 
 .receipt * {
@@ -77,7 +77,7 @@ body {
     position: absolute;
     font-size: 1.5vw; 
     color: black; 
-    transform: scale(1.0) translate(5vw, 40vw);
+    transform: scale(1.0) translate(3vw, 13vw);
     text-decoration: underline;
 }
 

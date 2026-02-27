@@ -3,7 +3,7 @@ function openPersistentPopup() {
     if (popupWindow) {
       popupWindow.focus();
     } else {
-      alert('Please allow popups for this site to use this feature.');
+      alert('allow popups');
     }
 }
 

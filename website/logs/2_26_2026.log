@@ -8018,3 +8018,517 @@ LOG GENERATED ON 2_26_2026 - 10:00:41 AM
 8:22:59 PM - [AUTHWIZARD]: Deleting Account "sigma"
 8:23:22 PM - [AUTHWIZARD]: Creating new account "sigma" w/ password "sigma"
 8:23:24 PM - [AUTHWIZARD]: Deleting Account "sigma"
+------ STARTING ------
+8:35:59 PM - [LOGWIZARD]: Initialized
+8:35:59 PM - [SERVER]: starting server :3
+8:35:59 PM - [DATABASE]: Initialized
+8:35:59 PM - [AUTHWIZARD]: Initialized
+8:35:59 PM - [CACHEWIZARD]: Initialized
+8:35:59 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+8:35:59 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+8:35:59 PM - [TIMEWIZARD]: Initialized
+8:35:59 PM - [SERVER]: server initalized >:3
+8:35:59 PM - [SERVER]: server started :33
+8:36:07 PM - [API]: User uploaded file: public/ethan/explanation.png
+8:36:09 PM - [API]: User uploaded file: public/ethan/ethan_edit.mp4
+8:38:11 PM - [API]: User uploaded file: public/ethan/explanation.png
+------ STARTING ------
+10:04:53 PM - [LOGWIZARD]: Initialized
+10:04:53 PM - [SERVER]: starting server :3
+10:04:53 PM - [DATABASE]: Initialized
+10:04:53 PM - [AUTHWIZARD]: Initialized
+10:04:53 PM - [CACHEWIZARD]: Initialized
+10:04:53 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:04:53 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:04:53 PM - [TIMEWIZARD]: Initialized
+10:04:53 PM - [SERVER]: server initalized >:3
+10:04:53 PM - [SERVER]: server started :33
+------ STARTING ------
+10:09:19 PM - [LOGWIZARD]: Initialized
+10:09:19 PM - [SERVER]: starting server :3
+10:09:19 PM - [DATABASE]: Initialized
+10:09:19 PM - [AUTHWIZARD]: Initialized
+10:09:19 PM - [CACHEWIZARD]: Initialized
+10:09:19 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:09:19 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:09:19 PM - [TIMEWIZARD]: Initialized
+10:09:19 PM - [SERVER]: server initalized >:3
+10:09:19 PM - [SERVER]: server started :33
+------ STARTING ------
+10:13:48 PM - [LOGWIZARD]: Initialized
+10:13:48 PM - [SERVER]: starting server :3
+10:13:48 PM - [DATABASE]: Initialized
+10:13:48 PM - [AUTHWIZARD]: Initialized
+10:13:48 PM - [CACHEWIZARD]: Initialized
+10:13:48 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:13:48 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:13:48 PM - [TIMEWIZARD]: Initialized
+10:13:49 PM - [SERVER]: server initalized >:3
+10:13:49 PM - [SERVER]: server started :33
+------ STARTING ------
+10:20:32 PM - [LOGWIZARD]: Initialized
+10:20:32 PM - [SERVER]: starting server :3
+10:20:32 PM - [DATABASE]: Initialized
+10:20:32 PM - [AUTHWIZARD]: Initialized
+10:20:32 PM - [CACHEWIZARD]: Initialized
+10:20:32 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:20:32 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:20:32 PM - [TIMEWIZARD]: Initialized
+10:20:32 PM - [SERVER]: server initalized >:3
+10:20:32 PM - [SERVER]: server started :33
+------ STARTING ------
+10:21:08 PM - [LOGWIZARD]: Initialized
+10:21:08 PM - [SERVER]: starting server :3
+10:21:08 PM - [DATABASE]: Initialized
+10:21:08 PM - [AUTHWIZARD]: Initialized
+10:21:08 PM - [CACHEWIZARD]: Initialized
+10:21:08 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:21:08 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:21:08 PM - [TIMEWIZARD]: Initialized
+10:21:08 PM - [SERVER]: server initalized >:3
+10:21:08 PM - [SERVER]: server started :33
+------ STARTING ------
+10:23:48 PM - [LOGWIZARD]: Initialized
+10:23:48 PM - [SERVER]: starting server :3
+10:23:48 PM - [DATABASE]: Initialized
+10:23:48 PM - [AUTHWIZARD]: Initialized
+10:23:48 PM - [CACHEWIZARD]: Initialized
+10:23:48 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:23:48 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:23:48 PM - [TIMEWIZARD]: Initialized
+10:23:48 PM - [SERVER]: server initalized >:3
+10:23:48 PM - [SERVER]: server started :33
+------ STARTING ------
+10:23:59 PM - [LOGWIZARD]: Initialized
+10:23:59 PM - [SERVER]: starting server :3
+10:23:59 PM - [DATABASE]: Initialized
+10:23:59 PM - [AUTHWIZARD]: Initialized
+10:23:59 PM - [CACHEWIZARD]: Initialized
+10:23:59 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:23:59 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:23:59 PM - [TIMEWIZARD]: Initialized
+10:23:59 PM - [SERVER]: server initalized >:3
+10:23:59 PM - [SERVER]: server started :33
+------ STARTING ------
+10:25:14 PM - [LOGWIZARD]: Initialized
+10:25:14 PM - [SERVER]: starting server :3
+10:25:14 PM - [DATABASE]: Initialized
+10:25:14 PM - [AUTHWIZARD]: Initialized
+10:25:14 PM - [CACHEWIZARD]: Initialized
+10:25:14 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:25:14 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:25:14 PM - [TIMEWIZARD]: Initialized
+10:25:14 PM - [SERVER]: server initalized >:3
+10:25:14 PM - [SERVER]: server started :33
+------ STARTING ------
+10:27:42 PM - [LOGWIZARD]: Initialized
+10:27:42 PM - [SERVER]: starting server :3
+10:27:42 PM - [DATABASE]: Initialized
+10:27:42 PM - [AUTHWIZARD]: Initialized
+10:27:42 PM - [CACHEWIZARD]: Initialized
+10:27:42 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:27:42 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:27:42 PM - [TIMEWIZARD]: Initialized
+10:27:42 PM - [SERVER]: server initalized >:3
+10:27:42 PM - [SERVER]: server started :33
+------ STARTING ------
+10:28:05 PM - [LOGWIZARD]: Initialized
+10:28:05 PM - [SERVER]: starting server :3
+10:28:05 PM - [DATABASE]: Initialized
+10:28:05 PM - [AUTHWIZARD]: Initialized
+10:28:05 PM - [CACHEWIZARD]: Initialized
+10:28:05 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:28:05 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:28:05 PM - [TIMEWIZARD]: Initialized
+10:28:05 PM - [SERVER]: server initalized >:3
+10:28:05 PM - [SERVER]: server started :33
+10:28:07 PM - [LOG]: join;{"user":{"account":{"name":"sigma","pass":"sigma","id":"OlmFLZH0djVOs0N"},"settings":{"display_name":"sigma","color":"#000000"},"statistics":{"points":100,"cTime":1772155402074,"uniquesOnCreation":1}}}
+------ STARTING ------
+10:28:24 PM - [LOGWIZARD]: Initialized
+10:28:24 PM - [SERVER]: starting server :3
+10:28:24 PM - [DATABASE]: Initialized
+10:28:24 PM - [AUTHWIZARD]: Initialized
+10:28:24 PM - [CACHEWIZARD]: Initialized
+10:28:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:28:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:28:24 PM - [TIMEWIZARD]: Initialized
+10:28:24 PM - [SERVER]: server initalized >:3
+10:28:24 PM - [SERVER]: server started :33
+10:28:26 PM - [LOG]: ;{"user":{"account":{"name":"sigma","pass":"sigma","id":"OlmFLZH0djVOs0N"},"settings":{"display_name":"sigma","color":"#000000"},"statistics":{"points":100,"cTime":1772155402074,"uniquesOnCreation":1}}}
+------ STARTING ------
+10:28:33 PM - [LOGWIZARD]: Initialized
+10:28:33 PM - [SERVER]: starting server :3
+10:28:33 PM - [DATABASE]: Initialized
+10:28:33 PM - [AUTHWIZARD]: Initialized
+10:28:33 PM - [CACHEWIZARD]: Initialized
+10:28:33 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:28:33 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:28:33 PM - [TIMEWIZARD]: Initialized
+10:28:33 PM - [SERVER]: server initalized >:3
+10:28:33 PM - [SERVER]: server started :33
+10:28:36 PM - [LOG]: {"user":{"account":{"name":"sigma","pass":"sigma","id":"OlmFLZH0djVOs0N"},"settings":{"display_name":"sigma","color":"#000000"},"statistics":{"points":100,"cTime":1772155402074,"uniquesOnCreation":1}}}
+------ STARTING ------
+10:28:50 PM - [LOGWIZARD]: Initialized
+10:28:50 PM - [SERVER]: starting server :3
+10:28:50 PM - [DATABASE]: Initialized
+10:28:50 PM - [AUTHWIZARD]: Initialized
+10:28:50 PM - [CACHEWIZARD]: Initialized
+10:28:50 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:28:50 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:28:50 PM - [TIMEWIZARD]: Initialized
+10:28:50 PM - [SERVER]: server initalized >:3
+10:28:50 PM - [SERVER]: server started :33
+------ STARTING ------
+10:35:44 PM - [LOGWIZARD]: Initialized
+10:35:44 PM - [SERVER]: starting server :3
+10:35:44 PM - [DATABASE]: Initialized
+10:35:44 PM - [AUTHWIZARD]: Initialized
+10:35:44 PM - [CACHEWIZARD]: Initialized
+10:35:44 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:35:44 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:35:44 PM - [TIMEWIZARD]: Initialized
+10:35:44 PM - [SERVER]: server initalized >:3
+10:35:44 PM - [SERVER]: server started :33
+10:35:46 PM - [LOG]: yo
+------ STARTING ------
+10:35:51 PM - [LOGWIZARD]: Initialized
+10:35:51 PM - [SERVER]: starting server :3
+10:35:51 PM - [DATABASE]: Initialized
+10:35:51 PM - [AUTHWIZARD]: Initialized
+10:35:51 PM - [CACHEWIZARD]: Initialized
+10:35:51 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:35:51 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:35:51 PM - [TIMEWIZARD]: Initialized
+10:35:51 PM - [SERVER]: server initalized >:3
+10:35:51 PM - [SERVER]: server started :33
+------ STARTING ------
+10:36:13 PM - [LOGWIZARD]: Initialized
+10:36:13 PM - [SERVER]: starting server :3
+10:36:13 PM - [DATABASE]: Initialized
+10:36:13 PM - [AUTHWIZARD]: Initialized
+10:36:13 PM - [CACHEWIZARD]: Initialized
+10:36:13 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:36:13 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:36:13 PM - [TIMEWIZARD]: Initialized
+10:36:13 PM - [SERVER]: server initalized >:3
+10:36:13 PM - [SERVER]: server started :33
+------ STARTING ------
+10:40:28 PM - [LOGWIZARD]: Initialized
+10:40:28 PM - [SERVER]: starting server :3
+10:40:28 PM - [DATABASE]: Initialized
+10:40:28 PM - [AUTHWIZARD]: Initialized
+10:40:28 PM - [CACHEWIZARD]: Initialized
+10:40:28 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:40:28 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:40:28 PM - [TIMEWIZARD]: Initialized
+10:40:28 PM - [SERVER]: server initalized >:3
+10:40:28 PM - [SERVER]: server started :33
+------ STARTING ------
+10:42:17 PM - [LOGWIZARD]: Initialized
+10:42:17 PM - [SERVER]: starting server :3
+10:42:17 PM - [DATABASE]: Initialized
+10:42:17 PM - [AUTHWIZARD]: Initialized
+10:42:17 PM - [CACHEWIZARD]: Initialized
+10:42:17 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:42:17 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:42:17 PM - [TIMEWIZARD]: Initialized
+10:42:17 PM - [SERVER]: server initalized >:3
+10:42:17 PM - [SERVER]: server started :33
+------ STARTING ------
+10:43:09 PM - [LOGWIZARD]: Initialized
+10:43:09 PM - [SERVER]: starting server :3
+10:43:09 PM - [DATABASE]: Initialized
+10:43:09 PM - [AUTHWIZARD]: Initialized
+10:43:09 PM - [CACHEWIZARD]: Initialized
+10:43:09 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:43:09 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:43:09 PM - [TIMEWIZARD]: Initialized
+10:43:09 PM - [SERVER]: server initalized >:3
+10:43:09 PM - [SERVER]: server started :33
+------ STARTING ------
+10:43:34 PM - [LOGWIZARD]: Initialized
+10:43:34 PM - [SERVER]: starting server :3
+10:43:34 PM - [DATABASE]: Initialized
+10:43:34 PM - [AUTHWIZARD]: Initialized
+10:43:34 PM - [CACHEWIZARD]: Initialized
+10:43:34 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:43:34 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:43:34 PM - [TIMEWIZARD]: Initialized
+10:43:34 PM - [SERVER]: server initalized >:3
+10:43:34 PM - [SERVER]: server started :33
+------ STARTING ------
+10:44:04 PM - [LOGWIZARD]: Initialized
+10:44:04 PM - [SERVER]: starting server :3
+10:44:04 PM - [DATABASE]: Initialized
+10:44:04 PM - [AUTHWIZARD]: Initialized
+10:44:04 PM - [CACHEWIZARD]: Initialized
+10:44:04 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:44:04 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:44:04 PM - [TIMEWIZARD]: Initialized
+10:44:04 PM - [SERVER]: server initalized >:3
+10:44:04 PM - [SERVER]: server started :33
+10:48:06 PM - [AUTHWIZARD]: Creating new account "gurt1" w/ password "gurt"
+------ STARTING ------
+10:49:23 PM - [LOGWIZARD]: Initialized
+10:49:23 PM - [SERVER]: starting server :3
+10:49:23 PM - [DATABASE]: Initialized
+10:49:23 PM - [AUTHWIZARD]: Initialized
+10:49:23 PM - [CACHEWIZARD]: Initialized
+10:49:23 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:49:23 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:49:23 PM - [TIMEWIZARD]: Initialized
+10:49:23 PM - [SERVER]: server initalized >:3
+10:49:23 PM - [SERVER]: server started :33
+------ STARTING ------
+10:54:06 PM - [LOGWIZARD]: Initialized
+10:54:06 PM - [SERVER]: starting server :3
+10:54:06 PM - [DATABASE]: Initialized
+10:54:06 PM - [AUTHWIZARD]: Initialized
+10:54:06 PM - [CACHEWIZARD]: Initialized
+10:54:06 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:54:06 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:54:06 PM - [TIMEWIZARD]: Initialized
+10:54:06 PM - [SERVER]: server initalized >:3
+10:54:06 PM - [SERVER]: server started :33
+10:57:54 PM - [AUTHWIZARD]: Creating new account "sigma" w/ password "sigma"
+10:58:17 PM - ---FETCHING ERROR---
+10:58:17 PM - [DATABASE]: Error fetching element auth
+10:58:17 PM - ---END ERROR---
+------ STARTING ------
+10:59:41 PM - [LOGWIZARD]: Initialized
+10:59:41 PM - [SERVER]: starting server :3
+10:59:41 PM - [DATABASE]: Initialized
+10:59:41 PM - [AUTHWIZARD]: Initialized
+10:59:41 PM - [CACHEWIZARD]: Initialized
+10:59:41 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+10:59:41 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+10:59:41 PM - [TIMEWIZARD]: Initialized
+10:59:41 PM - [SERVER]: server initalized >:3
+10:59:41 PM - [SERVER]: server started :33
+------ STARTING ------
+11:06:13 PM - [LOGWIZARD]: Initialized
+11:06:13 PM - [SERVER]: starting server :3
+11:06:13 PM - [DATABASE]: Initialized
+11:06:13 PM - [AUTHWIZARD]: Initialized
+11:06:13 PM - [CACHEWIZARD]: Initialized
+11:06:13 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:06:13 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:06:13 PM - [TIMEWIZARD]: Initialized
+11:06:13 PM - [SERVER]: server initalized >:3
+11:06:13 PM - [SERVER]: server started :33
+------ STARTING ------
+11:06:51 PM - [LOGWIZARD]: Initialized
+11:06:51 PM - [SERVER]: starting server :3
+11:06:51 PM - [DATABASE]: Initialized
+11:06:51 PM - [AUTHWIZARD]: Initialized
+11:06:51 PM - [CACHEWIZARD]: Initialized
+11:06:51 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:06:52 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:06:52 PM - [TIMEWIZARD]: Initialized
+11:06:52 PM - [BLACKJACK]: Instance started with id MplrlOnchB2JWBO
+11:06:52 PM - [SERVER]: server initalized >:3
+11:06:52 PM - [SERVER]: server started :33
+------ STARTING ------
+11:07:49 PM - [LOGWIZARD]: Initialized
+11:07:49 PM - [SERVER]: starting server :3
+11:07:49 PM - [DATABASE]: Initialized
+11:07:49 PM - [AUTHWIZARD]: Initialized
+11:07:49 PM - [CACHEWIZARD]: Initialized
+11:07:49 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:07:49 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:07:49 PM - [TIMEWIZARD]: Initialized
+11:07:49 PM - [GAMES]: Deck initalized with id uLC2OLAn9f
+11:07:49 PM - [GAMES]: Blackjack instance initalized with id 2tzhSCg25o33LLq
+11:07:49 PM - [SERVER]: server initalized >:3
+11:07:49 PM - [SERVER]: server started :33
+------ STARTING ------
+11:08:22 PM - [LOGWIZARD]: Initialized
+11:08:22 PM - [SERVER]: starting server :3
+11:08:22 PM - [DATABASE]: Initialized
+11:08:22 PM - [AUTHWIZARD]: Initialized
+11:08:22 PM - [CACHEWIZARD]: Initialized
+11:08:22 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:08:22 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:08:22 PM - [TIMEWIZARD]: Initialized
+11:08:22 PM - [GAMES]: Deck initalized with id UzRWJK7scG
+11:08:22 PM - [GAMES]: Blackjack instance initalized with id 8xX47liHIbEmgXm
+11:08:22 PM - [SERVER]: server initalized >:3
+11:08:22 PM - [SERVER]: server started :33
+------ STARTING ------
+11:10:34 PM - [LOGWIZARD]: Initialized
+11:10:34 PM - [SERVER]: starting server :3
+11:10:34 PM - [DATABASE]: Initialized
+11:10:34 PM - [AUTHWIZARD]: Initialized
+11:10:34 PM - [CACHEWIZARD]: Initialized
+11:10:34 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:10:34 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:10:34 PM - [TIMEWIZARD]: Initialized
+11:10:34 PM - [GAMES]: Deck initalized with id M5c5Nppmv4
+11:10:34 PM - [GAMES]: Blackjack instance initalized with id HayUC04952jFOsV
+11:10:34 PM - [SERVER]: server initalized >:3
+11:10:34 PM - [SERVER]: server started :33
+------ STARTING ------
+11:12:24 PM - [LOGWIZARD]: Initialized
+11:12:24 PM - [SERVER]: starting server :3
+11:12:24 PM - [DATABASE]: Initialized
+11:12:24 PM - [AUTHWIZARD]: Initialized
+11:12:24 PM - [CACHEWIZARD]: Initialized
+11:12:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:12:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:12:24 PM - [TIMEWIZARD]: Initialized
+11:12:24 PM - [GAMES]: Deck initalized with id f68cUSvYHg
+11:12:24 PM - [GAMES]: Blackjack instance initalized with id TNm22ye2OZwq23H
+11:12:24 PM - [SERVER]: server initalized >:3
+11:12:24 PM - [SERVER]: server started :33
+------ STARTING ------
+11:17:39 PM - [LOGWIZARD]: Initialized
+11:17:39 PM - [SERVER]: starting server :3
+11:17:39 PM - [DATABASE]: Initialized
+11:17:39 PM - [AUTHWIZARD]: Initialized
+11:17:39 PM - [CACHEWIZARD]: Initialized
+11:17:39 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:17:39 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:17:39 PM - [TIMEWIZARD]: Initialized
+11:17:39 PM - [GAMES]: Deck initalized with id qnfWsoP3Ws
+11:17:39 PM - [GAMES]: Blackjack instance initalized with id 2qSPPyols4zciFh
+11:17:39 PM - [SERVER]: server initalized >:3
+11:17:39 PM - [SERVER]: server started :33
+------ STARTING ------
+11:18:29 PM - [LOGWIZARD]: Initialized
+11:18:29 PM - [SERVER]: starting server :3
+11:18:29 PM - [DATABASE]: Initialized
+11:18:29 PM - [AUTHWIZARD]: Initialized
+11:18:29 PM - [CACHEWIZARD]: Initialized
+11:18:29 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:18:29 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:18:29 PM - [TIMEWIZARD]: Initialized
+11:18:29 PM - [GAMES]: Deck initalized with id sdelhycuL6
+11:18:29 PM - [GAMES]: Blackjack instance initalized with id jflSc4zZHCCzl7L
+11:18:29 PM - [SERVER]: server initalized >:3
+11:18:29 PM - [SERVER]: server started :33
+11:19:02 PM - [GAMES]: Starting blackjack instance jflSc4zZHCCzl7L
+------ STARTING ------
+11:19:45 PM - [LOGWIZARD]: Initialized
+11:19:45 PM - [SERVER]: starting server :3
+11:19:45 PM - [DATABASE]: Initialized
+11:19:45 PM - [AUTHWIZARD]: Initialized
+11:19:45 PM - [CACHEWIZARD]: Initialized
+11:19:45 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:19:45 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:19:45 PM - [TIMEWIZARD]: Initialized
+11:19:45 PM - [GAMES]: Deck initalized with id 69QUB0k16T
+11:19:45 PM - [GAMES]: Blackjack instance initalized with id RUDxnl4NEHQl4r3
+11:19:45 PM - [SERVER]: server initalized >:3
+11:19:45 PM - [SERVER]: server started :33
+------ STARTING ------
+11:19:57 PM - [LOGWIZARD]: Initialized
+11:19:57 PM - [SERVER]: starting server :3
+11:19:57 PM - [DATABASE]: Initialized
+11:19:57 PM - [AUTHWIZARD]: Initialized
+11:19:57 PM - [CACHEWIZARD]: Initialized
+11:19:57 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:19:57 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:19:57 PM - [TIMEWIZARD]: Initialized
+11:19:57 PM - [GAMES]: Deck initalized with id MVqg0lNZg0
+11:19:57 PM - [GAMES]: Blackjack instance initalized with id NTAySTHxiiE1Qif
+11:19:57 PM - [SERVER]: server initalized >:3
+11:19:57 PM - [SERVER]: server started :33
+11:20:03 PM - [GAMES]: Starting blackjack instance NTAySTHxiiE1Qif
+11:20:05 PM - [GAMES]: Starting blackjack instance NTAySTHxiiE1Qif
+------ STARTING ------
+11:20:20 PM - [LOGWIZARD]: Initialized
+11:20:20 PM - [SERVER]: starting server :3
+11:20:20 PM - [DATABASE]: Initialized
+11:20:20 PM - [AUTHWIZARD]: Initialized
+11:20:20 PM - [CACHEWIZARD]: Initialized
+11:20:20 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:20:20 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:20:20 PM - [TIMEWIZARD]: Initialized
+11:20:20 PM - [GAMES]: Deck initalized with id KNndLgWnxR
+11:20:20 PM - [GAMES]: Blackjack instance initalized with id dL2qtCqmNQwi06R
+11:20:20 PM - [SERVER]: server initalized >:3
+11:20:20 PM - [SERVER]: server started :33
+11:20:25 PM - [GAMES]: Starting blackjack instance dL2qtCqmNQwi06R
+------ STARTING ------
+11:21:24 PM - [LOGWIZARD]: Initialized
+11:21:24 PM - [SERVER]: starting server :3
+11:21:24 PM - [DATABASE]: Initialized
+11:21:24 PM - [AUTHWIZARD]: Initialized
+11:21:24 PM - [CACHEWIZARD]: Initialized
+11:21:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:21:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:21:24 PM - [TIMEWIZARD]: Initialized
+11:21:24 PM - [GAMES]: Deck initalized with id DsuPpRMfPw
+11:21:24 PM - [GAMES]: Blackjack instance initalized with id Kl9LjG1sDbamE9v
+11:21:24 PM - [SERVER]: server initalized >:3
+11:21:24 PM - [SERVER]: server started :33
+11:22:13 PM - [GAMES]: Starting blackjack instance Kl9LjG1sDbamE9v
+------ STARTING ------
+11:24:24 PM - [LOGWIZARD]: Initialized
+11:24:24 PM - [SERVER]: starting server :3
+11:24:24 PM - [DATABASE]: Initialized
+11:24:24 PM - [AUTHWIZARD]: Initialized
+11:24:24 PM - [CACHEWIZARD]: Initialized
+11:24:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:24:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:24:24 PM - [TIMEWIZARD]: Initialized
+11:24:24 PM - [GAMES]: Deck initalized with id lPUgezMvlA
+11:24:24 PM - [GAMES]: Blackjack instance initalized with id dMejbA1SyY6hU9L
+11:24:24 PM - [SERVER]: server initalized >:3
+11:24:24 PM - [SERVER]: server started :33
+11:24:30 PM - [GAMES]: Starting blackjack instance dMejbA1SyY6hU9L
+------ STARTING ------
+11:25:41 PM - [LOGWIZARD]: Initialized
+11:25:41 PM - [SERVER]: starting server :3
+11:25:41 PM - [DATABASE]: Initialized
+11:25:41 PM - [AUTHWIZARD]: Initialized
+11:25:41 PM - [CACHEWIZARD]: Initialized
+11:25:41 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:25:41 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:25:41 PM - [TIMEWIZARD]: Initialized
+11:25:41 PM - [GAMES]: Deck initalized with id V0TlXulkmu
+11:25:41 PM - [GAMES]: Blackjack instance initalized with id iiBu7Mw2c9VSQoC
+11:25:41 PM - [SERVER]: server initalized >:3
+11:25:41 PM - [SERVER]: server started :33
+11:26:02 PM - [GAMES]: Starting blackjack instance iiBu7Mw2c9VSQoC
+------ STARTING ------
+11:28:31 PM - [LOGWIZARD]: Initialized
+11:28:31 PM - [SERVER]: starting server :3
+11:28:31 PM - [DATABASE]: Initialized
+11:28:31 PM - [AUTHWIZARD]: Initialized
+11:28:31 PM - [CACHEWIZARD]: Initialized
+11:28:31 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:28:31 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:28:31 PM - [TIMEWIZARD]: Initialized
+11:28:31 PM - [GAMES]: Deck initalized with id Ni5mSZ26Hb
+11:28:31 PM - [GAMES]: Blackjack instance initalized with id 9Zz6lA0nmpvGfL0
+11:28:31 PM - [SERVER]: server initalized >:3
+11:28:31 PM - [SERVER]: server started :33
+------ STARTING ------
+11:29:28 PM - [LOGWIZARD]: Initialized
+11:29:28 PM - [SERVER]: starting server :3
+11:29:28 PM - [DATABASE]: Initialized
+11:29:28 PM - [AUTHWIZARD]: Initialized
+11:29:28 PM - [CACHEWIZARD]: Initialized
+11:29:28 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:29:28 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:29:28 PM - [TIMEWIZARD]: Initialized
+11:29:28 PM - [GAMES]: Deck initalized with id lt4x8Yj1fZ
+11:29:28 PM - [GAMES]: Blackjack instance initalized with id K5qQBJ46UGDD473
+11:29:28 PM - [SERVER]: server initalized >:3
+11:29:28 PM - [SERVER]: server started :33
+11:29:34 PM - [GAMES]: Starting blackjack instance K5qQBJ46UGDD473
+11:29:35 PM - [GAMES]: Blackjack instance K5qQBJ46UGDD473 is restarting
+------ STARTING ------
+11:29:50 PM - [LOGWIZARD]: Initialized
+11:29:50 PM - [SERVER]: starting server :3
+11:29:50 PM - [DATABASE]: Initialized
+11:29:50 PM - [AUTHWIZARD]: Initialized
+11:29:50 PM - [CACHEWIZARD]: Initialized
+11:29:50 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:29:50 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:29:50 PM - [TIMEWIZARD]: Initialized
+11:29:50 PM - [GAMES]: Deck initalized with id fOWYlJgFdD
+11:29:50 PM - [GAMES]: Blackjack instance initalized with id biMvxuPNJVSYcAs
+11:29:50 PM - [SERVER]: server initalized >:3
+11:29:50 PM - [SERVER]: server started :33
