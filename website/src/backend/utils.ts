@@ -17,11 +17,9 @@ export const generateRandomString = (length: number) => {
     return result;
 }
 
-export function* range(start: number, end: number, step = 1) {
-    for (let i = start; i < end; i += step) {
-        yield i;
-    }
-} 
+export function* range(start: number, end: number, step = 1) { for (let i = start; i < end; i += step) { yield i; } } 
+
+export function sanitize(str: string) { return str.replaceAll("\\", "").replaceAll(":", "").replaceAll("#", "")}
 
 export function isValidJSON(str: string) {
     if (typeof str !== 'string' || str.trim() === '') {
@@ -32,20 +30,17 @@ export function isValidJSON(str: string) {
       JSON.parse(str);
       return true;
     } catch (error) {
-      // An error occurred during parsing, so the string is invalid JSON.
-      return false;
+      return false; // invalid
     }
 }
 
 export async function streamToBlob(stream: ReadableStream, mimeType?: string) {
-    // Create a corsResponse object with the stream as the body.
     const response = corsResponse(stream, {
       headers: {
-        'Content-Type': mimeType || 'application/octet-stream' // Set an appropriate default MIME type if none is provided
+        'Content-Type': mimeType || 'application/octet-stream'
       }
     });
   
-    // Consume the response as a blob.
     const blob = await response.blob();
     return blob;
 }

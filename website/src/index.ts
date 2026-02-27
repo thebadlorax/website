@@ -762,5 +762,3 @@ websocket: {
 });
 
 log.log("server started :33", "SERVER")
-
-await auth.changePoints("admin", "admin", 10);

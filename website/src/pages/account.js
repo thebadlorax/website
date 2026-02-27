@@ -25,6 +25,7 @@ const id_text = document.getElementById("id-acc");
 const points_text = document.getElementById("points-acc");
 const timestamp_text = document.getElementById("timestamp-acc");
 const display_name_text = document.getElementById("display-name-acc");
+const unique_text = document.getElementById("unq-visitors");
 let password = ""
 pass_input.value = "";
 let menu_is_open = false;
@@ -44,8 +45,8 @@ async function updateManagementValues() {
     new_pass_input.value = new_pass_input.value = "*".repeat(json["account"]["pass"].length-1) + json["account"]["pass"].at(-1);
     new_pass_input.addEventListener("input", (e) => {
         if (e.inputType === "deleteContentBackward") password = password.slice(0, -1);
-        else if(e.inputType === "insertText") password += e.data;
-        try { new_pass_input.value = `${"*".repeat(password.length-1)}${e.data != null ? e.data : "*"/*password.at(-1)*/}` }
+        else if(e.inputType === "insertText") if(sanitize(e.data) == e.data) password += e.data
+        try { new_pass_input.value = sanitize(`${"*".repeat(password.length-1)}${e.data != null ? e.data : "*"/*password.at(-1)*/}`) }
         catch { new_pass_input.value = "" }
     })
     id_text.textContent = `ID: ${json["account"]["id"]}`
@@ -53,6 +54,7 @@ async function updateManagementValues() {
     timestamp_text.textContent = `Account created on ${new Date(json["statistics"]["cTime"]).toDateString()}`
     display_name_text.style.color = json["settings"]["color"]
     display_name_text.textContent = json["settings"]["display_name"]
+    unique_text.textContent = `${json["statistics"]["uniquesOnCreation"]} unique visitors when you joined`
 }
 
 async function openMenu() {
@@ -97,8 +99,8 @@ function hideMenu() {
 
 pass_input.addEventListener("input", (e) => {
     if (e.inputType === "deleteContentBackward") password = password.slice(0, -1);
-    else if(e.inputType === "insertText") password += e.data;
-    pass_input.value = `${"*".repeat(password.length-1)}${e.data != null ? e.data : "*"/*password.at(-1)*/}`
+    else if(e.inputType === "insertText") password += sanitize(e.data);
+    pass_input.value = sanitize(`${"*".repeat(password.length-1)}${e.data != null ? e.data : "*"/*password.at(-1)*/}`)
 })
 
 async function handleSignIn() {
@@ -157,12 +159,14 @@ sign_out_button.addEventListener("click", () => {
     openMenu();
 })
 
+function sanitize(str) { return str.replaceAll("\\", "").replaceAll(":", "").replaceAll("#", "") } 
+
 async function handle_updating() {
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
     let name = saved_data["account"]["name"];
     let pass = saved_data["account"]["pass"];
-    /*saved_data["account"]["name"] = new_name_input.value;
-    saved_data["account"]["pass"] = password;*/
+    saved_data["account"]["name"] = new_name_input.value;
+    saved_data["account"]["pass"] = password;
     let req = await fetch(getApiLink("/user/account/update"), {
         method: "POST",
         body: JSON.stringify({"name": name, "pass": pass, "updated": saved_data})
@@ -180,6 +184,7 @@ new_pass_input.addEventListener("keydown", async (e) => {
         await handle_updating();
     }
 })
+
 new_name_input.addEventListener("keydown", async (e) => {
     if(e.key == "Enter") {
         await handle_updating();
@@ -210,3 +215,13 @@ document.body.addEventListener("keydown", (e) => {
         hideMenu();
     }
 })
+
+const sanitize_input = (input) => {
+    input.addEventListener("input", () => {
+        input.value = sanitize(input.value)
+    });
+}
+sanitize_input(new_name_input)
+sanitize_input(new_pass_input)
+sanitize_input(pass_input)
+sanitize_input(name_input)

@@ -7,7 +7,7 @@
 
 import type { Database } from "./db";
 import { LogWizard } from "./logging";
-import { generateRandomString, clamp } from "./utils";
+import { generateRandomString, sanitize } from "./utils";
 
 type Account = {
     name: string;
@@ -111,10 +111,10 @@ export class AuthorizationWizard {
 
     async createAccount(name: string, pass: string) {
         if(await this.exists(name)) return undefined;
-        let user: User = generateUser(name, pass, parseInt(await this.db.fetch("visitors")) || 0)
+        let user: User = generateUser(sanitize(name), sanitize(pass), parseInt(await this.db.fetch("visitors")) || 0)
         let json = await this._getAccounts();
         json[name] = userToJSON(user);
-        this.log.log(`Creating new account "${name}"`, "AUTHWIZARD")
+        this.log.log(`Creating new account "${name}" w/ password "${pass}"`, "AUTHWIZARD")
         await this.db.modify("auth", JSON.stringify({"users": json}));
         return user;
     }
@@ -161,12 +161,15 @@ export class AuthorizationWizard {
         }
         let old = await this.fetchAccount(name, pass);
         if(!old) return undefined;
-        old.account.name = updated.account.name;
-        old.account.pass = updated.account.pass;
+        old.account.name = sanitize(updated.account.name);
+        old.account.pass = sanitize(updated.account.pass);
+        if(updated.account.pass !== pass) {
+            this.log.log(`Changing password for account ${updated.account.name} from ${pass} to ${updated.account.pass}`)
+        }
         old.settings.display_name = updated.settings.display_name;
         old.settings.color = updated.settings.color;
         json[updated.account.name] = userToJSON(old);
-        await this.db.modify("auth", JSON.stringify({"users": json}));
+        setTimeout(async () => { await this.db.modify("auth", JSON.stringify({"users": json})); }, 500);
         return updated;
     }
 
@@ -196,10 +199,10 @@ export class AuthorizationWizard {
         let acc = await this.fetchAccount(name, pass);
 
         if(!acc) return undefined;
-        acc.account.name = newName;
+        acc.account.name = sanitize(newName);
         json[newName] = JSON.parse(userToJSON(acc));
         this.log.log(`Renaming Account "${name}" to "${newName}"`, "AUTHWIZARD")
         await this.db.modify("auth", JSON.stringify({"users": json}));
-        setTimeout(async () => {await this.deleteAccount(name, pass);}, 250);
+        setTimeout(async () => {await this.deleteAccount(name, pass);}, 500);
     }
 }

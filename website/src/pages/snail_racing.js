@@ -75,6 +75,8 @@ async function runSnailRace() {
     let points = await getPoints();
     wager_slider.max = points;
     wager_slider.value = points/2;
+    document.getElementById("snail-wager-text").textContent = `${wager_slider.value} points bet.`
+    
     wager_slider.disabled = false;
 
     let winner = null;

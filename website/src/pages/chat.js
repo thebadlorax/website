@@ -33,8 +33,8 @@ startBtn.addEventListener("click", () => {
         ws.send(`${name} has exited voice chat`)
     }
 })
-
-try { let color = getSettingOnAccount("color") }
+let color;
+try { color = getSettingOnAccount("color") }
 catch { alert("make an account"); window.location.href = `${location.protocol}//${location.host}/`;}
 color_input.value = color;
 color_input.style.color = color;

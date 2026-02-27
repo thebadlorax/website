@@ -7868,3 +7868,128 @@ LOG GENERATED ON 2_26_2026 - 10:00:41 AM
 6:15:58 PM - [TIMEWIZARD]: Initialized
 6:15:58 PM - [SERVER]: server initalized >:3
 6:15:58 PM - [SERVER]: server started :33
+------ STARTING ------
+6:17:48 PM - [LOGWIZARD]: Initialized
+6:17:48 PM - [SERVER]: starting server :3
+6:17:48 PM - [DATABASE]: Initialized
+6:17:48 PM - [AUTHWIZARD]: Initialized
+6:17:48 PM - [CACHEWIZARD]: Initialized
+6:17:48 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+6:17:48 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+6:17:48 PM - [TIMEWIZARD]: Initialized
+6:17:48 PM - [SERVER]: server initalized >:3
+6:17:48 PM - [SERVER]: server started :33
+6:18:32 PM - [CHAT]: gurt has connected
+6:18:36 PM - [CHAT]: [object HTMLInputElement][gurt]: sigma sigma
+6:18:38 PM - [CHAT]: [object HTMLInputElement][gurt]: on the wall
+6:18:45 PM - [CHAT]: #FFBCBD[gurt]: yo
+6:18:46 PM - [CHAT]: #FFBCBD[gurt]: gurt
+6:18:48 PM - [CHAT]: gurt has disconnected
+------ STARTING ------
+6:35:06 PM - [LOGWIZARD]: Initialized
+6:35:06 PM - [SERVER]: starting server :3
+6:35:06 PM - [DATABASE]: Initialized
+6:35:06 PM - [AUTHWIZARD]: Initialized
+6:35:06 PM - [CACHEWIZARD]: Initialized
+6:35:06 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+6:35:06 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+6:35:06 PM - [TIMEWIZARD]: Initialized
+6:35:06 PM - [SERVER]: server initalized >:3
+6:35:06 PM - [SERVER]: server started :33
+------ STARTING ------
+6:35:45 PM - [LOGWIZARD]: Initialized
+6:35:45 PM - [SERVER]: starting server :3
+6:35:45 PM - [DATABASE]: Initialized
+6:35:45 PM - [AUTHWIZARD]: Initialized
+6:35:45 PM - [CACHEWIZARD]: Initialized
+6:35:45 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+6:35:45 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+6:35:45 PM - [TIMEWIZARD]: Initialized
+6:35:45 PM - [SERVER]: server initalized >:3
+6:35:45 PM - [SERVER]: server started :33
+------ STARTING ------
+6:50:34 PM - [LOGWIZARD]: Initialized
+6:50:34 PM - [SERVER]: starting server :3
+6:50:34 PM - [DATABASE]: Initialized
+6:50:34 PM - [AUTHWIZARD]: Initialized
+6:50:34 PM - [CACHEWIZARD]: Initialized
+6:50:34 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+6:50:34 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+6:50:34 PM - [TIMEWIZARD]: Initialized
+6:50:34 PM - [SERVER]: server initalized >:3
+6:50:34 PM - [SERVER]: server started :33
+6:51:02 PM - [LOG]: Changing password for account admin from admin to admi
+6:51:06 PM - [LOG]: Changing password for account admin from admi to admin
+6:51:11 PM - [AUTHWIZARD]: Renaming Account "admin" to "adm"
+6:51:12 PM - [AUTHWIZARD]: Deleting Account "admin"
+6:51:21 PM - [AUTHWIZARD]: Renaming Account "adm" to "admin"
+6:51:22 PM - [AUTHWIZARD]: Deleting Account "adm"
+------ STARTING ------
+7:03:31 PM - [LOGWIZARD]: Initialized
+7:03:31 PM - [SERVER]: starting server :3
+7:03:31 PM - [DATABASE]: Initialized
+7:03:31 PM - [AUTHWIZARD]: Initialized
+7:03:31 PM - [CACHEWIZARD]: Initialized
+7:03:31 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+7:03:31 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+7:03:31 PM - [TIMEWIZARD]: Initialized
+7:03:31 PM - [SERVER]: server initalized >:3
+7:03:31 PM - [SERVER]: server started :33
+------ STARTING ------
+7:03:37 PM - [LOGWIZARD]: Initialized
+7:03:37 PM - [SERVER]: starting server :3
+7:03:37 PM - [DATABASE]: Initialized
+7:03:37 PM - [AUTHWIZARD]: Initialized
+7:03:37 PM - [CACHEWIZARD]: Initialized
+7:03:37 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+7:03:37 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+7:03:37 PM - [TIMEWIZARD]: Initialized
+7:03:37 PM - [SERVER]: server initalized >:3
+7:03:37 PM - [SERVER]: server started :33
+------ STARTING ------
+7:03:54 PM - [LOGWIZARD]: Initialized
+7:03:54 PM - [SERVER]: starting server :3
+7:03:54 PM - [DATABASE]: Initialized
+7:03:54 PM - [AUTHWIZARD]: Initialized
+7:03:54 PM - [CACHEWIZARD]: Initialized
+7:03:54 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+7:03:54 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+7:03:54 PM - [TIMEWIZARD]: Initialized
+7:03:54 PM - [SERVER]: server initalized >:3
+7:03:54 PM - [SERVER]: server started :33
+------ STARTING ------
+7:04:17 PM - [LOGWIZARD]: Initialized
+7:04:17 PM - [SERVER]: starting server :3
+7:04:17 PM - [DATABASE]: Initialized
+7:04:17 PM - [AUTHWIZARD]: Initialized
+7:04:17 PM - [CACHEWIZARD]: Initialized
+7:04:17 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+7:04:17 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+7:04:17 PM - [TIMEWIZARD]: Initialized
+7:04:17 PM - [SERVER]: server initalized >:3
+7:04:17 PM - [SERVER]: server started :33
+------ STARTING ------
+7:05:01 PM - [LOGWIZARD]: Initialized
+7:05:01 PM - [SERVER]: starting server :3
+7:05:01 PM - [DATABASE]: Initialized
+7:05:01 PM - [AUTHWIZARD]: Initialized
+7:05:01 PM - [CACHEWIZARD]: Initialized
+7:05:01 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+7:05:01 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+7:05:01 PM - [TIMEWIZARD]: Initialized
+7:05:01 PM - [SERVER]: server initalized >:3
+7:05:01 PM - [SERVER]: server started :33
+------ STARTING ------
+7:26:19 PM - [LOGWIZARD]: Initialized
+7:26:19 PM - [SERVER]: starting server :3
+7:26:19 PM - [DATABASE]: Initialized
+7:26:19 PM - [AUTHWIZARD]: Initialized
+7:26:19 PM - [CACHEWIZARD]: Initialized
+7:26:19 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+7:26:19 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+7:26:19 PM - [TIMEWIZARD]: Initialized
+7:26:19 PM - [SERVER]: server initalized >:3
+7:26:19 PM - [SERVER]: server started :33
+7:26:54 PM - [CHAT]: admin has connected
+7:27:04 PM - [CHAT]: #000000[admin]: yoyo
+7:27:06 PM - [CHAT]: admin has disconnected
