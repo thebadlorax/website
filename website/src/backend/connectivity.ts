@@ -23,4 +23,4 @@ export function corsResponse(
         ...(init.headers ?? {}),
       },
     });
-  }
+}

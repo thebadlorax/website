@@ -21,19 +21,17 @@ export class TimeWizard {
       ) {
         return async (...args: Args): Promise<Return> => {
           const start = performance.now();
-      
           const result = await fn(...args);
-      
           const end = performance.now();
           this.log.log(`Function "${fn.name}" took ${end - start}ms to execute`, "TIMEWIZARD");
-      
           return result;
         };
     }
 
-    timer() { return new TimeWizard.timer(this.log); }
 
-    protected static timer = class {
+    // new timer(); expensiveFunction(); timer.end(); "it took XXXms"
+    timer() { return new TimeWizard.timer(this.log); } // cleanliness (no new timer(), just timer())
+    protected static timer = class { 
         private startTime;
         private endTime;
         private log: LogWizard;

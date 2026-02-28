@@ -9,9 +9,13 @@ import { getApiLink, getSettingOnAccount, changeSettingOnAccount, refreshAccount
 
 let color_picker = document.getElementById("color-picker");
 let name_picker = document.getElementById("name-picker");
+let back_button = document.getElementById("back")
+back_button.addEventListener("click", () => {
+    window.location.href = `${location.protocol}//${location.host}/`;
+})
 let color;
 try { color = getSettingOnAccount("color") }
-catch { alert("make an account"); window.location.href = `${location.protocol}//${location.host}/`;}
+catch { alert("make an account"); window.location.href = `${location.protocol}//${location.host}/?account`;}
 let name = getSettingOnAccount("display_name")
 let receiptMenu = null;
 

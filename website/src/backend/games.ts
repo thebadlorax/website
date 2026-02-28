@@ -72,8 +72,7 @@ export class BlackjackInstance {
     }
 
     deregisterPlayer(ws: ServerWebSocket<{ source: string; }>) { 
-        if(this.players.delete(ws)) { this.spectators.push(ws); this.updatePlayersOnState(); } 
-        if(this.players.size <= 0) this.reset(); 
+        if(this.players.delete(ws)) { this.spectators.push(ws); this.updatePlayersOnState(); if(this.players.size <= 0 && this.is_active) this.reset(); } 
     }
 
     broadcast(msg: string) { this.players.keys().forEach(ws => { ws.send(msg); }); }

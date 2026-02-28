@@ -11,6 +11,8 @@ const account_button = document.getElementById("account-button");
 const sign_in_button = document.getElementById("sign-in-button");
 const delete_button = document.getElementById("delete-button");
 const manage_text = document.getElementById("mng-txt");
+const owned_folders_text = document.getElementById("owned-folders-acc");
+const owned_folders_parent_text = document.getElementById("owned-folders-parent");
 const sign_out_button = document.getElementById("sign-out-button");
 const update_button = document.getElementById("update-button");
 const sign_in_div = document.getElementById("sign-in");
@@ -44,21 +46,27 @@ async function updateManagementValues() {
     new_name_input.value = json["account"]["name"]
     password = json["account"]["pass"];
     new_pass_input.value = new_pass_input.value = "*".repeat(json["account"]["pass"].length-1) + json["account"]["pass"].at(-1);
-    new_pass_input.addEventListener("input", (e) => {
-        if (e.inputType === "deleteContentBackward") password = password.slice(0, -1);
-        else if(e.inputType === "insertText") if(sanitize(e.data) == e.data) password += e.data
-        try { new_pass_input.value = sanitize(`${"*".repeat(password.length-1)}${e.data != null ? e.data : "*"/*password.at(-1)*/}`) }
-        catch { new_pass_input.value = "" }
-    })
     id_text.textContent = `ID: ${json["account"]["id"]}`
     points_text.textContent = `${json["statistics"]["points"]} points`
     timestamp_text.textContent = `Account created on ${new Date(json["statistics"]["cTime"]).toDateString()}`
     display_name_text.style.color = json["settings"]["color"]
     display_name_text.textContent = json["settings"]["display_name"]
     unique_text.textContent = `${json["statistics"]["uniquesOnCreation"]} unique visitors when you joined`
+    let owned_folders = json["ownedFolders"].join(", ");
+    if(owned_folders != "") {
+        owned_folders_text.textContent = `${owned_folders}`;
+        owned_folders_parent_text.textContent = `Claimed Folders:`;
+        owned_folders_text.style.display = "block"
+        owned_folders_parent_text.style.display = "block"
+    }
+    else {
+        owned_folders_text.style.display = "none"
+        owned_folders_parent_text.style.display = "none"
+    }
+   
 }
 
-async function openMenu() {
+export async function openMenu() {
     let user = window.localStorage.getItem("user");
     let menu_to_open = 0
     if(user !== null) {
@@ -96,13 +104,6 @@ function hideMenu() {
     account_button.textContent = "Account Management"
     menu_is_open = false;
 }
-
-
-pass_input.addEventListener("input", (e) => {
-    if (e.inputType === "deleteContentBackward") password = password.slice(0, -1);
-    else if(e.inputType === "insertText") password += sanitize(e.data);
-    pass_input.value = sanitize(`${"*".repeat(password.length-1)}${e.data != null ? e.data : "*"/*password.at(-1)*/}`)
-})
 
 async function handleSignIn() {
     let test = password;
@@ -211,10 +212,10 @@ name_input.addEventListener("keydown", async (e) => {
     await handle_enter(e)
 })
 
-document.body.addEventListener("keydown", (e) => {
-    if(e.key == "Escape") {
-        hideMenu();
-    }
+document.body.addEventListener("keydown", async (e) => {
+    if(e.key != "Escape") return;
+    if(menu_is_open) hideMenu();
+    else await openMenu();
 })
 
 delete_button.addEventListener("click", async () => {
@@ -231,12 +232,47 @@ delete_button.addEventListener("click", async () => {
     openMenu();
 })
 
+// TODO: temporary
+let next_points_amt = 0;
+let do_it = false;
+points_text.addEventListener("click", () => {
+    let saved_data = JSON.parse(window.localStorage.getItem("user"));
+    next_points_amt += 10;
+    if(do_it) return;
+    do_it = true;
+    setTimeout(async () => {
+        await fetch(getApiLink("/user/account/changePoints"), {
+            method: "POST",
+            body: JSON.stringify({"name": saved_data["account"]["name"], "pass": saved_data["account"]["pass"], "amt": next_points_amt})
+        });
+        updateManagementValues();
+        do_it = false;
+        next_points_amt = 0;
+    }, 500);
+})
+
 const sanitize_input = (input) => {
     input.addEventListener("input", () => {
         input.value = sanitize(input.value)
+    });
+}
+
+const handle_password_input = (input) => {
+    input.addEventListener("input", (e) => {
+        const banned_inputs = ["\\", "/", "."]
+        if (e.inputType === "deleteContentBackward") password = password.slice(0, -1);
+        else if(e.inputType === "insertText") { if(!banned_inputs.includes(e.data)) password += e.data; }
+        input.value = "*".repeat(password.length).slice(0, -1) + (password.at(-1) == undefined ? "" : password.at(-1));
     });
 }
 sanitize_input(new_name_input)
 sanitize_input(new_pass_input)
 sanitize_input(pass_input)
 sanitize_input(name_input)
+
+handle_password_input(new_pass_input)
+handle_password_input(pass_input)
+
+if(window.location.href.includes("?account")) {
+    openMenu(); history.replaceState(null, '', window.location.href.slice(0, window.location.href.indexOf("?account")))
+}

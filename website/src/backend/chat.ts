@@ -16,6 +16,13 @@ type message = {
   
 const formatMessage = (message: message) => JSON.stringify({"type": message.type, "content": message.content, "timestamp": message.timestamp})
 
+// TODO: move all of chatting to a chat instance to work towards instance creation w/ accounts (dms)
+// TODO: sanitize color values because rn it can be whatever
+/* TODO: allow images or gifs hosted from my website to be embedded:
+ * to that end, should probably also refactor the way messages work
+ * so that each message can take a huge amount of space / have a better
+ * way to display user & time 
+ */
 export class ChatInstance {
     private db: Database
     private log: LogWizard
@@ -32,7 +39,7 @@ export class ChatInstance {
         }
     }
 
-    // TODO: make the triple escape bug in the db go away its inflating the size of it
+    // TODO: make the triple escape bug in the db go away its inflating the size of the db
     async appendMessageToHistory(message: message) {
         let data = JSON.parse(await this.db.fetch("chat"));
         let messages = data["history"];

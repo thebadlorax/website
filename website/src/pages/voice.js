@@ -10,6 +10,7 @@ let selfId;
 
 async function startVoice() {
   voiceButton.innerText = "connecting"
+  alert("very wip and will destroy eardrums")
   audioContext = new AudioContext({ latencyHint: "interactive" });
   stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 

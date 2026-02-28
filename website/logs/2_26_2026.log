@@ -8532,3 +8532,53 @@ LOG GENERATED ON 2_26_2026 - 10:00:41 AM
 11:29:50 PM - [GAMES]: Blackjack instance initalized with id biMvxuPNJVSYcAs
 11:29:50 PM - [SERVER]: server initalized >:3
 11:29:50 PM - [SERVER]: server started :33
+------ STARTING ------
+11:39:01 PM - [LOGWIZARD]: Initialized
+11:39:01 PM - [SERVER]: starting server :3
+11:39:01 PM - [DATABASE]: Initialized
+11:39:01 PM - [AUTHWIZARD]: Initialized
+11:39:01 PM - [CACHEWIZARD]: Initialized
+11:39:01 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:39:01 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:39:01 PM - [TIMEWIZARD]: Initialized
+11:39:01 PM - [GAMES]: Deck initalized with id c5ja7qk1zv
+11:39:01 PM - [GAMES]: Blackjack instance initalized with id XB4knSc1VlFTtyn
+11:39:01 PM - [SERVER]: server initalized >:3
+11:39:01 PM - [SERVER]: server started :33
+------ STARTING ------
+11:51:24 PM - [LOGWIZARD]: Initialized
+11:51:24 PM - [SERVER]: starting server :3
+11:51:24 PM - [DATABASE]: Initialized
+11:51:24 PM - [AUTHWIZARD]: Initialized
+11:51:24 PM - [CACHEWIZARD]: Initialized
+11:51:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:51:24 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:51:24 PM - [TIMEWIZARD]: Initialized
+11:51:24 PM - [GAMES]: Deck initalized with id rnlWMCvF5c
+11:51:24 PM - [GAMES]: Blackjack instance initalized with id RkIPQmkstF0FQ6S
+11:51:24 PM - [SERVER]: server initalized >:3
+11:51:24 PM - [SERVER]: server started :33
+11:54:31 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:55:41 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:55:47 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:55:54 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:56:40 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:56:49 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:56:55 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:56:59 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:57:26 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:57:44 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+11:57:50 PM - [GAMES]: Blackjack instance RkIPQmkstF0FQ6S is restarting
+------ STARTING ------
+11:58:29 PM - [LOGWIZARD]: Initialized
+11:58:29 PM - [SERVER]: starting server :3
+11:58:29 PM - [DATABASE]: Initialized
+11:58:29 PM - [AUTHWIZARD]: Initialized
+11:58:29 PM - [CACHEWIZARD]: Initialized
+11:58:29 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/res
+11:58:29 PM - [CACHEWIZARD]: Adding root to cache: /Users/julientherrien/Projects/website/website/src/pages
+11:58:29 PM - [TIMEWIZARD]: Initialized
+11:58:29 PM - [GAMES]: Deck initalized with id aMZmlK05Ih
+11:58:29 PM - [GAMES]: Blackjack instance initalized with id UTfwgfK3ZuUclQE
+11:58:29 PM - [SERVER]: server initalized >:3
+11:58:29 PM - [SERVER]: server started :33

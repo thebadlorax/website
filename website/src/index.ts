@@ -152,26 +152,19 @@ const server = Bun.serve({
               },
             });
           case "/file/query":
-            if(req.method != "GET") return corsResponse(null, { status: 405 });
-            cd = req.headers.get("content-disposition");
-            if (!cd) return corsResponse(null, { status: 400 });
-            cdFileName = cd.split(";")[1];
-            if (!cdFileName) return corsResponse(null, { status: 400 });
-            filePath = cdFileName.split("=")[1];
-            if (!filePath) return corsResponse(null, { status: 400 });
-            filePath = filePath.replaceAll(".", "")
-            let password_2 = cd.split(";")[2];
-            let password_2_string = password_2?.split("=")[1];
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let req_json_9 = await req.json();
+            let folder_2 = req_json_9["folder"];
+            let name_2 = req_json_9["name"];
+            let pass_2 = req_json_9["pass"];
 
-            let is_protected = await db.fetch(`/${filePath}`.slice(0, -1))
+            let user_2 = await auth.fetchAccount(name_2, pass_2);
+            if(!user_2) return corsResponse(null, { status: 401 });
 
-            if(is_protected) {
-              if(!password_2_string || !password_2_string === is_protected.split(";")[1]) {
-                return corsResponse(null, { status: 403 })
-              }
-            }
+            let is_protected_4 = await auth.folderIsOwned(folder_2);
+            if(is_protected_4 && !user_2.ownedFolders.includes(folder_2)) return corsResponse(null, { status: 401 });
       
-            const glob = new Glob(`public/${filePath}*`);
+            const glob = new Glob(`public/${folder_2}/*`);
             var data = [];
       
             for (const file of glob.scanSync(".")) {
@@ -195,8 +188,7 @@ const server = Bun.serve({
             let password_3 = cd.split(";")[2];
             let password_3_string = password_3?.split("=")[1];
 
-            // add who uploaded and time to context menu
-
+            // TODO: add who uploaded and time to context menu
             let is_protected_3 = await db.fetch(`/${fileName.split("/").at(0)}`)
 
             if(is_protected_3) {
@@ -241,57 +233,38 @@ const server = Bun.serve({
             return corsResponse(null, { status: 201 });
           case "/file/protect":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
-            cd = req.headers.get("content-disposition");
-            if (!cd) return corsResponse(null, { status: 400 });
-            cdFileName = cd.split(";")[1];
-            if (!cdFileName) return corsResponse(null, { status: 400 });
-            filePath = cdFileName.split("=")[1];
-            if (!filePath) return corsResponse(null, { status: 400 });
+            let req_json_7;
+            try { req_json_7 = await req.json(); }
+            catch { return corsResponse(null, { status: 400 }); }
 
-            if(filePath[0] != "/") return corsResponse(null, { status: 404 });
-            if(filePath == "/") return corsResponse(null, { status: 403 });
-            
-            let already_protected = await db.fetch(filePath);
-            if(already_protected) return corsResponse(null, { status: 403 });
-            let password = generateRandomString(5);
-            await db.modify(filePath, `true;${password}`);
-
-            log.log(`Protected directory ${filePath}, password: ${password}`, "API");
-
-            return corsResponse(JSON.stringify({"password": password}), { status: 200 });
+            let protected_2 = await auth.ownFolder(req_json_7["name"], req_json_7["pass"], req_json_7["folder"]);
+            if(protected_2) {
+              log.log(`Protected directory ${req_json_7["folder"]}`, "API");
+              return corsResponse(null, { status: 200 });
+            } else {
+              return corsResponse(null, { status: 400 });
+            };
           case "/file/protected":
-            if(req.method != "GET") return corsResponse(null, { status: 405 });
-            cd = req.headers.get("content-disposition");
-            if (!cd) return corsResponse(null, { status: 400 });
-            cdFileName = cd.split(";")[1];
-            if (!cdFileName) return corsResponse(null, { status: 400 });
-            filePath = cdFileName.split("=")[1];
-            if (!filePath) return corsResponse(null, { status: 400 });
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let req_json_8 = await req.json();
+            let folder = req_json_8["folder"];
 
-            let is_protected_2 = await db.fetch(`/${filePath}`);
-            if(!is_protected_2) return corsResponse(null, { status: 400 })
-            if(is_protected_2 && is_protected_2.includes("true")) return corsResponse(null, { status: 200 })
-            return corsResponse(null, { status: 400 });
+            let is_protected_2 = await auth.folderIsOwned(folder);
+            return corsResponse(null, { status: is_protected_2 ? 200 : 400 });
           case "/file/unprotect":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
-            cd = req.headers.get("content-disposition");
-            if (!cd) return corsResponse(null, { status: 400 });
-            cdFileName = cd.split(";")[1];
-            if (!cdFileName) return corsResponse(null, { status: 400 });
-            filePath = cdFileName.split("=")[1];
-            if (!filePath) return corsResponse(null, { status: 400 });
-            let rec_password = cd.split(";")[2];
-            let rec_password_string = rec_password?.split("=")[1];
-            if(!rec_password_string) return corsResponse(null, { status: 400 }); 
+            let rec_3;
+            try { rec_3 = await req.json(); }
+            catch { return corsResponse(null, { status: 400 }); }
+            let user2 = await auth.fetchAccount(rec_3["name"], rec_3["pass"])
+            if(!user2) return corsResponse(null, { status: 401 });
+            let folder2 = rec_3["folder"];
 
-            if(filePath[0] != "/") return corsResponse(null, { status: 400 });
-
-            let already_protected_2 = await db.fetch(filePath);
+            let already_protected_2 = await auth.folderIsOwned(folder2);
             if(!already_protected_2) return corsResponse(null, { status: 404 });
-            let true_pass = already_protected_2.split(";")[1]
 
-            if(rec_password_string === true_pass) {
-              await db.modify(filePath, "")
+            if(user2.ownedFolders.includes(folder2)) {
+              if(!await auth.releaseFolder(rec_3["name"], rec_3["pass"], folder2)) return corsResponse(null, { status: 400 });
               log.log(`Unprotected directory: ${filePath}`, "API");
               return corsResponse(null, {status: 200})
             }
@@ -501,6 +474,13 @@ const server = Bun.serve({
               let acc_6 = await auth.updateAccount(req_json_6["name"], req_json_6["pass"], req_json_6["updated"]);
               if(!acc_6) return corsResponse(null, { status: 400 });
               return corsResponse(userToJSON(acc_6), { status: 200 });
+          case "/user/account/changePoints":
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let req_json2;
+            try { req_json2 = await req.json(); }
+            catch { return corsResponse(null, { status: 404 }); }
+            await auth.changePoints(req_json2["name"], req_json2["pass"], req_json2["amt"]);
+            return corsResponse(null, { status: 200 });
           case "/health":
             return corsResponse("OK"); 
           default:
@@ -725,3 +705,5 @@ websocket: {
 });
 
 log.log("server started :33", "SERVER")
+
+auth._upgradeAccounts();

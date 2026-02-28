@@ -1,12 +1,10 @@
-const { getApiLink, setCookie, getCookie } = await import('./common.js');
+const { getApiLink, setCookie, getCookie, refreshAccount, getAccountCredentials } = await import('./common.js');
 
 const contextMenu = document.getElementById("context");
 let con_x, con_y;
 
 const renameOverlay = document.getElementById("rename-overlay");
 const renameInput = document.getElementById("rename-input");
-const passwordOverlay = document.getElementById("password-overlay");
-const passwordInput = document.getElementById("password-input");
 let renameTargetPath = null;
 
 const file_size_p = document.getElementById("file-size")
@@ -23,6 +21,11 @@ const host_check_div = document.getElementById("host-div");
 host_check_div.style.display = "none";
 
 const banned_click_extensions = [".rar", ".zip", ".gzip", ".7z"]
+
+if(window.localStorage.getItem("user") == null) {
+    alert("make an account")
+    window.location.href = `${location.protocol}//${location.host}/?account`;
+}
 
 function showMenu(x, y, file_size) {
     con_x = x-1;
@@ -98,7 +101,6 @@ async function menuAction(action) {
                 "Content-Disposition": `attachment; filepath=${file_path}`
             }
             });
-
             if (!res.ok) return;
             fetchDataFromServer();
         }  
@@ -136,7 +138,6 @@ async function menuAction(action) {
       
             if (progressEl && total) {
               progressEl.value = Math.round((received / total) * 100);
-              console.log(progressEl)
             }
           }
       
@@ -171,24 +172,30 @@ async function menuAction(action) {
 }
 
 async function fetchDataFromServer() {
+    let saved_data = JSON.parse(window.localStorage.getItem("user"));
     current_dir = dirInput.value.trim() + "/";
     if(dirInput.value.trim() != "") protect_check_div.style.display = "block";
     else protect_check_div.style.display = "none";
     host_check_div.style.display = "none";
+    protect_check.checked = false;
     const response = await fetch(getApiLink("/file/query"), {
-        method: "GET",
-        headers: {
-          "Content-Disposition": `attachment; filepath=${current_dir};password=${getCookie(`/${dirInput.value.trim()}`)}`
-        }
+        method: "POST",
+        body: JSON.stringify({
+            "name": saved_data["account"]["name"],
+            "pass": saved_data["account"]["pass"],
+            "folder": current_dir.slice(0, -1),
+        })
     });
     fetch(getApiLink("/file/protected"), {
-        method: "GET",
-        headers: {
-          "Content-Disposition": `attachment; filepath=${current_dir.slice(0, -1)};`
-        }
+        method: "POST",
+        body: JSON.stringify({
+            "folder": current_dir.slice(0, -1)
+        })
     }).then((response) => {
         if(response.status == 200) protect_check.checked = true;
-        else protect_check.checked = false;
+        else {
+            protect_check.checked = false;
+        }
     });
     
     fetch(getApiLink("/hosting/query"), {
@@ -200,9 +207,8 @@ async function fetchDataFromServer() {
         if(response.status == 200) host_check.checked = true;
         else host_check.checked = false;
     });
-    
-    
-    if(response.status == 403) {
+
+    if((protect_check.checked && !saved_data["ownedFolders"].includes(current_dir.slice(0, -1))) || response.status == 401) {
         container.innerHTML = `<p class="basic-text unselectable">PROTECTED DIRECTORY</p>`
         return;
     }
@@ -235,7 +241,7 @@ async function fetchDataFromServer() {
         if(!banned_click_extensions.some(v => file_name.includes(v))) {
             element.addEventListener("click", async (e) => {
                 let password = getCookie(`/${current_dir.slice(0, -1)}`) || ""
-                let url_path = `${location.protocol}//api.${location.host}/file/fetch/${file_path}${password ? `?password=${password}` : ``}`
+                let url_path = `${location.protocol}//api.${location.host}/file/fetch/${file_path}`
                 url_path = url_path.replace("fetch//", "fetch/")
                 window.open(url_path);
             })
@@ -304,60 +310,36 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-document.getElementById("download").addEventListener("click", () => { menuAction("download") });
-document.getElementById("delete").addEventListener("click", () => { menuAction("delete") });
-document.getElementById("rename").addEventListener("click", () => { menuAction("rename") });
-document.getElementById("link").addEventListener("click", () => { menuAction("link") });
-document.getElementById("close").addEventListener("click", () => { menuAction("close") });
-
-document.getElementById("confirmRename").addEventListener("click", () => { confirmRename() });
-document.getElementById("cancelRename").addEventListener("click", () => { cancelRename() });
-document.getElementById("confirmPassword").addEventListener("click", () => { confirmPassword() });
-document.getElementById("cancelPassword").addEventListener("click", () => { cancelPassword() });
-
 dirInput.addEventListener("change", () => { 
     dirInput.value = dirInput.value.replaceAll(".", "").replaceAll("/", "");
     fetchDataFromServer();
 })
 
-protect_check.addEventListener("change", async () => {
-    let response = await fetch(getApiLink("/file/protected"), {
-        method: "GET",
-        headers: {
-          "Content-Disposition": `attachment; filepath=${current_dir.slice(0, -1)}`
-        }
+protect_check.addEventListener("change", async (e) => {
+    e.preventDefault();
+    let saved_data = JSON.parse(window.localStorage.getItem("user"));
+    let creds = JSON.stringify({"name": saved_data["account"]["name"], "pass": saved_data["account"]["pass"], "folder": current_dir.slice(0, -1)});
+    let response = await fetch(getApiLink("/file/protect"), {
+        method: "POST",
+        body: creds
     });
-    if(response.status == 400) {
-        response = await fetch(getApiLink("/file/protect"), {
-            method: "POST",
-            headers: {
-              "Content-Disposition": `attachment; filepath=/${current_dir.slice(0, -1)}`
-            }
-        });
-        let json = await response.json();
-        let password = json["password"]
-        setCookie(`/${current_dir.slice(0, -1)}`, password, 90);
-        alert(`this folders password is: ${password}. save it: you will have to re-enter this in 90 days.`)
+    if(response.status == 200) {
+        //alert(`protected folder "${current_dir.slice(0, -1)}"`);
         protect_check.checked = true;
-        return;
-    }
-    else if(response.status == 200) {
-        let password = getCookie(`/${current_dir.slice(0, -1)}`) || ""
-        if(password != "") {
-            response = await fetch(getApiLink("/file/unprotect"), {
-                method: "POST",
-                headers: {
-                  "Content-Disposition": `attachment; filepath=/${current_dir.slice(0, -1)};password=${password}`
-                }
-            });
-            if(response.status == 200) {
-                await fetchDataFromServer(); return;
-            }
+    } else if(response.status == 400) {
+        response = await fetch(getApiLink("/file/unprotect"), {
+            method: "POST",
+            body: creds
+        });
+        if(response.status == 200) {
+            //alert(`unprotected folder "${current_dir.slice(0, -1)}"`);
+            protect_check.checked = false;
         } else {
-            passwordOverlay.style.display = "flex";
+            protect_check.checked = true;
+            return;
         }
-        return;
     }
+    refreshAccount();
 })
 
 host_check.addEventListener("change", async (e) => {

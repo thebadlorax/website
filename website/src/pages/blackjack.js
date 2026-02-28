@@ -38,7 +38,7 @@ function hideStartUI() {
 }
 
 function showStartUI() {
-    join_table_button.style.display = "block"; leave_table_button.style.display = "block";
+    join_table_button.style.display = "block"; leave_table_button.style.display = in_table ? "block" : "none";
 }
 
 function updateTableState(json) {
@@ -86,7 +86,6 @@ leave_table_button.addEventListener("click", () => {
 setInterval(() => {
     let found_color = getSettingOnAccount("color");
     let found_name = getSettingOnAccount("display_name");
-    console.log(`current: ${color} ; new: ${found_color}`);
     if(found_color !== color || found_name !== name) {
         
         color = found_color;

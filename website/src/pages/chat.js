@@ -35,7 +35,7 @@ startBtn.addEventListener("click", () => {
 })
 let color;
 try { color = getSettingOnAccount("color") }
-catch { alert("make an account"); window.location.href = `${location.protocol}//${location.host}/`;}
+catch { alert("make an account"); window.location.href = `${location.protocol}//${location.host}/?account`;}
 color_input.value = color;
 color_input.style.color = color;
 color_input.addEventListener("input", () => {

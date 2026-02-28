@@ -1,4 +1,5 @@
 const { getCookie, setCookie, formatSeconds, getApiLink, formatNumber } = await import('./common.js');
+import { openMenu } from './account.js';
 
 const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'; // dynamic swap for testing
 let wsUri;
@@ -13,10 +14,24 @@ const message_box = document.getElementById("message-box");
 const uptime_text = document.getElementById("uptime");
 const visitor_text = document.getElementById("visitors");
 const commit_text = document.getElementById("commit");
+const redirect = (loc) => {
+    let saved_data = JSON.parse(window.localStorage.getItem("user"));
+    if(saved_data != null) window.location.href = loc;
+    else openMenu();
+}
 document.getElementById("recent-chats").addEventListener("click", () => {
-    window.location.href = `${location.protocol}//${location.host}/chat`;
+    redirect(`${location.protocol}//${location.host}/chat`);
 })
-// TODO: remove id and api.user/init
+document.getElementById("files-link").addEventListener("click", () => {
+    redirect(`${location.protocol}//${location.host}/files`)
+})
+document.getElementById("chat-link").addEventListener("click", () => {
+    redirect(`${location.protocol}//${location.host}/chat`)
+})
+document.getElementById("gambling-link").addEventListener("click", () => {
+    redirect(`${location.protocol}//${location.host}/gambling`)
+})
+// TODO: remove id and api.user/init (refactor unique visitor protocol)
 let show_full_stats = false;
 const stats_div = document.getElementById("stats");
 stats_div.addEventListener("click", () => {
