@@ -4,4 +4,7 @@ website/public
 website/.DS_Store
 website/node_modules
 website/database.json
+website/logs
 .vscode
+.DS_Store
+.gitignore

@@ -166,6 +166,7 @@ async function menuAction(action) {
     } else if(action === "link") {
         let url_path = `${location.protocol}//api.${location.host}` + "/file/fetch/" + file_path.split("public/")[1]
         url_path = url_path.replace("fetch//", "fetch/")
+        url_path
         await navigator.clipboard.writeText(url_path);
     }
     hideMenu();
