@@ -1,27 +1,25 @@
 <!DOCTYPE html>
-<!----hey----------------:)-->
-<!----get out of here-------->
-<!----your not allowed here-->
+<!----rip----------------:(----->
+<!----how'd you get here-------->
+<!----actually don't tell me---->
 <html lang="en">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>error</title>
-    <!--setup Jersey 20-->
     <link rel="stylesheet" href="styles.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Jersey+20&display=swap" rel="stylesheet">
+    <link href="font.css" rel="stylesheet">
   </head>
   <body>
     <script>
       function goHome() {
+        // TODO: update to allow ip connections for all redirects
         const parts = location.host.split('.');
         let new_location = `${location.protocol}//${parts.at(-2)}.${parts.at(-1)}`;
         window.location.href = new_location;
       }
     </script>
-    <div class="main-container"> <!--evil flexbox >:)-->
+    <div class="main-container">
         <p class="error-text">
             there was an error :(
         </p>

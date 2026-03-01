@@ -150,6 +150,10 @@ body {
     cursor: pointer;
 }
 
+.cursor:hover {
+    cursor: pointer;
+}
+
 .error-text {
     font-size: 55px;
     color: white;
