@@ -430,7 +430,7 @@ const server = Bun.serve({
             let req_json;
             try { req_json = await req.json(); }
             catch { return corsResponse(null, { status: 401 }); }
-            if(req_json["name"].trim() == "") return corsResponse(null, { status: 404 });
+            if(req_json["name"].trim() == "" || req_json["name"].trim().length < 4) return corsResponse(null, { status: 401 });
             if(await auth.fetchAccount(req_json["name"], req_json["pass"])) return corsResponse(null, { status: 400 });
             let acc = await auth.createAccount(req_json["name"], req_json["pass"]);
             if(!acc) return corsResponse(null, { status: 401 });
@@ -448,7 +448,7 @@ const server = Bun.serve({
               let req_json_4;
               try { req_json_4 = await req.json(); }
               catch { return corsResponse(null, { status: 404 }); }
-              let acc_4 = await auth.renameAccount(req_json_4["name"], req_json_4["pass"], req_json_4["new_name"]);
+              await auth.renameAccount(req_json_4["name"], req_json_4["pass"], req_json_4["new_name"]);
               return corsResponse(null, { status: 200 });
           case "/user/account/exists":
               if(req.method != "POST") return corsResponse(null, { status: 405 });
@@ -463,7 +463,7 @@ const server = Bun.serve({
               try { req_json_3 = await req.json(); }
               catch { return corsResponse(null, { status: 404 }); }
               if(!await auth.exists(req_json_3["name"])) return corsResponse(null, { status: 404 });
-              let acc_3 = await auth.deleteAccount(req_json_3["name"], req_json_3["pass"]);
+              await auth.deleteAccount(req_json_3["name"], req_json_3["pass"]);
               return corsResponse(null, { status: 200 });
           case "/user/account/update":
               if(req.method != "POST") return corsResponse(null, { status: 405 });
@@ -705,5 +705,3 @@ websocket: {
 });
 
 log.log("server started :33", "SERVER")
-
-auth._upgradeAccounts();

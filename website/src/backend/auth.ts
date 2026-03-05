@@ -188,7 +188,7 @@ export class AuthorizationWizard {
         return updated;
     }
 
-    async _upgradeAccounts() {
+    /*async _upgradeAccounts() {
         let json = await this._getAccounts();
         for(let x = 0; x < await this.countUsersInDB(); x++) {
             if(Object.values(json).at(x) == undefined) {continue;}
@@ -202,7 +202,7 @@ export class AuthorizationWizard {
                 await this.db.modify("auth", JSON.stringify({"users": json}));
             }  
         }
-    }
+    }*/
 
     // TODO: maybe move somewhere else
     async folderIsOwned(folder: string) {

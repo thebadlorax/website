@@ -7,6 +7,9 @@
 
 import { Database } from "./db";
 import { LogWizard } from "./logging";
+import { generateRandomString } from "./utils";
+import { type User } from "./auth"
+import type { ServerWebSocket } from "bun";
 
 type message = {
     type: string;
@@ -23,13 +26,17 @@ const formatMessage = (message: message) => JSON.stringify({"type": message.type
  * so that each message can take a huge amount of space / have a better
  * way to display user & time 
  */
+
+// TODO: if 2 ppl send at the same ms it crashes the server
 export class ChatInstance {
-    private db: Database
-    private log: LogWizard
-    constructor(db: Database) {
-        this.db = db;
-        this.log = new LogWizard();
-    }
+    protected db: Database
+    protected log: LogWizard = new LogWizard();
+    public id: string = generateRandomString(10)
+    protected assignees: Array<User> = new Array();
+    protected private: boolean = false;
+    protected users: Map<ServerWebSocket<{ source: string }>, User> = new Map();
+
+    constructor(db: Database) { this.db = db; }
 
     async init() {
         try {
@@ -40,17 +47,25 @@ export class ChatInstance {
     }
 
     // TODO: make the triple escape bug in the db go away its inflating the size of the db
-    async appendMessageToHistory(message: message) {
-        let data = JSON.parse(await this.db.fetch("chat"));
+    async appendMessageToHistory(message: message, isPrivate: boolean = false) {
+        let data;
+        try { data = JSON.parse(await this.db.fetch("chat")); }
+        catch { return; }
         let messages = data["history"];
         messages.push(formatMessage(message))
         this.log.log(`${message.content}`, "CHAT")
         data.history = messages;
         await this.db.modify("chat", JSON.stringify(data));
     }
+
+    async addUserToChat(user: User) {
+        this.assignees.push(user);
+    }
       
     async fetchMessagesFromHistory(amt: number, con_msgs: (string | boolean)) {
-        let data = JSON.parse(await this.db.fetch("chat"));
+        let data;
+        try { data = JSON.parse(await this.db.fetch("chat")); }
+        catch { return; }
         let messages: Array<string> = data["history"];
         con_msgs = (con_msgs === "true")
         if(!con_msgs) {
@@ -71,5 +86,9 @@ export class ChatInstance {
           new_messages.push(new_message);
         }
         return new_messages
+    }
+
+    async handleRecieved(msg: string) {
+        
     }
 }

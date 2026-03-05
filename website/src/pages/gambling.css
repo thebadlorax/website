@@ -24,6 +24,11 @@ body {
   height: 115vw;
 }
 
+.not-picked {
+    opacity: 80%;
+    transform: scale(0.95);
+}
+
 .basic-text {
     color: black;
 }
@@ -34,11 +39,52 @@ body {
     transition: transform 0.2s ease-in-out; 
 }
 
-.picked {
-    transform: scale(1.1) rotate(-10deg); 
+.card {
+    transform: scale(0.75);
+    z-index: 1;
+    transition: transform 0.2s ease-in-out; 
+    image-rendering: pixelated;
+    position: absolute;
+    border-radius: 3px;
+
+    -webkit-user-drag: none; /* For WebKit browsers (Chrome, Safari, Opera) */
+    user-drag: none; /* Standard property */
+    -webkit-user-select: none; /* Prevents text selection */
+    -moz-user-select: none; /* For Firefox */
+    -ms-user-select: none; /* For Internet Explorer/Edge */
+    user-select: none; /* Standard property */
 }
 
-.button:hover {
+.card.active:hover {
+    transform: scale(.95);
+    z-index: 10;
+}
+
+.bust {
+    filter:grayscale(100%) opacity(85%) contrast(200%);
+}
+
+.basic-link {
+    color: grey;
+    text-decoration: underline;
+    font-weight: 400;
+}
+
+.basic-link:hover {
+    color: black;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.picked {
+    transform: scale(1.25) rotate(-12.5deg); 
+}
+
+.in-race {
+    /* gurt */
+}
+
+.button:hover:not(.picked):not(.in-race) {
     transform: scale(1.1) rotate(5deg); 
 }
 

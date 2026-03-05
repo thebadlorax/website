@@ -75,12 +75,19 @@ function hideSurveyMenu() {
     showReceiptMenu(receiptMenu);
 }
 
+const receiptNotification = () => {
+    let receipt = document.getElementById("receipt");
+    receipt.style.transform = "scale(0.85) rotate(25deg)";
+    setTimeout(() => { receipt.style.removeProperty("transform"); }, 200);
+}
+
 export function showReceiptMenu(divname) {
+    if(divname == null || receiptMenu == divname) return;
     if(receiptMenu != null) document.getElementById(receiptMenu).style.display = "none";
-    if(divname == null) return;
     //hideSurveyMenu();
     receiptMenu = divname;
     document.getElementById(divname).style.display = "block";
+    receiptNotification();
 }
 
 export function hideReceiptMenu(divname) {

@@ -29,11 +29,28 @@
 <button id="back" style="position: absolute; background: transparent; border: red; outline: none; cursor: pointer; color: transparent; width: 40vw; height: 15vw; top: 2vw; left: 30vw;"></button>
 <div id="receipt" class="receipt">
   <p id="points" class="unselectable" style="position: absolute; color: black; transform: translate(5vw, 20vw); font-size: 2.5vw;">x points</p>
-  <div id="receipt-snail-racing" style="display: none;">
-    <p class="unselectable" style="position: absolute; color: black; transform: translate(30vw, 20vw); font-size: 3vw;">Snail Racing</p>
+  <div id="receipt-snail-racing" style="display: none; position: absolute;">
+    <p class="unselectable" style="position: absolute; color: black; transform: translate(30vw, 20vw); font-size: 3vw; width: 20vw;">Snail Racing</p>
     <p id="snail-wager" class="unselectable" style="position: absolute; color: black; transform: translate(35vw, 25vw); font-size: 1.5vw;">Wager:</p>
-    <input class="slider-input" type="range" style="position: absolute; color: black; transform: translate(35vw, 30vw);" id="snail-racing-wager" name="wager" min="0" max="100" value="5">
-    <p id="snail-wager-text" class="unselectable" style="position: absolute; color: black; transform: translate(38vw, 32vw); font-size: 1.5vw;">x points bet.</p>
+    <input class="slider-input" type="range" style="position: absolute; color: black; transform: translate(35vw, 30vw);" id="snail-racing-wager" name="wager" min="1" max="100" value="5">
+    <p id="snail-wager-text" class="unselectable" style="position: absolute; color: black; transform: translate(38vw, 32vw); font-size: 1.5vw; width: 20vw;">x points bet.</p>
+  </div>
+  <div id="receipt-blackjack" style="display: none; position: absolute;">
+    <p class="unselectable" style="position: absolute; color: black; transform: translate(30vw, 20vw); font-size: 3vw;">Blackjack</p>
+    <p class="unselectable" id="exit-text-receipt" style="position: absolute; color: darkred; transform: translate(20vw, 17vw); font-size: 1.5vw; width: 20vw">exiting will result in a loss</p>
+    <div id="receipt-blackjack-play" style="display: none;">
+      <div id="receipt-blackjack-card" style="background-color: red; position: absolute; transform: translate(25vw, 25vw);"></div>
+      <p id="receipt-blackjack-worth" class="unselectable" style="position: absolute; color: black; transform: translate(25vw, 31vw); font-size: 1.5vw;">x</p>
+      <p id="reciept-blackjack-hit" class="basic-link unselectable" style="position: absolute; transform: translate(30vw, 35vw); font-size: 2vw;">hit</p>
+      <p id="reciept-blackjack-stand" class="basic-link unselectable" style="position: absolute; transform: translate(37vw, 35vw); font-size: 2vw;">stand</p>
+    </div>
+    <div id="receipt-blackjack-bet" style="display: none;">
+      <p id="blackjack-wager-text" class="unselectable" style="position: absolute; color: black; transform: translate(35vw, 25vw); font-size: 1.5vw;">Wager:</p>
+    <input class="slider-input" type="range" style="position: absolute; color: black; transform: translate(35vw, 30vw);" id="blackjack-wager" name="wager" min="1" max="100" value="5">
+    <p id="blackjack-points-wager-text" class="unselectable" style="position: absolute; color: black; transform: translate(38vw, 32vw); font-size: 1.5vw; width: 20vw;">x points bet.</p>
+    <p id="reciept-blackjack-submit" class="basic-link unselectable" style="display: none; position: absolute; transform: translate(30vw, 32vw); font-size: 1.5vw;">submit</p>
+    </div>
+    
   </div>
   <p id="survey" class="survey unselectable">take our survey</p>
   <div id="survey-div" class="survey-div hide">
@@ -53,6 +70,8 @@
 <div id="blackjack">
   <button type="button" id="join-table" style="display: none; position: absolute; top: 68vw; left: 45vw;">join table</button>
   <button type="button" id="leave-table" style="display: none; position: absolute; top: 68vw; left: 55vw; display: none;">leave table</button>
+  <p id="blackjack-dealer-worth" class="unselectable" style="display: none; position: absolute; color: black; top: 71vw; left: 50vw; font-size: 2vw;">x</p>
+  <div id="blackjack-cards"></div>
 </div>
 
 <p class="basic-text unselectable" style="position: absolute; top: 100vw; color: rgb(162, 30, 30); font-size: 6vw; left: 40vw">Work In Progress</p>

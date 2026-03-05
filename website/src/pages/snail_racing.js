@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { getApiLink, getCookie } from "./common.js";
+import { getApiLink, getCookie, range } from "./common.js";
 import { refreshPoints, showReceiptMenu, hideReceiptMenu, getPoints } from "./gambling.js";
 
 const snail_racing = document.getElementById("snail-racing")
@@ -36,12 +36,16 @@ function generateSnail(position) {
     button.id = position;
     button.appendChild(snail);
     button.addEventListener("click", () => {
-        if(can_bet) {
+        if(can_bet && document.getElementById("receipt-blackjack").style.display == "none") {
             showReceiptMenu("receipt-snail-racing");
             if(!button.classList.contains("picked")) {
                 button.classList.add("picked");
-                if(picked != null) document.getElementById(picked).classList.remove("picked");
+                if(picked != null) { document.getElementById(picked).classList.remove("picked"); }
                 picked = position;
+                for(let x = 0; x < 4; x++) {
+                    if(x == picked) { document.getElementById(x).classList.remove("not-picked"); continue; }
+                    document.getElementById(x).classList.add("not-picked")
+                }
             }
         }
     })
@@ -64,6 +68,10 @@ async function runSnailRace() {
     snail2.style.filter = "hue-rotate(0deg)";
     snail3.style.filter = "hue-rotate(0deg)";
     snail4.style.filter = "hue-rotate(0deg)";
+    snail1.classList.remove("not-picked", "in-race");
+    snail2.classList.remove("not-picked", "in-race");
+    snail3.classList.remove("not-picked", "in-race");
+    snail4.classList.remove("not-picked", "in-race");
 
     let time = -1;
     let fps = -1;
@@ -73,6 +81,7 @@ async function runSnailRace() {
     let positions = [6 ,6, 6, 6]
 
     let points = await getPoints();
+    wager_slider.min = 1;
     wager_slider.max = points;
     wager_slider.value = points/2;
     document.getElementById("snail-wager-text").textContent = `${wager_slider.value} points bet.`
@@ -117,7 +126,6 @@ async function runSnailRace() {
     wager_slider.disabled = true;
 
     let user = JSON.parse(window.localStorage.getItem("user"));
-
 
     let req = await fetch(getApiLink("/gambling/snail/bet"), {
         method: "POST",

@@ -19,18 +19,16 @@ const redirect = (loc) => {
     if(saved_data != null) window.location.href = loc;
     else openMenu();
 }
-document.getElementById("recent-chats").addEventListener("click", () => {
-    redirect(`${location.protocol}//${location.host}/chat`);
-})
-document.getElementById("files-link").addEventListener("click", () => {
-    redirect(`${location.protocol}//${location.host}/files`)
-})
-document.getElementById("chat-link").addEventListener("click", () => {
-    redirect(`${location.protocol}//${location.host}/chat`)
-})
-document.getElementById("gambling-link").addEventListener("click", () => {
-    redirect(`${location.protocol}//${location.host}/gambling`)
-})
+document.getElementById("recent-chats").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`); })
+document.getElementById("files-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/files`) })
+document.getElementById("chat-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`) })
+document.getElementById("gambling-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/gambling`) })
+
+setTimeout(() => { // ideal ad size = 1200 x 100
+    document.getElementById("footer-ad").style.backgroundImage = "url(../res/ads/example_ad.png)";
+    document.getElementById("footer-ad").style.display = "block";
+}, Math.random()*1000)
+
 // TODO: remove id and api.user/init (refactor unique visitor protocol)
 let show_full_stats = false;
 const stats_div = document.getElementById("stats");
