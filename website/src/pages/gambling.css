@@ -80,11 +80,7 @@ body {
     transform: scale(1.25) rotate(-12.5deg); 
 }
 
-.in-race {
-    /* gurt */
-}
-
-.button:hover:not(.picked):not(.in-race) {
+.button:hover:not(.picked) {
     transform: scale(1.1) rotate(5deg); 
 }
 

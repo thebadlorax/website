@@ -27,7 +27,7 @@ export class CacheWizard {
 
     getRoots() { return this.roots.keys(); }
 
-    addToCache(path: string, file: { content: Uint8Array, type: string, etag: string, lastModified: string }) { this.fileCache.set(path, file); }
+    addToCache(path: string, file: { content: Uint8Array, type: string, etag: string, lastModified: string }) { /*this.fileCache.set(path, file);*/ }
 
     addRoot(root: string) {
         try {

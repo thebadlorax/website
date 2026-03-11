@@ -46,8 +46,8 @@ body {
 /* Emoji container positioning */
 .emoji-container {
     position: absolute;
-    left: 60vw;
-    top: 77vw;
+    left: 50vw;
+    top: 47vw;
 }
 
 /* Remove default button styles */

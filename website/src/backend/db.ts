@@ -6,40 +6,51 @@
 */
 
 import { LogWizard } from "./logging";
-import { isValidJSON } from "./utils";
+import { writeFileSync } from "fs";
 
 export class Database {
     public path: string
     private log: LogWizard
+    private lock: Promise<void> = Promise.resolve();
 
     constructor(path: string) {
         this.path = path;
         this.log = new LogWizard();
     }
 
+    private async withLock(fn: () => Promise<void>) {
+        const previousLock = this.lock;
+        let release: () => void;
+        this.lock = new Promise<void>((resolve) => (release = resolve!));
+
+        await previousLock; // wait for previous operation
+        try {
+            await fn();
+        } finally {
+            release!();
+        }
+    }
+
     async init() {
-        if(!await Bun.file(this.path).exists()) await Bun.file(this.path).write(`{"nothing":"wow"}`);
+        if(!await Bun.file(this.path).exists()) await Bun.file(this.path).write(`{}`);
         this.log.log("Initialized", "DATABASE")
     }
 
-    async modify(element: string, data: string) {
-        try {
-            const file = Bun.file(this.path)
-            if(!await file.exists()) await file.write(`{"nothing":"wow"}`)
-            const json = await file.json();
+    async modify(element: string, data: Record<any, any>) {
+        await this.withLock(async () => {
+            try {
+                const file = Bun.file(this.path);
+                if (!(await file.exists())) await file.write(`{"nothing":"wow"}`);
+                const json = await file.json();
 
-            json[element] = data
-        
-            if(data == "") {
-              delete json[element]
+                json[element] = data;
+
+                // @ts-expect-error
+                await Bun.write(file, JSON.stringify(json), { atomic: true });
+            } catch (error) {
+                this.log.error(`Error modifying ${element}: ${error}`, "DATABASE", "MODIFICATION");
             }
-        
-            
-        
-            await Bun.write(file, (isValidJSON(json) ? json : JSON.stringify(json)));
-          } catch (error) {
-            this.log.error(`Error modifiying ${element}: ${error}`, "DATABASE", "MODIFICATION");
-          }
+        });
     }
 
     async fetch(element: string) {
@@ -55,7 +66,7 @@ export class Database {
                 if (json && typeof json === 'object' && layers[i] in json) {
                 json = json[layers[i]];
                 } else {
-                    return undefined; // Path not found
+                    return undefined;
                 }
             }
             return json

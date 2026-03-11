@@ -1,7 +1,7 @@
 const { getCookie, setCookie, formatSeconds, getApiLink, formatNumber } = await import('./common.js');
 import { openMenu } from './account.js';
 
-const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'; // dynamic swap for testing
+/*const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'; // dynamic swap for testing
 let wsUri;
 if(location.host.includes("66.65.25.15")) {
     wsUri = `${protocol}//${location.host}/subdomain=api/chat/live`;
@@ -9,8 +9,7 @@ if(location.host.includes("66.65.25.15")) {
     wsUri = `${protocol}//api.${location.host}/chat/live`;
 }
 
-const ws = new WebSocket(wsUri);
-const message_box = document.getElementById("message-box");
+const ws = new WebSocket(wsUri);*/
 const uptime_text = document.getElementById("uptime");
 const visitor_text = document.getElementById("visitors");
 const commit_text = document.getElementById("commit");
@@ -19,14 +18,14 @@ const redirect = (loc) => {
     if(saved_data != null) window.location.href = loc;
     else openMenu();
 }
-document.getElementById("recent-chats").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`); })
+//document.getElementById("recent-chats").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`); })
 document.getElementById("files-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/files`) })
 document.getElementById("chat-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`) })
 document.getElementById("gambling-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/gambling`) })
 
 setTimeout(() => { // ideal ad size = 1200 x 100
-    document.getElementById("footer-ad").style.backgroundImage = "url(../res/ads/example_ad.png)";
-    document.getElementById("footer-ad").style.display = "block";
+    document.getElementById("f").style.backgroundImage = "url(../res/ads/example_ad.png)";
+    document.getElementById("f").style.display = "block";
 }, Math.random()*1000)
 
 // TODO: remove id and api.user/init (refactor unique visitor protocol)
@@ -53,7 +52,7 @@ if(getCookie("id") == "" || !getCookie("id").includes(key)) {
         visitor_text.style.textDecoration = "none";}, 5000)
 }
 
-let messages = await fetch_history(100)
+/*let messages = await fetch_history(100)
 for(let x = 0; x < messages.length; x++) {
     let message = messages[x];
     if(!message.includes("[")) messages.splice(x, 1);
@@ -63,7 +62,7 @@ update_messages()
 ws.addEventListener('message', (e) => { // add message to the queue
     messages.push(`${e.data}`);
     update_messages();
-})
+})*/
 
 function update_messages() {
     while(messages.length > 11) messages.shift();

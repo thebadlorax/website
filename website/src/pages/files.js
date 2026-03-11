@@ -36,6 +36,11 @@ function showMenu(x, y, file_size) {
     contextMenu.style.top = `${y}px`;
 }
 
+document.getElementById("delete").addEventListener("click", () => { menuAction("delete"); })
+document.getElementById("rename").addEventListener("click", () => { menuAction("rename"); })
+document.getElementById("link").addEventListener("click", () => { menuAction("link"); })
+document.getElementById("download").addEventListener("click", () => { menuAction("download"); })
+
 // Function to hide the menu
 function hideMenu() {
     contextMenu.style.display = 'none';

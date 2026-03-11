@@ -7,19 +7,19 @@
         <title>chat</title>
         <link rel="icon" href="../res/favicon.ico">
         <link rel="stylesheet" href="chat.css">
+        <link rel="stylesheet" href="ui.css">
 
         <script type="module" src="common.js"></script>
-        <script type="module" src="voice.js"></script>
+        <!--<script type="module" src="voice.js"></script>-->
 
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="font.css" rel="stylesheet">
     </head>
     <body>
-        <div class="main-container">
-            <div class="banner-container">
-                <a href="/"><img src="../res/chatroom_banner.png" class="banner-image"></a>
-            </div>
+        <a id="banner" style="position: absolute; top: 10vw; left: 25vw;"><img src="../res/chatroom_banner.png" class="banner-image clickable"  style="width: 50vw; height: auto;"></a>
+        <p class="basic-text unselectable" id="warn" style="margin-top: 3vw; font-weight: 700; font-size: 2vw; position: absolute; top: 95vw; left: 37vw;">DO NOT MISUSE THIS SERVICE! >:(</p>
+        <div id="chat" class="main-container" style="display: none; position: absolute; top: 35vw;">
             <div class="row-container">
                 <div class="column-container" style="width: 65%;">
                     <div class="large-item">
@@ -34,11 +34,13 @@
                     <div class="small-item" style="max-height: 33%;">
                         voice
                         <div></div>
-                        <button style="background-color: grey; width: 5vw; height: 2vw; font-size: 1vw; outline: solid black 1px;" id="startVoiceBtn">connect</button>
+                        <!--<button style="background-color: grey; width: 5vw; height: 2vw; font-size: 1vw; outline: solid black 1px;" id="startVoiceBtn">connect</button>-->
+                        <p class="basic-text unselectable" style="padding-left: 3vw; color: darkred">unavaliable</p>
                     </div>
                     <div class="small-item" style="max-height: 33%;">
                         information
                         <p class="basic-text" style="padding-left: 3vw;" id="chatters">Online Chatters: x</p>
+                        <p class="basic-text" style="padding-left: 3vw;" id="chat-id">Chat ID: xxx</p>
                     </div>
                     <div class="small-item" style="max-height: 33%;">
                         settings
@@ -50,20 +52,30 @@
                     </div>
                 </div>
             </div>
-            <p class="basic-text unselectable" id="warn" style="margin-top: 3vw; font-weight: 700; font-size: 2vw;">DO NOT MISUSE THIS SERVICE! >:(</p>
-        </div>
-        <div class="emoji-container">
-            <button id="emoji-btn" class="unselectable">😀</button>
-            <div id="emoji-picker" class="hidden">
-                <div class="emoji-header">
+            <div class="emoji-container">
+                <button id="emoji-btn" class="unselectable">😀</button>
+                <div id="emoji-picker" class="hidden">
                     <div class="emoji-header">
-                        <button class="emoji-cat active">All</button>
-                        <button class="emoji-cat">Kaomoji</button>
+                        <div class="emoji-header">
+                            <button class="emoji-cat active">All</button>
+                            <button class="emoji-cat">Kaomoji</button>
+                        </div>
+                    </div>
+                    <div class="emoji-grid"></div>
+                </div>
+            </div>   
+        </div>
+        
+        <div id="picker" style="position: absolute; top: 35vw; left: 10vw;">
+            <div class="row-container">
+                <div class="column-container" style="width: 75%;">
+                    <div class="large-item" style="image-rendering: pixelated;">
+                        chat picker
+                        <div id="chat-picker-list" class="grid-container"></div>
                     </div>
                 </div>
-                <div class="emoji-grid"></div>
             </div>
-        </div>   
+        </div>
     </body>
 
     <script type="module" src="chat.js"></script>

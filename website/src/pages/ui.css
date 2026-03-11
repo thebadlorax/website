@@ -1,0 +1,37 @@
+/*
+ * author thebadlorax
+ * created on 10-03-2026-18h-11m
+ * github: https://github.com/thebadlorax
+ * copyright 2026
+*/
+
+.grid-item {
+    color: black;
+    text-decoration: none;
+    flex: 1 1;
+    margin: .5vw;
+    background-color: #f0f0f0;
+    border: .2vw solid #212121;
+    padding: .5vw;
+    text-align: center;
+    font-size: 1.8vw;
+    width: auto;
+    height: auto;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    justify-content: center;
+    margin-left: 4vw;
+    margin-right: 4vw;
+    height: auto;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.clickable:hover {
+    cursor: pointer;
+}

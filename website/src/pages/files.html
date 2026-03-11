@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!----yo---------------:-(-->
 <!----if you take my files-->
-<!----i will be sad=======-->
+<!----i will be sad--------->
 <html lang="en">
   <head>
     <meta charset="UTF-8">
@@ -9,6 +9,7 @@
     <title>files</title>
     <!--setup Jersey 20-->
     <link rel="stylesheet" href="files.css">
+    <link rel="stylesheet" href="ui.css">
     <link href="font.css" rel="stylesheet">
     <script type="module" src="files.js"></script>
     <script type="module" src="common.js"></script>
@@ -17,11 +18,11 @@
   <body>
     <div id="context" class="context-menu">
         <ul>
-            <li><a href="#!" id="download">Download</a></li>
+            <li><a class="clickable" id="download">Download</a></li>
             <li class="separator", id="download-seperator"></li>
-            <li><a href="#!" id="delete">Delete</a></li>
-            <li><a href="#!" id="rename">Rename</a></li>
-            <li><a href="#!" id="link">Copy Link</a></li>
+            <li><a class="clickable" id="delete">Delete</a></li>
+            <li><a class="clickable" id="rename">Rename</a></li>
+            <li><a class="clickable" id="link">Copy Link</a></li>
             <li class="separator"></li>
             <li><p id="file-size" class="unselectable" style="padding: 8px 12px; margin-top: 0px; margin-bottom: 0px; color: grey;"></p></li>
             <li class="separator"></li>
@@ -30,11 +31,11 @@
     </div>
 
     <div class="top-bar">
-        <div class="protected" id="protected-div">
+        <div class="protected" id="protected-div" style="display: none;">
           Protected
           <input type="checkbox" id="protected">
         </div>
-        <div class="host" id="host-div">
+        <div class="host" id="host-div" style="display: none;">
           Host Website
           <input type="checkbox" id="host">
         </div>

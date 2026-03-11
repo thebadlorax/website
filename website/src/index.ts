@@ -6,7 +6,7 @@ import { deleteFile, renameFile } from "./backend/file";
 import { Database } from "./backend/db"
 import { BlackjackInstance, Deck } from "./backend/games";
 import { corsResponse, CORS_HEADERS } from "./backend/connectivity";
-import { ChatInstance } from "./backend/chat";
+import { ChatInstance, ChatWizard } from "./backend/chat";
 import { CacheWizard } from "./backend/cache";
 import { LogWizard } from "./backend/logging";
 import { AuthorizationWizard, userToJSON } from "./backend/auth";
@@ -22,9 +22,14 @@ await auth.init();
 const cache = new CacheWizard();
 cache.addRoot("src/res")
 cache.addRoot("src/pages")
-// TODO: multiple chats, like dms
-const chat = new ChatInstance(db);
-await chat.init();
+const chat = new ChatWizard(db);
+if(!await db.exists("main_chat")) {
+  // @ts-expect-error
+  db.modify("main_chat", await chat.create())
+} else {
+  chat.publicize(chat.fromID(await chat.createInheritance(await db.fetch("main_chat")))!);
+}
+chat.fromID(await db.fetch("main_chat"))!.display_name = "main";
 const time = new TimeWizard();
 
 // TODO: move these to different files/structures
@@ -281,7 +286,9 @@ const server = Bun.serve({
             if(filePath[0] != "/") return corsResponse(null, { status: 400 });
 
             let is_hosting = await db.fetch(filePath + "_hosting");
+            // @ts-expect-error
             if(!is_hosting) await db.modify(filePath + "_hosting", "true")
+            // @ts-expect-error
             else await db.modify(filePath + "_hosting", "")
             log.log(`Hosting toggled on directory: ${filePath}`, "API");
             return corsResponse(null, { status: 200 });
@@ -389,7 +396,10 @@ const server = Bun.serve({
             let rec_json2 = await req.json();
             let amt = rec_json2["amount"];
             let con_msgs = rec_json2["connection_messages"];
-            let history = await chat.fetchMessagesFromHistory(amt, con_msgs);
+            if(!rec_json2.id) return corsResponse(null, { status: 404 }); 
+            let c = chat.fromID(rec_json2.id);
+            if(!c)return corsResponse(null, { status: 404 });
+            let history = await c.fetchMessagesFromHistory(amt, con_msgs);
             return corsResponse(JSON.stringify(history), { status: 200 });
           case "/chat/emojis":
             try {
@@ -423,6 +433,7 @@ const server = Bun.serve({
           case "/user/init":
             let id = generateRandomString(10);
             visitor_count += 1;
+            // @ts-expect-error
             await db.modify("visitors", visitor_count.toString())
             return corsResponse(JSON.stringify({"id": `${key}-${id}`}), { status: 200});
           case "/user/account/create":
@@ -430,11 +441,11 @@ const server = Bun.serve({
             let req_json;
             try { req_json = await req.json(); }
             catch { return corsResponse(null, { status: 401 }); }
-            if(req_json["name"].trim() == "" || req_json["name"].trim().length < 4) return corsResponse(null, { status: 401 });
+            if(req_json["name"].trim() == ""/* || req_json["name"].trim().length < 4*/) return corsResponse(null, { status: 401 });
             if(await auth.fetchAccount(req_json["name"], req_json["pass"])) return corsResponse(null, { status: 400 });
             let acc = await auth.createAccount(req_json["name"], req_json["pass"]);
             if(!acc) return corsResponse(null, { status: 401 });
-            return corsResponse(userToJSON(acc), { status: 201 });
+            return corsResponse(JSON.stringify(userToJSON(acc)), { status: 201 });
           case "/user/account/fetch":
               if(req.method != "POST") return corsResponse(null, { status: 405 });
               let req_json_2;
@@ -442,7 +453,7 @@ const server = Bun.serve({
               catch { return corsResponse(null, { status: 404 }); }
               let acc_2 = await auth.fetchAccount(req_json_2["name"], req_json_2["pass"]);
               if(!acc_2) return corsResponse(null, { status: 404 });
-              return corsResponse(userToJSON(acc_2), { status: 200 });
+              return corsResponse(JSON.stringify(userToJSON(acc_2)), { status: 200 });
           case "/user/account/rename":
               if(req.method != "POST") return corsResponse(null, { status: 405 });
               let req_json_4;
@@ -473,7 +484,7 @@ const server = Bun.serve({
               if(!await auth.exists(req_json_6["name"])) return corsResponse(null, { status: 404 });
               let acc_6 = await auth.updateAccount(req_json_6["name"], req_json_6["pass"], req_json_6["updated"]);
               if(!acc_6) return corsResponse(null, { status: 400 });
-              return corsResponse(userToJSON(acc_6), { status: 200 });
+              return corsResponse(JSON.stringify(userToJSON(acc_6)), { status: 200 });
           case "/user/account/changePoints":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let req_json2;
@@ -558,11 +569,7 @@ websocket: {
 
   open(ws) {
     switch (ws.data.source) {
-      case "/chat/live":
-        chat_websockets.push(ws);
-        chat_names.push("_UNREGISTERED");
-        chat_ids[chat_websockets.indexOf(ws)] = "No ID";
-        break;
+      case "/chat/live": break;
 
       case "/chat/voice":
         voice_websockets.push(ws);
@@ -589,39 +596,7 @@ websocket: {
 
   message(ws, message) {
     switch (ws.data.source) {
-      case "/chat/live":
-        if (message[0] === "_") {
-          const method = message.slice(1, message.indexOf("="));
-          const value = message.slice(message.indexOf("=") + 1);
-
-          switch (method) {
-            case "NAME":
-              chat_names[chat_websockets.indexOf(ws)] = value;
-              break;
-            case "ID":
-              chat_ids[chat_websockets.indexOf(ws)] = value;
-              break;
-            case "CONNECT":
-              const msg = `${chat_names[chat_websockets.indexOf(ws)]} has connected`;
-              chat.appendMessageToHistory({
-                type: "connection",
-                content: msg,
-                timestamp: Date.now()
-              });
-              chat_websockets.forEach((socket) => {
-                socket.send(msg);
-                socket.send(`_SETCHATTERS=${chat_websockets.length}`);
-              });
-          }
-        } else {
-          chat.appendMessageToHistory({
-            type: "message",
-            content: message,
-            timestamp: Date.now()
-          });
-          chat_websockets.forEach((socket) => socket.send(message));
-        }
-        break;
+      case "/chat/live": chat.pipe(JSON.parse(message).id, ws, message); break;
 
       case "/chat/voice":
         const senderId = clientIds.get(ws);
@@ -657,24 +632,7 @@ websocket: {
 
   close(ws) {
     switch (ws.data.source) {
-      case "/chat/live":
-        const index = chat_websockets.indexOf(ws);
-        chat_websockets.splice(index, 1);
-        if (chat_names[index] !== "_UNREGISTERED") {
-          const msg = `${chat_names[index]} has disconnected`;
-          chat.appendMessageToHistory({
-            type: "connection",
-            content: msg,
-            timestamp: Date.now()
-          });
-          chat_websockets.forEach((socket) => {
-            socket.send(`_SETCHATTERS=${chat_websockets.length}`);
-            socket.send(msg);
-          });
-        }
-        chat_names.splice(index, 1);
-        chat_ids.splice(index, 1);
-        break;
+      case "/chat/live": chat.deregister(ws); break;
 
       case "/chat/voice": {
         const id = clientIds.get(ws);

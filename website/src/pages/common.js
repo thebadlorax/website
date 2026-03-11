@@ -136,3 +136,5 @@ export async function refreshAccount() {
 }
 
 await updateId();
+
+console.log("get out of here")

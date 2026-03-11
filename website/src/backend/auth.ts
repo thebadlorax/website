@@ -36,7 +36,7 @@ export type User = {
 }
 
 export const userToJSON = (user: User) => {
-    return JSON.stringify({
+    return {
         "account": {
             "name": user.account.name,
             "pass": user.account.pass,
@@ -52,8 +52,7 @@ export const userToJSON = (user: User) => {
             "uniquesOnCreation": user.statistics.uniquesOnCreation
         },
         "ownedFolders": user.ownedFolders
-        
-    });
+    };
 };
 
 export const JSONToUser = (json: any) => {
@@ -109,9 +108,9 @@ export class AuthorizationWizard {
     }
 
     async init() {
-        let admin_user: User = generateUser("admin", "admin", parseInt(await this.db.fetch("visitors")) || 0, await this.countUsersInDB())
-        if(!await this.db.exists("auth")) await this.db.modify("auth", JSON.stringify({"users": {"admin": userToJSON(admin_user)}}))
-        if(!await this.db.exists("folders_owned")) await this.db.modify("folders_owned", JSON.stringify({"folders": []}))
+        let admin_user: User = generateUser("admin", "admin", parseInt(await this.db.fetch("visitors")) || 0, await this.countUsersInDB() || 0)
+        if(!await this.db.exists("auth")) await this.db.modify("auth", {"users": {"admin": userToJSON(admin_user)}})
+        if(!await this.db.exists("folders_owned")) await this.db.modify("folders_owned", {"folders": []})
         this.log.log("Initialized", "AUTHWIZARD");
     }
 
@@ -121,14 +120,17 @@ export class AuthorizationWizard {
         let json = await this._getAccounts();
         json[name] = userToJSON(user);
         this.log.log(`Creating new account "${name}" w/ password "${pass}"`, "AUTHWIZARD")
-        await this.db.modify("auth", JSON.stringify({"users": json}));
+        await this.db.modify("auth", {"users": json});
         return user;
     }
 
     async _getAccounts() {
-        let json = await this.db.fetch("auth");
-        try { json = JSON.parse(json); }
+        let json;
+        try { json = await this.db.fetch("auth"); }
         catch { return; }
+        //try { json = JSON.parse(json); }
+        //catch { return; }
+        if(!json) return;
         let accounts = json["users"];
         return accounts
     }
@@ -136,7 +138,7 @@ export class AuthorizationWizard {
     async fetchAccount(name: string, pass: string) {
         if(!this.exists(name)) return undefined;
         let accounts = await this._getAccounts();
-        let user; try { user = JSONToUser(JSON.parse(accounts[name])); }
+        let user; try { user = JSONToUser(accounts[name]); }
         catch { return undefined };
         if(user.account.pass == pass) return user; // this.checkPass would be better but it would bloat :(
     }
@@ -144,7 +146,7 @@ export class AuthorizationWizard {
     async checkPass(name: string, pass: string) {
         if(!this.exists(name)) return undefined;
         let accounts = await this._getAccounts();
-        let user = JSONToUser(JSON.parse(accounts[name]));
+        let user = JSONToUser(accounts[name]);
         if(user.account.pass == pass) return true;
         else return false;
     }
@@ -184,31 +186,14 @@ export class AuthorizationWizard {
         let old = await this.fetchAccount(name, pass);
         if(!old) return undefined;
         json[updated.account.name] = userToJSON(updated);
-        setTimeout(async () => { await this.db.modify("auth", JSON.stringify({"users": json})); }, 500);
+        setTimeout(async () => { await this.db.modify("auth", {"users": json}); }, 500);
         return updated;
     }
 
-    /*async _upgradeAccounts() {
-        let json = await this._getAccounts();
-        for(let x = 0; x < await this.countUsersInDB(); x++) {
-            if(Object.values(json).at(x) == undefined) {continue;}
-            // @ts-expect-error
-            let json_2 = JSON.parse(Object.values(json).at(x));
-            if(json_2["ownedFolders"] == undefined) {
-                json_2["ownedFolders"] = new Array();
-                let user = JSONToUser(json_2)
-                // @ts-expect-error
-                json[Object.keys(json).at(x)] = userToJSON(user);
-                await this.db.modify("auth", JSON.stringify({"users": json}));
-            }  
-        }
-    }*/
-
-    // TODO: maybe move somewhere else
     async folderIsOwned(folder: string) {
         let json = await this.db.fetch("folders_owned")
         let found = false;
-        json = JSON.parse(json);
+        //json = JSON.parse(json);
         let folders: Array<string> = json["folders"];
         folders.forEach(f => {
             if(f == folder) found = true;
@@ -224,13 +209,13 @@ export class AuthorizationWizard {
         if(!user) return false;
         user.ownedFolders.push(folder);
         json[name] = userToJSON(user);
-        await this.db.modify("auth", JSON.stringify({"users": json}));
+        await this.db.modify("auth", {"users": json});
         setTimeout(async () => {
             json = await this.db.fetch("folders_owned")
-            json = JSON.parse(json);
+            //json = JSON.parse(json);
             let folders: Array<string> = json["folders"];
             folders.push(folder);
-            await this.db.modify("folders_owned", JSON.stringify({"folders": folders}))
+            await this.db.modify("folders_owned", {"folders": folders})
         }, 1000)
         return true;
     }
@@ -243,13 +228,13 @@ export class AuthorizationWizard {
         if(!user) return false;
         user.ownedFolders.splice(user.ownedFolders.indexOf(folder));
         json[name] = userToJSON(user);
-        await this.db.modify("auth", JSON.stringify({"users": json}));
+        await this.db.modify("auth", {"users": json});
         setTimeout(async () => {
             json = await this.db.fetch("folders_owned")
-            json = JSON.parse(json);
+            //json = JSON.parse(json);
             let folders: Array<string> = json["folders"];
             folders.splice(folders.indexOf(folder));
-            await this.db.modify("folders_owned", JSON.stringify({"folders": folders}))
+            await this.db.modify("folders_owned", {"folders": folders})
         }, 1000)
         return true;
     }
@@ -270,7 +255,7 @@ export class AuthorizationWizard {
         old.settings.display_name = updated.settings.display_name;
         old.settings.color = updated.settings.color;
         json[updated.account.name] = userToJSON(old);
-        setTimeout(async () => { await this.db.modify("auth", JSON.stringify({"users": json})); }, 500);
+        setTimeout(async () => { await this.db.modify("auth", {"users": json}); }, 500);
         return updated;
     }
 
@@ -283,7 +268,7 @@ export class AuthorizationWizard {
         if(user.statistics.points < 0) user.statistics.points = 0;
         let JSON_user = userToJSON(user);
         json[name] = JSON_user
-        await this.db.modify("auth", JSON.stringify({"users": json}));
+        await this.db.modify("auth", {"users": json});
     }
 
     async deleteAccount(name: string, pass: string) {
@@ -291,7 +276,7 @@ export class AuthorizationWizard {
         this.log.log(`Deleting Account "${name}"`, "AUTHWIZARD")
         let json = await this._getAccounts();
         delete json[name];
-        await this.db.modify("auth", JSON.stringify({"users": json}));
+        await this.db.modify("auth", {"users": json});
     }
 
     async renameAccount(name: string, pass: string, newName: string) {
@@ -301,9 +286,9 @@ export class AuthorizationWizard {
 
         if(!acc) return undefined;
         acc.account.name = sanitize(newName);
-        json[newName] = JSON.parse(userToJSON(acc));
+        json[newName] = userToJSON(acc);
         this.log.log(`Renaming Account "${name}" to "${newName}"`, "AUTHWIZARD")
-        await this.db.modify("auth", JSON.stringify({"users": json}));
+        await this.db.modify("auth", {"users": json});
         setTimeout(async () => {await this.deleteAccount(name, pass);}, 500);
     }
 }

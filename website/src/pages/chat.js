@@ -17,22 +17,31 @@ const emojiGrid = document.querySelector(".emoji-grid");
 const categoryButtons = document.querySelectorAll(".emoji-cat");
 const color_input = document.getElementById("color");
 const chatter_text = document.getElementById("chatters");
-const startBtn = document.getElementById("startVoiceBtn");
+//const startBtn = document.getElementById("startVoiceBtn");
 const connection_check = document.getElementById("show-con-messages");
-connection_check.checked = (getCookie("con-msg") === true)
+let id = "";
+connection_check.checked = (getCookie("con-msg") == "true")
 connection_check.addEventListener("click", () => {
     setCookie("con-msg", connection_check.checked, 90);
-    init();
+    refresh();
 })
-let in_vc = false;
-startBtn.addEventListener("click", () => {
-    in_vc = !in_vc;
-    if(in_vc) {
-        ws.send(`${name} has entered voice chat`)
+document.getElementById("banner").addEventListener("click", () => {
+    if(document.getElementById("chat").style.display == "none") {
+        window.location.href = "/";
     } else {
-        ws.send(`${name} has exited voice chat`)
+        document.getElementById("chat").style.display = "none";
+        document.getElementById("picker").style.display = "block";
+        ws.send(JSON.stringify({"type": "wizard", "method": "unsubscribe", "content": "", "id": id}));
     }
 })
+/*startBtn.addEventListener("click", () => {
+    in_vc = !in_vc;
+    if(in_vc) {
+        ws.send(JSON.stringify({"type": "message", "content": `${name} has entered voice chat`, "id": id}))
+    } else {
+        ws.send(JSON.stringify({"type": "message", "content": `${name} has exited voice chat`, "id": id}))
+    }
+})*/
 let color;
 try { color = getSettingOnAccount("color") }
 catch { alert("make an account"); window.location.href = `${location.protocol}//${location.host}/?account`;}
@@ -55,26 +64,50 @@ if(location.host.includes("66.65.25.15")) {
     wsUri = `${location.protocol}//api.${location.host}/chat/live`;
 }
 let messages = [];
-await init();
+//await init();
 const ws = new WebSocket(wsUri);
 ws.addEventListener('message', (e) => {
-    if(e.data[0] == "_") {
-        const method = e.data.slice(1, e.data.indexOf("="));
-        const value = e.data.slice(e.data.indexOf("=")+1);
-        switch(method) {
-            case "SETCHATTERS":
-                chatter_text.textContent = `Active Chatters: ${value}`;
-                break;
-        }
-    } else {
-        messages.push(`${e.data}`);
-        update_messages(`${e.data}`);
+    let json = JSON.parse(e.data);
+    switch(json.type) {
+        case "system":
+            switch(json.method) {
+                case "chat_count":
+                    chatter_text.textContent = `Active Chatters: ${json.content}`;
+                    break;
+            }
+            break;
+        case "wizard": 
+            switch(json.method) {
+                case "fetch":
+                    for(let x = 0; x < json.content.ids.length; x++) {
+                        let id = json.content.ids[x];
+                        let name = json.content.names[x];
+                        let item = document.createElement("p");
+                        item.classList.add("grid-item", "unselectable", "clickable");
+                        item.textContent = name ? name : id;
+                        item.addEventListener("click", () => {
+                            openChat(id);
+                        })
+                        document.getElementById("chat-picker-list").appendChild(item);
+                    }
+                    break;
+            }
+            break;
+        case "message":
+            messages.push(`${json.content}`);
+            update_messages(`${json.content}`);
+            break;
     }
 });
 ws.addEventListener("open", () => {
-    ws.send(`_NAME=${name}`);
-    ws.send(`_CONNECT=null`);
+    ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
 })
+
+async function refresh() {
+    message_box.replaceChildren();
+    messages = await fetch_history(100);
+    messages.forEach(msg => update_messages(msg));
+}
 
 let name = getSettingOnAccount("display_name") || "No Name";
 name_input.value = name;
@@ -94,7 +127,7 @@ const emojiRowHeight = 35;
 msg_input.addEventListener("keydown", (event) => { 
     if (event.key === "Enter") {
         if(msg_input.value.trim() == "") return;
-        ws.send(`${color}[${name}]: ${msg_input.value}`);
+        ws.send(JSON.stringify({"type": "message", "content": `${color}[${name}]: ${msg_input.value}`, "id": id}));
         msg_input.value = "";
     }
 });
@@ -102,10 +135,10 @@ msg_input.addEventListener("keydown", (event) => {
 name_input.addEventListener("keydown", (event) => { 
     if (event.key === "Enter") {
         let new_name = name_input.value || "No Name";
-        ws.send(`${name} changed their name to ${new_name}`);
+        ws.send(JSON.stringify({"type": "message", "content": `${name} changed their name to ${new_name}`, "id": id}));
         name = new_name;
         changeSettingOnAccount("display_name", name);
-        ws.send(`_NAME=${name}`);
+        ws.send(JSON.stringify({"type": "system", "method": "update", "content": JSON.parse(window.localStorage.getItem("user")), "id": id}));
     }
 });
 
@@ -137,16 +170,10 @@ function update_messages(newMessage) {
     message_box.scrollTop = message_box.scrollHeight;
 }
 
-async function init() {
-    message_box.replaceChildren();
-    messages = await fetch_history(100);
-    messages.forEach(msg => update_messages(msg));
-}
-
 async function fetch_history(length) {
     const res = await fetch(getApiLink("/chat/history"), {
         method: "POST",
-        body: JSON.stringify({"amount": length, "connection_messages": getCookie("con-msg")})
+        body: JSON.stringify({"amount": length, "connection_messages": getCookie("con-msg"), "id": id})
     });
 
     if (!res.ok || !res.body) return [];
@@ -320,3 +347,12 @@ document.addEventListener("click", (e) => {
         emoji_picker.classList.add("hidden");
     }
 });
+
+async function openChat(rec_id) {
+    id = rec_id;
+    ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": JSON.parse(window.localStorage.getItem("user")), "id": id}));
+    document.getElementById("chat").style.display = "block";
+    document.getElementById("picker").style.display = "none";
+    document.getElementById("chat-id").textContent = `Chat ID: ${id}`
+    refresh();
+}
