@@ -94,6 +94,7 @@ export class ChatWizard {
                         timestamp: Date.now()
                     })
                     ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "OK"}));
+                    break;
             };
         } else {
             this.fromID(json.id)?.handleRecieved(ws, json);
@@ -124,6 +125,16 @@ export class ChatInstance {
         } as message] }
         await this.db.modify("chats", chats);
     }
+    
+    async flood() {
+        for(let x = 0; x < 30; x++) {
+            await this.send({
+                type: "message",
+                content: `${x}`,
+                timestamp: Date.now()
+            })
+        }
+    }
 
     async appendMessageToHistory(message: message) {
         let data;
@@ -133,15 +144,19 @@ export class ChatInstance {
         await this.db.modify("chats", data);
     }
       
-    async fetchMessagesFromHistory(amt: number, con_msgs: (string | boolean)) {
+    async fetchMessagesFromHistory(amt: number, con_msgs: (string | boolean), start_index?: number) {
         let data;
         try { data = await this.db.fetch("chats"); }
         catch { return; }
         let messages: Array<string> = data[this.id]["history"];
         con_msgs = (con_msgs === "true")
         // @ts-expect-error
-        if(!con_msgs) messages = messages.filter(item => item.type !== "connection")
+        if(!con_msgs) messages = messages.filter(item => item.type !== "connection");
+        if(start_index != undefined) {
+            messages = messages.slice(0, -start_index);
+        }
         if(amt != -1) messages = messages.slice(-amt);
+        if(start_index != undefined) messages.reverse();
         let new_messages = new Array();
         for(let x = 0; x < messages.length; x++) {
           let parsed = messages[x]!;
@@ -186,14 +201,20 @@ export class ChatInstance {
     async send(msg: message) {
         this.appendMessageToHistory(msg);
         await this.broadcast(JSON.stringify({"type": "message", "content": msg.content}));
-        this.log.log(`${msg.content}`)
+        this.log.log(`${msg.content}`, "CHAT")
     }
 
     async handleRecieved(ws: ServerWebSocket<{ source: string }>, json: any) {
         switch(json.type) {
             case "system":
                 switch (json.method) {
-                    case "update": this.users.set(ws, json.content.user); break;
+                    case "update": 
+                        this.users.set(ws, json.content.user); 
+                        break;
+                    case "history": 
+                        let history = await this.fetchMessagesFromHistory(json.content, json.con_msgs, json.start_index);
+                        ws.send(JSON.stringify({"type": "system", "method": "history", "content": history, "prepend": json.prepend}))
+                        break;
                 }
                 break;
             case "message":

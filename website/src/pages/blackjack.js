@@ -36,9 +36,7 @@ ws.addEventListener("message", async (msg) => {
         case "reset": restartHandler(); break;
         case "round": 
             document.getElementById("exit-text-receipt").textContent = "exiting will NOT result in a loss"
-            document.getElementById("exit-text-receipt").style.textDecoration = "underline";
-            document.getElementById("exit-text-receipt").style.fontWeight = "700";
-            setTimeout(async () => {await refreshPoints(); }, 100); 
+            setTimeout(async () => { await refreshPoints(); }, 100); 
             break;
         case "bet": betPhaseHandler(); break;
         case "play": playPhaseHandler(); break;
@@ -55,11 +53,18 @@ document.getElementById("reciept-blackjack-submit").addEventListener("click", ()
     ws.send(`bet;${JSON.stringify({"amt": parseInt(wager_slider.value)})}`)
 })
 
+document.getElementById("exit-text-receipt").addEventListener("click", () => {
+    ws.send(`leave;{}`)
+    in_table = false;
+    hideReceiptMenu("receipt-blackjack")
+    document.getElementById("blackjack-dealer-worth").style.display = "none";
+    join_table_button.textContent = "join table"
+    leave_table_button.style.display = "none";
+    refreshPoints();
+})
+
 const betPhaseHandler = async () => {
     let points = await getPoints();
-    document.getElementById("exit-text-receipt").textContent = "exiting will result in a loss";
-    document.getElementById("exit-text-receipt").style.textDecoration = "";
-    document.getElementById("exit-text-receipt").style.fontWeight = "400";
     if(points == 0) {
         join_table_button.textContent = "join table"
         leave_table_button.style.display = "none";
@@ -89,6 +94,7 @@ const playPhaseHandler = () => {
     document.getElementById("blackjack-dealer-worth").style.display = "block";
     document.getElementById("receipt-blackjack-bet").style.display = "none";
     document.getElementById("receipt-blackjack-play").style.display = "block";
+    document.getElementById("exit-text-receipt").textContent = "exiting will result in a loss";
 }
 const startHandler = () => {
     hideStartUI();
@@ -247,3 +253,7 @@ document.getElementById("reciept-blackjack-hit").addEventListener("click", () =>
 document.getElementById("reciept-blackjack-stand").addEventListener("click", () => {
     ws.send(`stand;{}`);
 })
+
+setInterval(() => {
+    refreshPoints();
+}, 1000);

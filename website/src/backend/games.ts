@@ -144,6 +144,7 @@ export class BlackjackInstance {
         this.roundIsOver = false;
         this.players.keys().forEach(ws => {
             this.players.get(ws)!.hand = new Array();
+            this.players.get(ws)!.bet = 0;
         });/*
         this._drawDealerCard();
         this._drawDealerCard();*/
@@ -301,6 +302,7 @@ export class BlackjackInstance {
             // evaluate bets
             this.roundIsOver = true;
             this.players.keys().forEach(async ws => { this.scorePlayer(ws); });
+            this.players.values().forEach(u => u.bet = 0);
             this.updatePlayersOnState();
             ws.send(`round;{}`)
             setTimeout(() => { this.broadcast(`reset;{}`); this.soft_reset(); this.updatePlayersOnState(); this.broadcast(`bet;{}`);}, 3000);
@@ -310,16 +312,24 @@ export class BlackjackInstance {
         this.updatePlayersOnState();
     }
 
+    protected hasWon(checking: number, opponent: number) {
+        if(checking == opponent) return null;      // both are the same : nothing
+        else if(checking > 21) return false;       // player bust       : lose
+        else if(opponent > 21) return true;        // opponent bust     : win
+        else if(checking > opponent) return true;  // player has more   : win
+        else if(checking < opponent) return false; // player has less   : lose
+    }
+
     protected scorePlayer = async (ws: ServerWebSocket<{ source: string; }>) => {
         let player = this.players.get(ws);
         if(!player) return;
         let dealer_value = clamp(this.evaluateHand(this.dealerHand), 0, 22)
         let value = clamp(this.evaluateHand(player.hand), 0, 22)
 
-        if(dealer_value == value) return; // same = nothing
-        else if(value >= 22) this.modifyPoints(player.user, -player.bet) // you bust w/o dealer busting too = lose
-        else if(value <= 21 && value > dealer_value) this.modifyPoints(player.user, player.bet*0.5); // anything else = win
-        else this.modifyPoints(player.user, -player.bet);
+        let won = this.hasWon(value, dealer_value);
+        if(won == null) return;
+        else if(won) this.modifyPoints(player.user, Math.round(player.bet*0.5));
+        else if(!won) this.modifyPoints(player.user, -player.bet);
 
     }
 

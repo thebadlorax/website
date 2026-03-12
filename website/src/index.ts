@@ -6,7 +6,7 @@ import { deleteFile, renameFile } from "./backend/file";
 import { Database } from "./backend/db"
 import { BlackjackInstance, Deck } from "./backend/games";
 import { corsResponse, CORS_HEADERS } from "./backend/connectivity";
-import { ChatInstance, ChatWizard } from "./backend/chat";
+import { ChatWizard } from "./backend/chat";
 import { CacheWizard } from "./backend/cache";
 import { LogWizard } from "./backend/logging";
 import { AuthorizationWizard, userToJSON } from "./backend/auth";
@@ -25,9 +25,9 @@ cache.addRoot("src/pages")
 const chat = new ChatWizard(db);
 if(!await db.exists("main_chat")) {
   // @ts-expect-error
-  db.modify("main_chat", await chat.create())
+  await db.modify("main_chat", await chat.create())
 } else {
-  chat.publicize(chat.fromID(await chat.createInheritance(await db.fetch("main_chat")))!);
+  chat.publicize(chat.fromID(await chat.createInheritance(await db.fetch("main_chat")))!)
 }
 chat.fromID(await db.fetch("main_chat"))!.display_name = "main";
 const time = new TimeWizard();
@@ -389,7 +389,7 @@ const server = Bun.serve({
             });
             if(success) return undefined;
             return corsResponse("WebSocket upgrade failed", { status: 400 });
-          case "/chat/history":
+          /*case "/chat/history":
             let rec_json2 = await req.json();
             let amt = rec_json2["amount"];
             let con_msgs = rec_json2["connection_messages"];
@@ -397,7 +397,7 @@ const server = Bun.serve({
             let c = chat.fromID(rec_json2.id);
             if(!c)return corsResponse(null, { status: 404 });
             let history = await c.fetchMessagesFromHistory(amt, con_msgs);
-            return corsResponse(JSON.stringify(history), { status: 200 });
+            return corsResponse(JSON.stringify(history), { status: 200 });*/
           case "/chat/emojis":
             try {
               const emojis = Bun.file("src/res/emojis.json"); // path to your JSON
@@ -412,12 +412,12 @@ const server = Bun.serve({
                 headers: { "Content-Type": "application/json" },
               });
             };
-          case "/chat/voice":
+          /*case "/chat/voice":
             const success2 = server.upgrade(req, {
               data: { source: "/chat/voice" }, // Attach per-socket data
             });
             if(success2) return undefined;
-            return corsResponse("WebSocket upgrade failed", { status: 400 });
+            return corsResponse("WebSocket upgrade failed", { status: 400 });*/
           case "/stats":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
             let visitor_count_2 = await db.fetch("visitors") || 0;
@@ -491,7 +491,7 @@ const server = Bun.serve({
             return corsResponse(null, { status: 200 });
           case "/health":
             return corsResponse("OK"); 
-          default:
+          default: // dynamic route endpoints
             if(url.startsWith("/file/fetch/")) {
               let file_name = "public/" + url.split("fetch/")[1]
               let is_protected = await directoryIsProtected(`/${file_name.split("/")[1]}`);
@@ -503,7 +503,7 @@ const server = Bun.serve({
               let file = Bun.file(file_name)
               if(await file.exists()) return corsResponse(file);
               else return corsResponse(null, { status: 400 });
-            } else return corsResponse("endpoint not found", { status: 404 });
+            } else return corsResponse("endpoint not found", { status: 404 }); // serve error page
         };
       case "":
         let staticResponse = await serveStaticIfAllowed(url);

@@ -1,9 +1,20 @@
 const {getApiLink, changeSettingOnAccount, getSettingOnAccount, getCookie, setCookie } = await import('./common.js');
 
+let fetch_size = 100;
+let fetching = false;
+let at_top = false;
+
 const message_box = document.getElementById("message-box");
 message_box.addEventListener("wheel", (e) => {
     const atTop = message_box.scrollTop === 0;
     const atBottom = message_box.scrollTop + message_box.clientHeight >= message_box.scrollHeight;
+
+    if(message_box.scrollTop < 10) {
+        if(!fetching && !at_top) {
+            fetching = true;
+            ws.send(JSON.stringify({"type": "system", "method": "history", "content": fetch_size, "con_msgs": getCookie("con-msg"), "id": id, "prepend": true, "start_index": index}));
+        }
+    }
 
     if ((atTop && e.deltaY < 0) || (atBottom && e.deltaY > 0)) {
         e.preventDefault();
@@ -20,6 +31,7 @@ const chatter_text = document.getElementById("chatters");
 //const startBtn = document.getElementById("startVoiceBtn");
 const connection_check = document.getElementById("show-con-messages");
 let id = "";
+let index = 0;
 connection_check.checked = (getCookie("con-msg") == "true")
 connection_check.addEventListener("click", () => {
     setCookie("con-msg", connection_check.checked, 90);
@@ -79,7 +91,6 @@ document.getElementById("invite-input-button").addEventListener("click", () => {
     if(document.getElementById("invite-input").value == "") { return; }
     ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": document.getElementById("invite-input").value, "id": id}));
 })
-// TODO: add scrolling to top of chat by allowing history to be fetched from a start point;
 ws.addEventListener('message', (e) => {
     let json = JSON.parse(e.data);
     switch(json.type) {
@@ -88,6 +99,15 @@ ws.addEventListener('message', (e) => {
                 case "chat_count":
                     chatter_text.textContent = `Active Chatters: ${json.content}`;
                     break;
+                case "history":
+                    let new_messages = json.content.map(i => i.content);
+                    new_messages.forEach(msg => {
+                        if(json.prepend) update_messages(msg, true);
+                        else update_messages(msg, false);
+                    });
+                    index += new_messages.length;
+                    if(new_messages.length != fetch_size) at_top = true;
+                    fetching = false;
             }
             break;
         case "wizard": 
@@ -117,7 +137,7 @@ ws.addEventListener('message', (e) => {
                     break;
                 case "invite":
                     if(json.content == "NO") {
-                        alert("invalid name (probably doesn't exist)");
+                        alert("invalid name (account probably doesn't exist)");
                     } else if(json.content == "ALR"){
                         alert("already in chat");
                     } else {
@@ -135,10 +155,9 @@ ws.addEventListener("open", () => {
     ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
 })
 
-async function refresh() {
+function refresh() {
     message_box.replaceChildren();
-    messages = await fetch_history(100);
-    messages.forEach(msg => update_messages(msg));
+    ws.send(JSON.stringify({"type": "system", "method": "history", "content": fetch_size, "con_msgs": getCookie("con-msg"), "id": id, "prepend": false}));
 }
 
 let name = getSettingOnAccount("display_name") || "No Name";
@@ -174,7 +193,7 @@ name_input.addEventListener("keydown", (event) => {
     }
 });
 
-function update_messages(newMessage) {
+function update_messages(newMessage, front) {
     const ele = document.createElement("p");
     ele.classList.add("basic-text");
     ele.style.marginLeft = "2.5vw";
@@ -182,7 +201,7 @@ function update_messages(newMessage) {
 
     if(newMessage[0] == "#") {
         ele.style.color = newMessage.slice(0, 7);
-        newMessage = newMessage.slice(7)
+        newMessage = newMessage.slice(7);
     }
 
     const matches = newMessage.match(urlRegex);
@@ -198,16 +217,12 @@ function update_messages(newMessage) {
         ele.textContent = newMessage;
     }
 
-    message_box.appendChild(ele);
-    message_box.scrollTop = message_box.scrollHeight;
+    if(front) message_box.prepend(ele);
+    else message_box.appendChild(ele);
+    if(!front) message_box.scrollTop = message_box.scrollHeight;
 }
 
-async function fetch_history(length) {
-    const res = await fetch(getApiLink("/chat/history"), {
-        method: "POST",
-        body: JSON.stringify({"amount": length, "connection_messages": getCookie("con-msg"), "id": id})
-    });
-
+/*async function fetch_history(length) {
     if (!res.ok || !res.body) return [];
     let new_messages = new Array();
     let rec_messages = await res.json();
@@ -216,20 +231,9 @@ async function fetch_history(length) {
         new_messages.push(msg.content);
     }
     return new_messages;
-}
+}*/
 
 const bufferRows = 3;
-
-async function loadAllEmojis() {
-    try {
-        const res = await fetch(getApiLink("/chat/emojis"));
-        const data = await res.json();
-        allEmojis = data["emojis"] || [];
-        console.log("Loaded emojis:", allEmojis.length);
-    } catch (err) {
-        console.error("Failed to load emojis:", err);
-    }
-}
 
 function clearEmojiGrid() {
     emojiGrid.innerHTML = "";
@@ -351,7 +355,6 @@ categoryButtons.forEach(btn => {
         btn.classList.add("active");
 
         if (btn.textContent === "All") {
-            await loadAllEmojis();
             renderAllEmojisVirtual();
         } else if (btn.textContent === "Kaomoji") {
             renderKaomoji();
@@ -368,7 +371,6 @@ emoji_btn.addEventListener("click", async () => {
 
         if (activeBtn.textContent === "Kaomoji") renderKaomoji();
         else {
-            await loadAllEmojis();
             renderAllEmojisVirtual();
         }
     }
@@ -388,3 +390,12 @@ async function openChat(rec_id) {
     document.getElementById("chat-id").textContent = `Chat ID: ${id}`
     refresh();
 }
+
+fetch(getApiLink("/chat/emojis"), { priority: "low" }).then((e) => {
+    e.json().then((json) => {
+        allEmojis = json["emojis"] || [];
+    })
+});
+
+
+setInterval(() => { console.log(index); }, 100);

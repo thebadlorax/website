@@ -161,7 +161,11 @@ sign_out_button.addEventListener("click", () => {
     openMenu();
 })
 
-function sanitize(str) { return str.replaceAll("\\", "").replaceAll(":", "").replaceAll("#", "") } 
+
+function sanitize(str) {
+    let n = str.replace(/[^\x20-\x7E]/g, '')
+    return n;
+}
 
 async function handle_updating() {
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
