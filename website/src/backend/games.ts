@@ -317,8 +317,10 @@ export class BlackjackInstance {
         let value = clamp(this.evaluateHand(player.hand), 0, 22)
 
         if(dealer_value == value) return; // same = nothing
-        else if(value > 21) this.modifyPoints(player.user, player.bet*-1) // you bust w/o dealer busting too = lose
-        else this.modifyPoints(player.user, player.bet); // anything else = win
+        else if(value >= 22) this.modifyPoints(player.user, -player.bet) // you bust w/o dealer busting too = lose
+        else if(value <= 21 && value > dealer_value) this.modifyPoints(player.user, player.bet*0.5); // anything else = win
+        else this.modifyPoints(player.user, -player.bet);
+
     }
 
     modifyPoints = async (user: User, amt: number) => await this.auth.changePoints(user.account.name, user.account.pass, amt)
@@ -361,9 +363,9 @@ export class BlackjackInstance {
             case "leave": this.deregisterPlayer(ws); break;
             case "update": this.updatePlayerUser(ws, json.user); break;
             case "start": this.startGame(); break;
-            case "draw": this.drawCard(ws); break;
-            case "stand": this.advanceTurn(ws); break;
-            case "bet": this.handleBetTurn(ws, json.amt); break;
+            case "draw": if(!this.roundIsOver) this.drawCard(ws); break;
+            case "stand": if(!this.roundIsOver) this.advanceTurn(ws); break;
+            case "bet": if(!this.roundIsOver) this.handleBetTurn(ws, json.amt); break;
         }
     }
 

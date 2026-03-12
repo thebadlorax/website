@@ -34,14 +34,6 @@ document.getElementById("banner").addEventListener("click", () => {
         ws.send(JSON.stringify({"type": "wizard", "method": "unsubscribe", "content": "", "id": id}));
     }
 })
-/*startBtn.addEventListener("click", () => {
-    in_vc = !in_vc;
-    if(in_vc) {
-        ws.send(JSON.stringify({"type": "message", "content": `${name} has entered voice chat`, "id": id}))
-    } else {
-        ws.send(JSON.stringify({"type": "message", "content": `${name} has exited voice chat`, "id": id}))
-    }
-})*/
 let color;
 try { color = getSettingOnAccount("color") }
 catch { alert("make an account"); window.location.href = `${location.protocol}//${location.host}/?account`;}
@@ -64,8 +56,30 @@ if(location.host.includes("66.65.25.15")) {
     wsUri = `${location.protocol}//api.${location.host}/chat/live`;
 }
 let messages = [];
-//await init();
 const ws = new WebSocket(wsUri);
+document.getElementById("chat-name-input").value = "";
+document.getElementById("chat-name-input").addEventListener("input", () => {
+    if(document.getElementById("chat-name-input").value != "") {
+        document.getElementById("create-room-button").style.display = "block";
+        document.getElementById("private-room-check").style.display = "block";
+        document.getElementById("private-room-text").style.display = "block";
+    }
+    else {
+        document.getElementById("create-room-button").style.display = "none";
+        document.getElementById("private-room-check").style.display = "none";
+        document.getElementById("private-room-text").style.display = "none";
+    }
+})
+
+document.getElementById("create-room-button").addEventListener("click", () => {
+    if(document.getElementById("chat-name-input").value == "") return;
+    ws.send(JSON.stringify({"type": "wizard", "method": "create", "user": JSON.parse(window.localStorage.getItem("user")), "content": document.getElementById("chat-name-input").value, "private": !document.getElementById("private-room-check").checked}));
+})
+document.getElementById("invite-input-button").addEventListener("click", () => {
+    if(document.getElementById("invite-input").value == "") { return; }
+    ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": document.getElementById("invite-input").value, "id": id}));
+})
+// TODO: add scrolling to top of chat by allowing history to be fetched from a start point;
 ws.addEventListener('message', (e) => {
     let json = JSON.parse(e.data);
     switch(json.type) {
@@ -79,18 +93,36 @@ ws.addEventListener('message', (e) => {
         case "wizard": 
             switch(json.method) {
                 case "fetch":
+                    document.getElementById("chat-picker-list").replaceChildren();
                     for(let x = 0; x < json.content.ids.length; x++) {
                         let id = json.content.ids[x];
                         let name = json.content.names[x];
                         let item = document.createElement("p");
                         item.classList.add("grid-item", "unselectable", "clickable");
                         item.textContent = name ? name : id;
-                        item.addEventListener("click", () => {
-                            openChat(id);
-                        })
+                        item.style.fontWeight = json.content.private[x] ? "700" : "400"
+                        item.style.color = json.content.private[x] ? "red" : "black";
+                        item.addEventListener("click", () => { openChat(id); })
                         document.getElementById("chat-picker-list").appendChild(item);
                     }
                     break;
+                case "create":
+                    ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
+                    document.getElementById("chat-name-input").value = "";
+                    const event = new Event('input', {
+                        bubbles: true,
+                        cancelable: true
+                    });
+                    document.getElementById("chat-name-input").dispatchEvent(event);
+                    break;
+                case "invite":
+                    if(json.content == "NO") {
+                        alert("invalid name (probably doesn't exist)");
+                    } else if(json.content == "ALR"){
+                        alert("already in chat");
+                    } else {
+                        alert("added to chat")
+                    } break;
             }
             break;
         case "message":

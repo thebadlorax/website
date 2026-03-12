@@ -8,7 +8,7 @@
 import { Database } from "./db";
 import { LogWizard } from "./logging";
 import { generateRandomString } from "./utils";
-import { type User, JSONToUser } from "./auth"
+import { type User, AuthorizationWizard, JSONToUser } from "./auth"
 import type { ServerWebSocket } from "bun";
 
 type message = {
@@ -27,16 +27,17 @@ export class ChatWizard {
     protected assignees: Map<string, Array<ChatInstance>> = new Map();
     protected db: Database;
     protected log: LogWizard = new LogWizard();
-    constructor(db: Database) { this.db = db; this.log.log("Initalized", "CHATWIZARD"); };
+    protected auth: AuthorizationWizard;
+    constructor(db: Database) { this.db = db; this.auth = new AuthorizationWizard(this.db); this.log.log("Initalized", "CHATWIZARD"); };
 
     async create() { let n = new ChatInstance(this.db); this.instances.push(n); await n.init(); return n.id; };
     async createInheritance(id: string) { let n = new ChatInstance(this.db); n.id = id; this.instances.push(n); await n.init(); return n.id; }
     fromID(id: string) { return this.instances.filter(ins => ins.id == id).at(0); };
     destroy(i: ChatInstance) { if(this.instances.includes(i)) this.instances.splice(this.instances.indexOf(i)); };
-    assign(u: User, i: ChatInstance) { 
-        let e = this.assignees.get(u.account.id) || new Array();
+    assign(id: string, i: ChatInstance) { 
+        let e = this.assignees.get(id) || new Array();
         e.push(i);
-        this.assignees.set(u.account.id, e);
+        this.assignees.set(id, e);
     };
     publicize(i: ChatInstance) {
         let e = this.assignees.get("*") || new Array();
@@ -50,8 +51,8 @@ export class ChatWizard {
         e?.splice(e.indexOf(i));
         this.assignees.set(u.account.id, e!)
     };
-    check(u: User, i: ChatInstance) {
-        let e = this.assignees.get(u.account.id);
+    check(id: string, i: ChatInstance) {
+        let e = this.assignees.get(id);
         if(!e) return false;
         else if(!e.includes(i)) return false;
         return true;
@@ -61,8 +62,9 @@ export class ChatWizard {
         if(json.type == "wizard") {
             switch(json.method) {
                 case "fetch": 
-                    let chats = this.assignees.get(json.content) || new Array().concat(this.assignees.get("*")!);
-                    ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": {"ids": chats.map(i => i.id), "names": chats.map(i => i.display_name)}}));
+                    let chats = this.assignees.get(json.content) || new Array();
+                    chats = chats.concat(this.assignees.get("*")!); chats.reverse();
+                    ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": {"ids": chats.map(i => i.id), "names": chats.map(i => i.display_name), "private": chats.map(i => this.assignees.get(json.content)?.includes(i) ? true : false)}}));
                     break;
                 case "subscribe":
                     this.fromID(json.id)?.registerUser(ws, json.content);
@@ -70,14 +72,35 @@ export class ChatWizard {
                     break;
                 case "unsubscribe":
                     this.fromID(json.id)?.deregisterUser(ws);
-                    ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "OK"}));
+                    ws.send(JSON.stringify({"type": "wizard", "method": "unsubscribe", "content": "OK"}));
                     break;
-            }
+                case "create":
+                    let new_chat = this.fromID(await this.create())!;
+                    new_chat.display_name = json.content;
+                    if(!json.private) this.assign(json.user.account.id, new_chat);
+                    else this.publicize(new_chat);
+                    if(new_chat) ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "OK"}));
+                    else ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "NO"}));
+                    break;
+                case "invite":
+                    // TODO: make it so only creator of chat can invite? maybe
+                    let req_id = await this.auth.fetchUserID(json.content);
+                    if(!req_id) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "NO"})); return; }
+                    if(this.check(req_id, this.fromID(json.id)!)) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "ALR"})); return; }
+                    this.assign(req_id, this.fromID(json.id)!)
+                    this.fromID(json.id)!.send({
+                        type: "message",
+                        content: `${json.content} has been added to the chat`,
+                        timestamp: Date.now()
+                    })
+                    ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "OK"}));
+            };
         } else {
-            this.fromID(json.id)?.handleRecieved(ws, json); 
+            this.fromID(json.id)?.handleRecieved(ws, json);
         }
     }
-    deregister(ws:  ServerWebSocket<{ source: string }>) { this.instances.filter(i => i.users.keys().toArray().includes(ws)).forEach(i => { i.deregisterUser(ws); })};
+    deregister(ws:  ServerWebSocket<{ source: string }>) { this.instances.filter(i => i.users.keys().toArray().includes(ws)).forEach(i => 
+        { i.deregisterUser(ws); }) };
 }
 
 export class ChatInstance {
@@ -139,11 +162,11 @@ export class ChatInstance {
 
     registerUser(ws: ServerWebSocket<{ source: string }>, user: User) {
         this.users.set(ws, user);
-        this.send({
+        setTimeout(() => this.send({
             type: "connection",
             content: `${user.settings.display_name} has connected`,
             timestamp: Date.now()
-        });
+        }), 150);
         this.broadcast(JSON.stringify({"type": "system", "method": "chat_count", "content": `${this.users.size}`}));
     }
 

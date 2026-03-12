@@ -8,6 +8,7 @@
 import { appendFile } from "node:fs/promises";
 import { createDirectory, createFile } from "./file";
 
+// TODO: make duplicate lines stack ex; (2) 11:33:49 PM - etc.
 export class LogWizard {
     public logDir: string;
     private logFileName: string = "";

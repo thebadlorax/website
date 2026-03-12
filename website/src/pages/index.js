@@ -62,7 +62,7 @@ update_messages()
 ws.addEventListener('message', (e) => { // add message to the queue
     messages.push(`${e.data}`);
     update_messages();
-})*/
+})
 
 function update_messages() {
     while(messages.length > 11) messages.shift();
@@ -104,7 +104,7 @@ async function fetch_history(length) {
         new_messages.push(msg.content);
     }
     return new_messages;
-}
+}*/
 
 let data = initial_data;
 

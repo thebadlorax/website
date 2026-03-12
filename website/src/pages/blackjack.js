@@ -36,7 +36,9 @@ ws.addEventListener("message", async (msg) => {
         case "reset": restartHandler(); break;
         case "round": 
             document.getElementById("exit-text-receipt").textContent = "exiting will NOT result in a loss"
-            setTimeout(async () => {await refreshPoints(); }, 250); 
+            document.getElementById("exit-text-receipt").style.textDecoration = "underline";
+            document.getElementById("exit-text-receipt").style.fontWeight = "700";
+            setTimeout(async () => {await refreshPoints(); }, 100); 
             break;
         case "bet": betPhaseHandler(); break;
         case "play": playPhaseHandler(); break;
@@ -56,6 +58,8 @@ document.getElementById("reciept-blackjack-submit").addEventListener("click", ()
 const betPhaseHandler = async () => {
     let points = await getPoints();
     document.getElementById("exit-text-receipt").textContent = "exiting will result in a loss";
+    document.getElementById("exit-text-receipt").style.textDecoration = "";
+    document.getElementById("exit-text-receipt").style.fontWeight = "400";
     if(points == 0) {
         join_table_button.textContent = "join table"
         leave_table_button.style.display = "none";

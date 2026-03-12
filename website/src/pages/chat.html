@@ -32,10 +32,10 @@
                 </div>
                 <div class="column-container" style="width: 25%;">
                     <div class="small-item" style="max-height: 33%;">
-                        voice
+                        chat settings
                         <div></div>
-                        <!--<button style="background-color: grey; width: 5vw; height: 2vw; font-size: 1vw; outline: solid black 1px;" id="startVoiceBtn">connect</button>-->
-                        <p class="basic-text unselectable" style="padding-left: 3vw; color: darkred">unavaliable</p>
+                        <input class="input" id="invite-input" placeholder="Account Name" maxlength="15" style="width: 10vw; margin-top: 0vw; margin-left: 0vw;"></input>
+                        <p id = "invite-input-button" class="basic-link clickable unselectable" style="position: absolute; left: 5.5vw; top: 6vw; font-size: 1.5vw;">Invite</p>
                     </div>
                     <div class="small-item" style="max-height: 33%;">
                         information
@@ -43,7 +43,7 @@
                         <p class="basic-text" style="padding-left: 3vw;" id="chat-id">Chat ID: xxx</p>
                     </div>
                     <div class="small-item" style="max-height: 33%;">
-                        settings
+                        personal settings
                         <div></div>
                         <input class="input" id="color" value="#000000" maxlength="7" style="width: 10vw; margin-top: 1vw; margin-left: 0vw; margin-top: 2vw;"></input>                 
                         <input class="input" id="name" placeholder="Name" maxlength="15" style="width: 10vw; margin-top: 2vw; margin-left: 0vw;"></input>
@@ -69,6 +69,10 @@
         <div id="picker" style="position: absolute; top: 35vw; left: 10vw;">
             <div class="row-container">
                 <div class="column-container" style="width: 75%;">
+                    <input id="chat-name-input" class="input" placeholder="Chat Name" maxlength="15" style="width: 15vw; margin-top: 2vw; margin-left: 2vw;"></input>
+                    <input id="private-room-check" type="checkbox" style="display: none; position: absolute; margin-top: 2.25vw; margin-left: 18vw;" checked></input>
+                    <p id="private-room-text" class="basic-text" style="display: none; position: absolute; left: 19.5vw; top: 2.15vw; font-size: 1.3vw;">Private</p>
+                    <p id="create-room-button" class="basic-link clickable unselectable" style="display: none; position: absolute; left: 7vw; top: -3.5vw; font-size: 2vw;">Create Room</p>
                     <div class="large-item" style="image-rendering: pixelated;">
                         chat picker
                         <div id="chat-picker-list" class="grid-container"></div>

@@ -27,18 +27,18 @@ export class CacheWizard {
 
     getRoots() { return this.roots.keys(); }
 
-    addToCache(path: string, file: { content: Uint8Array, type: string, etag: string, lastModified: string }) { /*this.fileCache.set(path, file);*/ }
+    addToCache(path: string, file: { content: Uint8Array, type: string, etag: string, lastModified: string }) { this.fileCache.set(path, file); }
 
     addRoot(root: string) {
         try {
             root = resolve(root);
             this.log.log(`Adding root to cache: ${root}`, "CACHEWIZARD");
-            let watcher = watch(root, { recursive: true }, (filename) => {
+            let watcher = watch(root, { recursive: true }, (e, filename) => {
                 if (!filename) return;
                 const path = resolve(root, filename);
                 if (this.fileCache.has(path)) {
-                  this.fileCache.delete(path);
-                  this.log.log(`Cleared cache for ${path}`, "CACHEWIZARD")
+                    this.fileCache.delete(path);
+                    this.log.log(`Cleared cache for ${path}`, "CACHEWIZARD")
                 }
             });
             this.roots.set(root, watcher);

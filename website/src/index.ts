@@ -82,11 +82,8 @@ async function directoryIsProtected(directory: string) {
 }
 let visitor_count = parseInt(await db.fetch("visitors")) || 0;
 let websockets = new Array();
-let chat_websockets = new Array();
 let voice_websockets = new Array();
 const clientIds = new Map<ServerWebSocket<{source: string}>, string>();
-let chat_names = new Array();
-let chat_ids = new Array();
 const starting_time = new Date();
 const latest_commit = await $`git log -1 --pretty=format:"%s" `.text();
 let key = await db.fetch("key")

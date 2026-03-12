@@ -178,6 +178,14 @@ export class AuthorizationWizard {
         return Object.keys(json).indexOf(name);
     }
 
+    async fetchUserID(name: string) {
+        if(!this.exists(name)) return undefined;
+        let accounts = await this._getAccounts();
+        let user; try { user = JSONToUser(accounts[name]); }
+        catch { return undefined };
+        return user.account.id;
+    }
+
     private async _updateFullUser(name: string, pass: string, updated: User) {
         let json = await this._getAccounts();
         if(updated.account.name !== name) {
