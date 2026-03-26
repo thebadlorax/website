@@ -3,6 +3,7 @@ const {getApiLink, changeSettingOnAccount, getSettingOnAccount, getCookie, setCo
 let fetch_size = 100;
 let fetching = false;
 let at_top = false;
+let con_x, con_y;
 
 const message_box = document.getElementById("message-box");
 message_box.addEventListener("wheel", (e) => {
@@ -44,6 +45,7 @@ document.getElementById("banner").addEventListener("click", () => {
         document.getElementById("chat").style.display = "none";
         document.getElementById("picker").style.display = "block";
         ws.send(JSON.stringify({"type": "wizard", "method": "unsubscribe", "content": "", "id": id}));
+        history.pushState({page: "test"}, "test", "/chat");
     }
 })
 let color;
@@ -113,18 +115,7 @@ ws.addEventListener('message', (e) => {
         case "wizard": 
             switch(json.method) {
                 case "fetch":
-                    document.getElementById("chat-picker-list").replaceChildren();
-                    for(let x = 0; x < json.content.ids.length; x++) {
-                        let id = json.content.ids[x];
-                        let name = json.content.names[x];
-                        let item = document.createElement("p");
-                        item.classList.add("grid-item", "unselectable", "clickable");
-                        item.textContent = name ? name : id;
-                        item.style.fontWeight = json.content.private[x] ? "700" : "400"
-                        item.style.color = json.content.private[x] ? "red" : "black";
-                        item.addEventListener("click", () => { openChat(id); })
-                        document.getElementById("chat-picker-list").appendChild(item);
-                    }
+                    refreshPicker(json);
                     break;
                 case "create":
                     ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
@@ -140,9 +131,20 @@ ws.addEventListener('message', (e) => {
                         alert("invalid name (account probably doesn't exist)");
                     } else if(json.content == "ALR"){
                         alert("already in chat");
-                    } else {
-                        alert("added to chat")
+                    } else if(json.content == "IMM") {
+                        alert("this chat is marked as immutable");
                     } break;
+                case "delete":
+                    ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
+                    break;
+                case "subscribe":
+                    if(json.content == "NO") return;
+                    document.getElementById("chat").style.display = "block";
+                    document.getElementById("picker").style.display = "none";
+                    document.getElementById("chat-id").textContent = `Chat ID: ${id}`
+                    refresh();
+                    history.pushState({page: "test"}, "test", `/chat?room=${id}`);
+                    break;
             }
             break;
         case "message":
@@ -152,8 +154,30 @@ ws.addEventListener('message', (e) => {
     }
 });
 ws.addEventListener("open", () => {
+    if(window.location.href.includes("?room=")) {
+        let r_id = window.location.href.split("?room=")[1];
+        openChat(r_id);
+        history.pushState({page: "test"}, "test", "/chat");
+    }
     ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
 })
+
+const refreshPicker = (json) => {
+    document.getElementById("chat-picker-list").replaceChildren();
+    for(let x = 0; x < json.content.ids.length; x++) {
+        let id = json.content.ids[x];
+        let name = json.content.names[x];
+        let item = document.createElement("p");
+        item.classList.add("grid-item", "unselectable", "clickable");
+        item.textContent = name ? name : id;
+        item.style.fontWeight = json.content.private[x] ? "700" : "400"
+        item.style.color = json.content.private[x] ? "red" : "black";
+        item.dataset.id = id;
+        item.addEventListener("click", () => { openChat(id); })
+        item.addEventListener("contextmenu", (e) => { e.preventDefault(); showMenu(e.pageX, e.pageY, id); })
+        document.getElementById("chat-picker-list").appendChild(item);
+    }
+}
 
 function refresh() {
     message_box.replaceChildren();
@@ -385,10 +409,6 @@ document.addEventListener("click", (e) => {
 async function openChat(rec_id) {
     id = rec_id;
     ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": JSON.parse(window.localStorage.getItem("user")), "id": id}));
-    document.getElementById("chat").style.display = "block";
-    document.getElementById("picker").style.display = "none";
-    document.getElementById("chat-id").textContent = `Chat ID: ${id}`
-    refresh();
 }
 
 fetch(getApiLink("/chat/emojis"), { priority: "low" }).then((e) => {
@@ -398,4 +418,36 @@ fetch(getApiLink("/chat/emojis"), { priority: "low" }).then((e) => {
 });
 
 
-setInterval(() => { console.log(index); }, 100);
+// context menu :)
+function showMenu(x, y, id) {
+    con_x = x-1;
+    con_y = y-1;
+    document.getElementById("id-context").textContent = id;
+    document.getElementById("context").style.display = 'block';
+    document.getElementById("context").style.left = `${x}px`;
+    document.getElementById("context").style.top = `${y}px`;
+}
+
+function hideMenu() {
+    document.getElementById("context").style.display = 'none';
+}
+
+document.getElementById("delete").addEventListener("click", () => { menuAction("delete", document.getElementById("id-context").textContent); })
+document.getElementById("link").addEventListener("click", () => { menuAction("link", document.getElementById("id-context").textContent); })
+
+async function menuAction(action, rec_id) {
+    if(action === "delete") { 
+        ws.send(JSON.stringify({"type": "wizard", "method": "delete", "content": rec_id, "id": JSON.parse(window.localStorage.getItem("user")).account.id}))
+    } else if(action === "link") {
+        await navigator.clipboard.writeText(`${window.location.href}?room=${rec_id}`);
+    }
+    hideMenu();
+}
+
+document.addEventListener("click", function(e) {
+    if (e.button === 0) { // Check for left mouse button click
+        hideMenu();
+    }
+});
+
+hideMenu();

@@ -17,7 +17,6 @@
   </head>
   <body>
     <div class="main-container" id="main-container">
-        <p class="basic-text unselectable" style="position: absolute; left: -5%; top: -5%; font-size: 2vw; color: darkred; font-weight: 700;">PLEASE REMAKE YOUR ACC IF YOU HAVENT DONE SO SINCE THE WIPE --------------></p>
         <div class="banner-container">
             <img src="../res/transparent_banner.png" class="banner-image" draggable="false">
         </div>
@@ -28,6 +27,7 @@
                    <p class="basic-text" id="files-link"><a class="basic-link">files</a></p>
                    <p class="basic-text" id="chat-link"><a class="basic-link">chatroom</a></p>
                    <p class="basic-text" id="gambling-link" style="color: darkred;"><a class="basic-link">gambling</a> <-- WIP</p>
+                   <p class="basic-text" id="game-link" style="color: darkred;"><a class="basic-link">game</a> <-- WIP</p>
                 </div>
                 <div class="medium-item">
                     guestbook
@@ -65,9 +65,9 @@
     <div id="account-menu" style="display: none;">
         <div id="sign-in">
             <p class="basic-text unselectable" style="position: absolute; left: 40%; top: 50%; font-size: 6vw;">Sign In</p>
-            <p class="basic-text unselectable" style="position: absolute; left: 10%; top: 30%; font-size: 2vw; color: darkred; text-decoration: underline; font-weight: 700;">All accounts got wiped recently, you may need to remake your account</p>
-            <input class="input" id="name" placeholder="Username" style="position: absolute; top: 80%; left: 35%; width: 30vw; height: 1.5vw;"></input>
-            <input class="input" id="pass" placeholder="Password" style="position: absolute; top: 90%; left: 35%; width: 30vw; height: 1.5vw;"></input>
+            <!--<p class="basic-text unselectable" style="position: absolute; left: 10%; top: 30%; font-size: 2vw; color: darkred; text-decoration: underline; font-weight: 700;">All accounts got wiped recently, you may need to remake your account</p>-->
+            <input class="input" id="name" placeholder="Username" maxlength="15" style="position: absolute; top: 80%; left: 35%; width: 30vw; height: 1.5vw;"></input>
+            <input class="input" id="pass" placeholder="Password" maxlength="20" style="position: absolute; top: 90%; left: 35%; width: 30vw; height: 1.5vw;"></input>
             <p class="basic-link unselectable" id="sign-in-button" style="display: none; position: absolute; left: 35%; top: 95%; font-size: 2vw;">Sign In</p>
             
             <p class="basic-link unselectable" id="create-account-button" style="display: none; position: absolute; left: 54%; top: 95%; font-size: 2vw;">Create Account</p>

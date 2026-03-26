@@ -82,7 +82,7 @@ const generateUser = (name: string, pass: string, uniques: number, index: number
         account: {
             name: name,
             pass: pass,
-            id: `${index}-${generateRandomString(15)}`
+            id: `u_${index}-${generateRandomString(15)}`
         },
         settings: {
             display_name: name,
@@ -116,7 +116,8 @@ export class AuthorizationWizard {
 
     async createAccount(name: string, pass: string) {
         if(await this.exists(name)) return undefined;
-        if(name.length < 3) return undefined;
+        if(name.length < 3 || name.length > 15) return undefined;
+        if(pass.length > 20) return undefined;
         let user: User = generateUser(sanitize(name), sanitize(pass), parseInt(await this.db.fetch("visitors")) || 0, await this.countUsersInDB())
         let json = await this._getAccounts();
         json[name] = userToJSON(user);

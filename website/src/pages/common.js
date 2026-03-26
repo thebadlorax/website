@@ -90,6 +90,8 @@ export async function getPoints() {
     return data["points"];
 }
 
+export const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+
 export function getApiLink(route) {
     let link;
     if(location.host.includes("66.65.25.15")) {

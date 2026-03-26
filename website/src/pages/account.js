@@ -216,7 +216,7 @@ name_input.addEventListener("keydown", async (e) => {
     await handle_enter(e)
 })
 
-document.body.addEventListener("keydown", async (e) => {
+window.addEventListener("keydown", async (e) => {
     if(e.key != "Escape") return;
     if(menu_is_open) hideMenu();
     else await openMenu();

@@ -334,3 +334,38 @@ display: none;             /* Chrome, Safari, Opera */
 .input::placeholder {
     font-size: .8vw;
 }
+
+.context-menu {
+    display: none; /* Hidden by default */
+    position: absolute;
+    z-index: 1000;
+    background-color: #fff;
+    border: .1vw solid black;
+    box-shadow: .2vw .2vw .5vw rgba(0,0,0,0.2);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.context-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.context-menu li a {
+    display: block;
+    padding: .6vw 1.1vw;
+    text-decoration: none;
+    color: black;
+}
+
+.context-menu li a:hover {
+    background-color: #f2f2f2;
+}
+
+.context-menu .separator {
+    height: .1vw;
+    background-color: #ccc;
+    margin: .3vw 0;
+}

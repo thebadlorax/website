@@ -1,3 +1,28 @@
+/* LONGER TERM PLANS
+ *    forum page
+ *        incremental game for points
+ *    user generated ads
+ * chat ui rework w/ embedding support
+ * move server into a server class (or api)
+ * finish gambling ring (roulette, poker, etc.), and abstract away everything possible from blackjack like cards and turns w/ a gameinstance
+ *        visual update on things like ui elements and upscale things like the bg
+ *        phone support / cooked sizing support
+ *    status/update bar like a news ticker
+ * simplify paramaters to not take a full user type and just the id or whatever it needs
+ * refactor all clientside js to not make 1000000 requests and also look nicer w switches and classes
+ * slim down css files and use more styles instead of one off classes
+ *    admin panel/privilages
+ * context menu on chats in the chat picker (leave, ephemeral chats)
+ *        more user to user interaction (friends, online dates, etc)
+ * make the snail races be the same for every viewer (and sync up start times)
+ *    meowl shrine
+ * finish webring
+ *    make an actual dev portfolio on professional.thebadlorax.dev
+ * improve website hosting experience
+ *      run a newspaper 
+ *      FISHING MULTIPLAYER GAME
+*/
+
 import { Glob, $, type ServerWebSocket } from "bun";
 import { resolve } from 'node:path';
 
@@ -11,6 +36,7 @@ import { CacheWizard } from "./backend/cache";
 import { LogWizard } from "./backend/logging";
 import { AuthorizationWizard, userToJSON } from "./backend/auth";
 import { TimeWizard } from "./backend/time";
+import { GameWizard } from "./backend/game";
 
 let log = new LogWizard();
 await log.init();
@@ -23,13 +49,17 @@ const cache = new CacheWizard();
 cache.addRoot("src/res")
 cache.addRoot("src/pages")
 const chat = new ChatWizard(db);
+const game = new GameWizard(db);
+/*let main_chat;
 if(!await db.exists("main_chat")) {
   // @ts-expect-error
   await db.modify("main_chat", await chat.create())
 } else {
   chat.publicize(chat.fromID(await chat.createInheritance(await db.fetch("main_chat")))!)
 }
-chat.fromID(await db.fetch("main_chat"))!.display_name = "main";
+main_chat = chat.fromID(await db.fetch("main_chat"))!;
+main_chat.display_name = "main";
+main_chat.immutable = true;*/
 const time = new TimeWizard();
 
 // TODO: move these to different files/structures
@@ -389,15 +419,6 @@ const server = Bun.serve({
             });
             if(success) return undefined;
             return corsResponse("WebSocket upgrade failed", { status: 400 });
-          /*case "/chat/history":
-            let rec_json2 = await req.json();
-            let amt = rec_json2["amount"];
-            let con_msgs = rec_json2["connection_messages"];
-            if(!rec_json2.id) return corsResponse(null, { status: 404 }); 
-            let c = chat.fromID(rec_json2.id);
-            if(!c)return corsResponse(null, { status: 404 });
-            let history = await c.fetchMessagesFromHistory(amt, con_msgs);
-            return corsResponse(JSON.stringify(history), { status: 200 });*/
           case "/chat/emojis":
             try {
               const emojis = Bun.file("src/res/emojis.json"); // path to your JSON
@@ -412,12 +433,6 @@ const server = Bun.serve({
                 headers: { "Content-Type": "application/json" },
               });
             };
-          /*case "/chat/voice":
-            const success2 = server.upgrade(req, {
-              data: { source: "/chat/voice" }, // Attach per-socket data
-            });
-            if(success2) return undefined;
-            return corsResponse("WebSocket upgrade failed", { status: 400 });*/
           case "/stats":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
             let visitor_count_2 = await db.fetch("visitors") || 0;
@@ -484,11 +499,26 @@ const server = Bun.serve({
               return corsResponse(JSON.stringify(userToJSON(acc_6)), { status: 200 });
           case "/user/account/changePoints":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
-            let req_json2;
-            try { req_json2 = await req.json(); }
-            catch { return corsResponse(null, { status: 404 }); }
-            await auth.changePoints(req_json2["name"], req_json2["pass"], req_json2["amt"]);
+            let req_json2 = await req.json(); 
+            await auth.changePoints(req_json2["name"], req_json2["pass"], parseInt(req_json2["amt"]))
             return corsResponse(null, { status: 200 });
+          case "/game/live":
+            const success2 = server.upgrade(req, {
+              data: { source: "/game/live" }, // Attach per-socket data
+            });
+            if(success2) return undefined;
+            return corsResponse("WebSocket upgrade failed", { status: 400 });
+          case "/game/files":
+            const glob2 = new Glob(`src/res/game/**/**.png`);
+            var data = [];
+      
+            for (const file of glob2.scanSync(".")) {
+              data.push(file.replace("src/", ""));
+            }
+
+            return corsResponse(JSON.stringify(data), {
+              headers: { "Content-Type": "application/json" },
+            });
           case "/health":
             return corsResponse("OK"); 
           default: // dynamic route endpoints
@@ -520,6 +550,9 @@ const server = Bun.serve({
 
           case "/gambling":
             return corsResponse(Bun.file("src/pages/gambling.html"), { headers: { "Content-Type": "text/html" } });
+
+          case "/game":
+            return corsResponse(Bun.file("src/pages/game.html"), { headers: { "Content-Type": "text/html" } });
       
           default:
             return corsResponse(Bun.file("src/pages/error.html"), {
@@ -586,6 +619,8 @@ websocket: {
       
       case "/gambling/blackjack/join": blackjack.handleConnection(ws); break;
       
+      case "/game/live": break;
+
       default:
         websockets.push(ws);
     }
@@ -622,6 +657,8 @@ websocket: {
 
       case "/gambling/blackjack/join": blackjack.handleRecieved(ws, message); break;
 
+      case "/game/live": game.handleMessage(ws, message); break;
+
       default:
         ws.send("where u come from :-(");
     }
@@ -650,6 +687,8 @@ websocket: {
       case "/gambling/blackjack/join":
         blackjack.deregisterPlayer(ws);
         break;
+    
+      case "/game/live": game.deregisterPlayer(ws); break;
     }
   },
 

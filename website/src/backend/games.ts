@@ -312,7 +312,7 @@ export class BlackjackInstance {
         this.updatePlayersOnState();
     }
 
-    protected hasWon(checking: number, opponent: number) {
+    hasWon(checking: number, opponent: number) {
         if(checking == opponent) return null;      // both are the same : nothing
         else if(checking > 21) return false;       // player bust       : lose
         else if(opponent > 21) return true;        // opponent bust     : win

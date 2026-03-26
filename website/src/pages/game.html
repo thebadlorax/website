@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>game</title>
+
+  <script src="../res/game.js" type="module"></script>
+  <link rel="stylesheet" href="game.css">
+  <link href="font.css" rel="stylesheet">
+</head>
+<body>
+  <p id="loading" class="text unselectable" style="position: absolute; top: 50%; left: 43%; font-size: 5vw;">LOADING</p>
+  <div class="container" id="container"></div>
+  
+  <p id="" class="text unselectable" style="position: absolute; top: 0vw; text-decoration: underline; font-weight: 700;">Info</p>
+  <p id="pc" class="text unselectable" style="position: absolute; top: 3vw;">Player Count: xxx    </p>
+  <p id="lc" class="text unselectable" style="display: none; position: absolute; top: 4.5vw;">Latency: xxx</p>
+  <p id="pp" class="text unselectable" style="position: absolute; top: 5.5vw; display: none;">Player Position: x, y  </p>
+  <p id="wp" class="text unselectable" style="position: absolute; top: 7vw; display: none;">World Position: x, y </p>
+  <p id="id" class="text unselectable" style="position: absolute; top: 8.5vw; display: none;">Instance ID: xxx       </p>
+  <p id="sf" class="text unselectable" style="position: absolute; top: 10vw; display: none;">Server FPS: xxx       </p>
+  <p id="" class="text unselectable" style="position: absolute; right: 0vw; top: 0vw; text-decoration: underline; font-weight: 700;">Settings</p>
+  <p id="" class="text unselectable" style="position: absolute; right: 0vw; top: 3vw;">Clientside Desync</p>
+  <p id="" class="text unselectable" style="position: absolute; right: 0vw; top: 4.5vw; font-size: 1vw;">(server "you" maximum distance)</p>
+  <input type="range" style="position: absolute; color: white; right: 0vw; top: 5.5vw;" id="desync" name="desync" min="10" max="150" value="20">
+  <p id="desync-t" class="text unselectable" style="position: absolute; right: 0vw; top: 7vw;">xxx</p>
+  <p id="adt" class="text unselectable" style="position: absolute; right: 0vw; top: 8.5vw;"><input type="checkbox" id="ad" checked></input>  Automatic Desync Calculation</p>
+  <p id="" class="text unselectable" style="position: absolute; right: 0vw; top: 11vw;">FPS</p>
+  <input type="range" style="position: absolute; color: white; right: 0vw; top: 12.5vw;" id="fps" name="desync" min="15" max="120" value="60">
+  <p id="fps-t" class="text unselectable" style="position: absolute; right: 0vw; top: 14vw;">xxx</p>
+  <p id="sot" class="text unselectable" style="position: absolute; right: 0vw; top: 16.5vw;"><input type="checkbox" id="so" checked></input>  Show Objects</p>
+  <p id="spt" class="text unselectable" style="position: absolute; right: 0vw; top: 18.5vw;"><input type="checkbox" id="sp" checked></input>  Show Players</p>
+  <p id="dit" class="text unselectable" style="position: absolute; right: 0vw; top: 20.5vw;"><input type="checkbox" id="di"></input>  Debug Info</p>
+</body>
+</html>

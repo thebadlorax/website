@@ -20,29 +20,88 @@ type message = {
 // TODO: move prefix and color to serverside and request from clientside to disallow spoofing
 // TODO: allow images or gifs hosted from website to be embedded
 // TODO: show timestamps somehow (context menu?)
+// TODO: rate limiting / spam filter (message stacking? [10] thebadlorax: 676767)
+// TODO: add viewer ws array to send live updates like getting added to a chat
 
 export class ChatWizard {
     protected instances: Array<ChatInstance> = new Array();
     protected subscriptions: Map<string, Array<ChatInstance>> = new Map();
     protected assignees: Map<string, Array<ChatInstance>> = new Map();
+    protected viewers: Array<ServerWebSocket<{ source: string }>> = new Array();
+
     protected db: Database;
     protected log: LogWizard = new LogWizard();
     protected auth: AuthorizationWizard;
-    constructor(db: Database) { this.db = db; this.auth = new AuthorizationWizard(this.db); this.log.log("Initalized", "CHATWIZARD"); };
+    constructor(db: Database) { this.db = db; this.auth = new AuthorizationWizard(this.db); this.log.log("Initalized", "CHATWIZARD"); this.init();};
 
-    async create() { let n = new ChatInstance(this.db); this.instances.push(n); await n.init(); return n.id; };
-    async createInheritance(id: string) { let n = new ChatInstance(this.db); n.id = id; this.instances.push(n); await n.init(); return n.id; }
-    fromID(id: string) { return this.instances.filter(ins => ins.id == id).at(0); };
-    destroy(i: ChatInstance) { if(this.instances.includes(i)) this.instances.splice(this.instances.indexOf(i)); };
-    assign(id: string, i: ChatInstance) { 
+    async init() {
+        await this.revitalizeOldChats();
+        await this.makeMainChat();
+    }
+
+    async makeMainChat() {
+        let data = await this.db.fetch("chats");
+        if(data == undefined) {
+            let main = await this.create();
+            if(!main) return;
+            await main.modifyProperty("display_name", "main");
+            main.display_name = "main";
+            this.publicize(main);
+            main.immutable = true;
+        }
+    }
+
+    async revitalizeOldChats() {
+        this.instances.length = 0;
+        this.assignees.clear();
+        let all_chats: any[] = await this.db.fetch("chats");
+        let names; let assignees;
+        try { names = Object.values(all_chats).map(a => a.display_name); assignees = Object.values(all_chats).map(a => a.assignees); }
+        catch { return };
+        //if(all_chats == undefined) return;
+        all_chats = Object.keys(all_chats);
+        all_chats.forEach(id => {
+            this.createInheritance(id);/*.then((a) => {
+                //let chat = this.fromID(a)!;
+                //this.publicize(chat);
+            });*/
+        });
+    }
+
+    async create() { let n = new ChatInstance(this.db, undefined, this); this.instances.push(n); await n.init(); return n; };
+    async createInheritance(id: string) { let n = new ChatInstance(this.db, id, this); n.id = id; this.instances.push(n); await n.init(); return n; }
+    fromID(id: string) { try { return this.instances.find(ins => ins.id == id); } catch { return undefined; } };
+    async destroy(i: ChatInstance, u: string) {
+        if(!i) {
+            return
+        }
+        if(i.immutable) return;
+        delete this.instances[this.instances.indexOf(i)];
+        let data;
+        try { data = await this.db.fetch("chats"); }
+        catch { return; }
+        delete data[i.id]
+        await this.db.modify("chats", data);
+        if(this.assignees.get(u) == undefined) return;
+        this.assignees.set(u, this.assignees.get(u)!.toSpliced(this.assignees.get(u)!.indexOf(i)));
+        if(this.assignees.get("*")?.includes(i)) this.assignees.set("*", this.assignees.get("*")!.toSpliced(this.assignees.get("*")!.indexOf(i)));
+     };
+    async assign(id: string, i: ChatInstance) { 
+        if(i.immutable) return;
         let e = this.assignees.get(id) || new Array();
         e.push(i);
         this.assignees.set(id, e);
+        let found_assignees = await i.fetchProperty("assignees");
+        if(!found_assignees.includes(id)) {
+            found_assignees.push(id);
+            await i.modifyProperty("assignees", found_assignees)
+        }
     };
     publicize(i: ChatInstance) {
-        let e = this.assignees.get("*") || new Array();
+        /*let e = this.assignees.get("*") || new Array();
         e.push(i);
-        this.assignees.set("*", e);
+        this.assignees.set("*", e);*/
+        this.assign("*", i);
         return i;
     }
     deassign(u: User, i: ChatInstance) {
@@ -53,6 +112,7 @@ export class ChatWizard {
     };
     check(id: string, i: ChatInstance) {
         let e = this.assignees.get(id);
+        e?.concat(this.assignees.get("*")!);
         if(!e) return false;
         else if(!e.includes(i)) return false;
         return true;
@@ -63,10 +123,17 @@ export class ChatWizard {
             switch(json.method) {
                 case "fetch": 
                     let chats = this.assignees.get(json.content) || new Array();
-                    chats = chats.concat(this.assignees.get("*")!); chats.reverse();
+                    chats = chats.concat(this.assignees.get("*")!); chats.reverse(); chats = chats.filter(i => i != undefined);
+                    chats = [...new Set(chats)];
                     ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": {"ids": chats.map(i => i.id), "names": chats.map(i => i.display_name), "private": chats.map(i => this.assignees.get(json.content)?.includes(i) ? true : false)}}));
                     break;
                 case "subscribe":
+                    let chats_2 = this.assignees.get(json.content.account.id) || new Array();
+                    chats_2 = chats_2.concat(this.assignees.get("*")!);
+                    if(!chats_2.includes(this.fromID(json.id))) {
+                        ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "NO"}));
+                        break;
+                    }
                     this.fromID(json.id)?.registerUser(ws, json.content);
                     ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "OK"}));
                     break;
@@ -75,10 +142,13 @@ export class ChatWizard {
                     ws.send(JSON.stringify({"type": "wizard", "method": "unsubscribe", "content": "OK"}));
                     break;
                 case "create":
-                    let new_chat = this.fromID(await this.create())!;
+                    let new_chat = await this.create();
+                    if(!new_chat) return; //ERROR out
+                    await new_chat.modifyProperty("display_name", json.content);
                     new_chat.display_name = json.content;
                     if(!json.private) this.assign(json.user.account.id, new_chat);
                     else this.publicize(new_chat);
+                    await this.revitalizeOldChats();
                     if(new_chat) ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "OK"}));
                     else ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "NO"}));
                     break;
@@ -86,7 +156,8 @@ export class ChatWizard {
                     // TODO: make it so only creator of chat can invite? maybe
                     let req_id = await this.auth.fetchUserID(json.content);
                     if(!req_id) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "NO"})); return; }
-                    if(this.check(req_id, this.fromID(json.id)!)) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "ALR"})); return; }
+                    if(this.check(req_id, this.fromID(json.id)!) || this.check("*", this.fromID(json.id)!)) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "ALR"})); return; }
+                    if(this.fromID(json.id)!.immutable) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "IMM"})); return; }
                     this.assign(req_id, this.fromID(json.id)!)
                     this.fromID(json.id)!.send({
                         type: "message",
@@ -94,6 +165,16 @@ export class ChatWizard {
                         timestamp: Date.now()
                     })
                     ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "OK"}));
+                    break;
+                case "delete":
+                    let e = this.fromID(json.content)!
+                    await this.destroy(e, json.id);
+                    ws.send(JSON.stringify({"type": "wizard", "method": "delete", "content": "OK"}));
+                    break;
+                case "rename":
+                    let a = this.fromID(json.id)!
+                    a.display_name = json.content;
+                    ws.send(JSON.stringify({"type": "wizard", "method": "rename", "content": "OK"}));
                     break;
             };
         } else {
@@ -107,22 +188,31 @@ export class ChatWizard {
 export class ChatInstance {
     protected db: Database;
     protected log: LogWizard = new LogWizard();
-    public id: string = generateRandomString(10);
+    protected w: ChatWizard;
+    public id: string = `c_${generateRandomString(10)}`;
     public users: Map<ServerWebSocket<{ source: string }>, User> = new Map();
     public display_name: string = "";
+    public immutable: boolean = false;
 
-    constructor(db: Database, id: (string | null) = null) { this.db = db; if(id != null) id = id;}
+    constructor(db: Database, id: (string | null) = null, w: ChatWizard) { this.db = db; if(id != null) id = id; this.w = w;}
 
     async init() {
         if(!await this.db.exists("chats"))  await this.db.modify("chats", {});
         let chats = await this.db.fetch("chats")
         if(!chats) return;
-        if(chats[this.id] != undefined) return; 
+        if(chats[this.id] != undefined) { // inherited chat
+            this.display_name = chats[this.id].display_name;
+            // @ts-expect-error
+            chats[this.id].assignees.forEach(a => {
+                this.w.assign(a, this.w.fromID(this.id)!);
+            });
+            return; 
+        } 
         chats[this.id] = {"history": [{
             type: "message",
             content: `this is the start of the chat: ${this.id}`,
             timestamp: Date.now()
-        } as message] }
+        } as message], "assignees": [], "display_name": "", "timestamp": Date.now()}
         await this.db.modify("chats", chats);
     }
     
@@ -142,6 +232,21 @@ export class ChatInstance {
         catch { return; }
         data[this.id]["history"].push(message);
         await this.db.modify("chats", data);
+    }
+
+    async modifyProperty(name: string, value: any) {
+        let data;
+        try { data = await this.db.fetch("chats"); }
+        catch { return; }
+        data[this.id][name] = value;
+        await this.db.modify("chats", data);
+    }
+
+    async fetchProperty(name: string) {
+        let data;
+        try { data = await this.db.fetch("chats"); }
+        catch { return; }
+        return data[this.id][name];
     }
       
     async fetchMessagesFromHistory(amt: number, con_msgs: (string | boolean), start_index?: number) {
@@ -194,7 +299,7 @@ export class ChatInstance {
             content: `${user?.settings.display_name} has disconnected`,
             timestamp: Date.now()
         });
-        this.broadcast(`_SETCHATTERS=${this.users.size}`)
+        this.broadcast(JSON.stringify({"type": "system", "method": "chat_count", "content": `${this.users.size}`}));
        return;
     }
 
