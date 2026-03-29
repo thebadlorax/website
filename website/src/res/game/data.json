@@ -1,0 +1,109 @@
+{
+    "tile_data": {
+        "start": {
+            "objects": {
+                "meowl": {
+                    "x": 250,
+                    "y": 300,
+                    "src": "meowl.png"
+                }
+            },
+            "triggers": [
+                {
+                    "x": 225,
+                    "y": 750,
+                    "w": 335,
+                    "h": 200,
+                    "functions": {
+                        "onEnter": "portalEnter",
+                        "onExit": "portalExit"
+                    },
+                    "data": {
+                        "tile_id": "hell"
+                    }
+                },
+                {
+                    "x": 750,
+                    "y": 240,
+                    "w": 100,
+                    "h": 350,
+                    "functions": {
+                        "onEnter": "portalEnter",
+                        "onExit": "portalExit"
+                    },
+                    "data": {
+                        "tile_id": "farm"
+                    }
+                },
+                {
+                    "x": 215,
+                    "y": 265,
+                    "w": 100,
+                    "h": 100,
+                    "functions": {
+                        "onClick": "speak"
+                    },
+                    "data": {
+                        "portrait": "meowl.png",
+                        "lines": [
+                            "hey",
+                            "thanks for clicking on me",
+                            "almost no one does"
+                        ],
+                        "radius": 200
+                    }
+                }
+            ]
+        },
+        "farm": {
+            "objects": {
+                "boy": {
+                    "x": 400,
+                    "y": 400,
+                    "src": "farmer.png",
+                    "scale": 0.5
+                }
+            },
+            "triggers": [
+                {
+                    "x": -50,
+                    "y": 240,
+                    "w": 100,
+                    "h": 350,
+                    "functions": {
+                        "onEnter": "portalEnter",
+                        "onExit": "portalExit"
+                    },
+                    "data": {
+                        "tile_id": "start"
+                    }
+                }
+            ]
+        },
+        "hell": {
+            "objects": {
+                "devil": {
+                    "x": 400,
+                    "y": 400,
+                    "src": "devil.png",
+                    "scale": 0.7
+                }
+            },
+            "triggers": [
+                {
+                    "x": 225,
+                    "y": -50,
+                    "w": 335,
+                    "h": 100,
+                    "functions": {
+                        "onEnter": "portalEnter",
+                        "onExit": "portalExit"
+                    },
+                    "data": {
+                        "tile_id": "start"
+                    }
+                }
+            ]
+        }
+    }
+}

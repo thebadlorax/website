@@ -50,6 +50,7 @@ cache.addRoot("src/res")
 cache.addRoot("src/pages")
 const chat = new ChatWizard(db);
 const game = new GameWizard(db);
+await game.init();
 /*let main_chat;
 if(!await db.exists("main_chat")) {
   // @ts-expect-error
