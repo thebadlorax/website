@@ -22,7 +22,7 @@ const redirect = (loc) => {
 document.getElementById("files-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/files`) })
 document.getElementById("chat-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`) })
 document.getElementById("gambling-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/gambling`) })
-document.getElementById("game-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/game`) })
+//document.getElementById("game-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/game`) })
 
 setTimeout(() => { // ideal ad size = 1200 x 100
     document.getElementById("f").style.backgroundImage = "url(../res/ads/example_ad.png)";

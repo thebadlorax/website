@@ -19,7 +19,7 @@
                         "onExit": "portalExit"
                     },
                     "data": {
-                        "tile_id": "hell"
+                        "target": "hell"
                     }
                 },
                 {
@@ -32,7 +32,7 @@
                         "onExit": "portalExit"
                     },
                     "data": {
-                        "tile_id": "farm"
+                        "target": "farm"
                     }
                 },
                 {
@@ -48,9 +48,34 @@
                         "lines": [
                             "hey",
                             "thanks for clicking on me",
-                            "almost no one does"
+                            "almost no one does",
+                            "also i'm a new soul <3",
+                            "this is a super long piece of text so that i can test text wrapping, did it work?",
+                            "im gonna send you to hell now"
                         ],
+                        "line_functions": [
+                            null,
+                            null,
+                            "playSound",
+                            null,
+                            null,
+                            "goToHell"
+                        ],
+                        "sound_id": "new_soul.mp3",
                         "radius": 200
+                    }
+                },
+                {
+                    "x": 400,
+                    "y": 400,
+                    "w": 100,
+                    "h": 100,
+                    "functions": {
+                        "onClick": "playSound"
+                    },
+                    "data": {
+                        "sound_id": "explosion.mp3",
+                        "volume": 0.1
                     }
                 }
             ]
@@ -75,7 +100,35 @@
                         "onExit": "portalExit"
                     },
                     "data": {
-                        "tile_id": "start"
+                        "target": "start"
+                    }
+                },
+                {
+                    "x": 385,
+                    "y": 385,
+                    "w": 210,
+                    "h": 210,
+                    "functions": {
+                        "onClick": "speak"
+                    },
+                    "data": {
+                        "portrait": "farmer_portrait.png",
+                        "lines": [
+                            "please help me",
+                            "i want to leave the fields",
+                            "but i can't",
+                            "because of the bracero program",
+                            "and the unfair immigration laws of the 1960's"
+                        ],
+                        "line_functions": [
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null
+                        ],
+                        "radius": 300
                     }
                 }
             ]
@@ -100,7 +153,7 @@
                         "onExit": "portalExit"
                     },
                     "data": {
-                        "tile_id": "start"
+                        "target": "start"
                     }
                 }
             ]

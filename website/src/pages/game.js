@@ -15,22 +15,34 @@ const TRIGGER_FUNCTIONS = {
     "test": (t) => { console.log("test"); },
     "speak": (t) => {
         let player = t.game.objects.get("player");
-        if(DISTANCE(t.x+(t.width/3), t.y+(t.width/3), player.x, player.y) > t.data.radius) return;
+        if(DISTANCE(t.x+(t.width/3), t.y+(t.width/3), player.x, player.y) > t.data.radius || t.game.extra_data.speech_window.visible) return;
         let lines = t.data.lines;
+        let funcs = t.data.line_functions;
         let index = 0;
         t.game.extra_data.speech_portrait = t.data.portrait;
         t.game.extra_data.speech_next_line = lines[0];
+        t.game.extra_data.speech_line_function = funcs[0];
         t.game.extra_data.speech_window.visible = true;
         t.game.extra_data.no_movement = true;
         t.game.extra_data.speech_window.onClick = (w, x, y) => {
             index += 1;
+            t.game.extra_data.speech_line_function = funcs[index-1];
+            let f = TRIGGER_FUNCTIONS[funcs[index-1]];
+            if(f) f(t);
             if(index >= lines.length) {
                 t.game.extra_data.speech_window.visible = false;
-                t.game.extra_data.no_movement = false;
+                delete t.game.speech_portrait;
+                delete t.game.speech_next_line;
+                delete t.game.extra_data.no_movement;
+                delete t.game.extra_data.speech_next_line;
                 return;
             };
             t.game.extra_data.speech_next_line = lines[index];
-        } 
+        };
+    },
+    "playSound": (t) => {
+        t.game.audio.changeVolume(t.data.sound_id, t.data.volume || -1);
+        t.game.audio.playSound(t.data.sound_id);
     }
 }
 
@@ -39,7 +51,7 @@ const RECT_INTERSECTION = (x1, y1, w1, h1, x2, y2, h2, w2) => {
         x1 + w1 < x2 || 
         y1 + h1 < y2 || 
         x1 > x2 + w2 || 
-        y1 > y2 + w2
+        y1 > y2 + h2
     )
 };
 
@@ -56,17 +68,22 @@ document.addEventListener("keydown", function(e) {
 
 class InputManager {
     constructor(game) { 
-        this.keysDown = {}; 
+        this.keysDown = new Map(); 
         this.g = game;
         this.mousePos = [0, 0];
-        window.addEventListener("keydown", e => this.keysDown[e.code] = true); 
-        window.addEventListener("keyup", e => delete this.keysDown[e.code]);
+        this.onMouseMove = [];
+        this.onButtonPress = {};
+        window.addEventListener("keydown", e => { this.keysDown.set(e.code); if(this.onButtonPress.hasOwnProperty(e.code)) { e.preventDefault(true); this.onButtonPress[e.code](this.g) } }); 
+        window.addEventListener("keyup", e => { this.keysDown.delete(e.code); } );
         this.g.renderer.canvas.addEventListener('mousemove', (event) => {
             const mousePos = this.getMousePos(this.g.renderer.canvas, event);
             this.mousePos[0] = mousePos.x; this.mousePos[1] = mousePos.y;
+            this.onMouseMove.forEach(f => {
+                f(this.g, mousePos.x, mousePos.y);
+            })
         });
         this.g.renderer.canvas.addEventListener("click", () => {
-            this.g.visible_triggers.forEach(t => {
+            this.g.triggers.values().filter(t => t.tile_id == this.g.objects.get("player").tile_id).forEach(t => {
                 if(RECT_INTERSECTION(t.x, t.y, t.w, t.h, this.mousePos[0]-15, this.mousePos[1]-15, 30, 30)) {
                     t.onClick(t);
                 };
@@ -80,7 +97,7 @@ class InputManager {
     };
 
     keyIsDown(code) {
-        return this.keysDown[code];
+        return this.keysDown.has(code);
     }
 
     getMousePos(canvas, evt) {
@@ -92,10 +109,47 @@ class InputManager {
     }
 }
 
+class Sound {
+    constructor(am, src) {
+        this.am = am;
+        this.src = src;
+        this.obj = new Audio(src);
+        this.volume = 1;
+    }
+
+    async play() {
+        let clone = this.obj.cloneNode(true);
+        clone.volume = this.volume;
+        return clone.play();
+    }
+}
+
+class AudioManager {
+    constructor(game) {
+        this.game = game;
+        this.sounds = new Map();
+    }
+
+    registerSound(id, src) {
+        let s = new Sound(this, src);
+        this.sounds.set(id, s);
+        return s;
+    }
+
+    changeVolume(id, vol) {
+        if(vol == -1) return;
+        this.sounds.get(id).volume = vol;
+    }
+
+    playSound(id) { this.sounds.get(id).play(); }
+}
+
 class Game {
     constructor() {
         this.renderer = new Renderer();
-        let speech_window = this.renderer.createWindow("speech", 0, 50, 550, 700, 200);
+        this.input = new InputManager(this);
+
+        let speech_window = this.renderer.createWindow("speech", 1, 50, 550, 700, 200);
         speech_window.onRender = (w) => {
             w.canvas.fillStyle = "white";
             w.canvas.strokeStyle = "black";
@@ -109,15 +163,74 @@ class Game {
             w.canvas.lineTo(190, 180);
             w.canvas.stroke();
 
-            w.canvas.drawImage(Window.resizeImage(w.renderer.images[this.extra_data.speech_portrait], 150, 150), 20, 22);
+            w.canvas.drawImage(Window.resizeImage(w.renderer.images[this.extra_data.speech_portrait] || w.renderer.images["none.png"], 150, 150), 20, 22);
 
             w.canvas.fillStyle = "black";
             w.canvas.font = "30px Arial"; 
             w.canvas.strokeStyle = "red";
             w.canvas.lineWidth = 1;
             w.canvas.textBaseline = "top";
-            w.canvas.fillText(this.extra_data.speech_next_line, 200, 40, 450);
+            w.drawText(this.extra_data.speech_next_line, 200, 40, 450);
         };
+
+        let inv_size = 100;
+        let restricted_slots = [[0, 0], [5, 1], [3, 2], [1, 2]];
+        let inventory_window = this.renderer.createWindow("inv", 0, 50, 50, 700, 300);
+        inventory_window.onRender = (w) => {
+            w.canvas.fillStyle = "white";
+            w.canvas.strokeStyle = "black";
+            w.canvas.lineWidth = 10;
+            w.canvas.fillRect(0, 0, w.width, w.height);
+            w.canvas.strokeRect(0, 0, w.width, w.height);
+
+            w.canvas.beginPath();
+            w.canvas.lineWidth = 1;
+
+            let mP = this.input.mousePos;
+            let mX = mP[0] - w.x; let mY = mP[1] - w.y;
+
+            let desiredSize = inv_size;
+
+            const cols = Math.round(w.width / desiredSize);
+            const rows = Math.round(w.height / desiredSize);
+            const stepX = w.width / cols;
+            const stepY = w.height / rows;
+            let counter = 0;
+            let total = cols*rows;
+          
+            for (let i = 0; i <= cols; i++) {
+                const x = i * stepX;
+                w.canvas.moveTo(Math.round(x) + 0.5, 0);
+                w.canvas.lineTo(Math.round(x) + 0.5, w.height);
+            }
+            
+            for (let j = 0; j <= rows; j++) {
+                const y = j * stepY;
+                w.canvas.moveTo(0, Math.round(y) + 0.5);
+                w.canvas.lineTo(w.width, Math.round(y) + 0.5);
+            }
+
+            restricted_slots.forEach(s => {
+                const cellX = s[0] * stepX;
+                const cellY = s[1] * stepY;
+                w.canvas.fillStyle = "rgba(0, 0, 0, 0.3)";
+                w.canvas.fillRect(cellX, cellY, stepX, stepY);
+            })
+
+            if (mX >= 0 && mX <= w.width && mY >= 0 && mY <= w.height) {
+                const colIndex = Math.floor(mX / stepX); const rowIndex = Math.floor(mY / stepY);
+                const cellX = colIndex * stepX; const cellY = rowIndex * stepY;
+                if(restricted_slots.find(s => s[0] == colIndex && s[1] == rowIndex) == undefined) {
+                    w.canvas.fillStyle = "rgba(0, 150, 255, 0.3)";
+                    w.canvas.fillRect(cellX, cellY, stepX, stepY);
+                }
+            }
+          
+            w.canvas.stroke();
+        };
+        this.input.onButtonPress["Tab"] = ((g) => { inventory_window.visible = !inventory_window.visible; });
+
+        this.audio = new AudioManager(this);
         this.objects = new Map();
         this.triggers = new Map();
         this.createObject("player", "../res/game/player.png", "start");
@@ -125,10 +238,10 @@ class Game {
         this.lastUpdateTime = Date.now();
         this.visible_objects = new Array();
         this.visible_triggers = new Array();
+        this.old_extra_data = {};
         this.extra_data = {};
         this.extra_data.speech_window = speech_window;
         this.player_data = {};
-        this.input = new InputManager(this);
         this.queue = [];
         this.ws = new WebSocket(location.host.includes("66.65.25.15")
         ? `${location.protocol}//${location.host}/subdomain=api/game/live` : `${location.protocol}//api.${location.host}/game/live`);
@@ -167,7 +280,6 @@ class Game {
                 switch(json.method) {
                     case "update":
                         let player = this.objects.get("player")
-
                         let serverFPS = Math.round(1000/((Date.now() - this.lastUpdateTime)));
                         let latency = clamp(Math.round(((Date.now() - this.lastUpdateTime))), 0, 1000);
                         let desync_amt = document.getElementById("desync").value;
@@ -208,10 +320,8 @@ class Game {
                             document.getElementById("pd").style.display = "none";
                         }
 
-                        this.visible_objects = new Array();
                         json.content.objects.forEach(o => {
                             let obj = this.objects.get(o.name);
-                            this.visible_objects.push(o.name)
                             obj.tile_id = o.tile_id;
                             obj.x = o.x; obj.y = o.y;
                             let img = this.renderer.images[o.name];
@@ -223,14 +333,14 @@ class Game {
                             };
                         }); 
 
-                        this.visible_triggers = new Array();
                         json.content.triggers.forEach(o => {
                             let t = this.triggers.get(o.id);
                             t.x = o.x; t.y = o.y; t.w = o.w; t.h = o.h;
                             t.tile_id = o.tile_id;
                             t.data = o.data;
-                            this.visible_triggers.push(t);
                         });
+
+                        player.tile_id = json.content.you.tile_id;
 
                         let seen_players = new Array();
                         json.content.players.forEach(p => { seen_players.push(p); })
@@ -363,13 +473,35 @@ class Game {
         })
         this.queue = [];
 
-        this.ws.send(JSON.stringify({
+        let send = false;
+
+        let state = {
             "type": "state",
             "method": "update",
             "content": {
-                "keys": this.extra_data.no_movement ? {} : this.input.keysDown
+                "keys": Array.from(this.input.keysDown.keys())
             }
-        }))
+        };
+        state.content.extra_data = this.extra_data;
+
+        let send_counter = 6;
+
+        if(this.extra_data.send_counter == undefined) { this.extra_data.send_counter = send_counter; }
+
+        if(this.extra_data.send_counter == 0) {
+            this.extra_data.send_counter = send_counter;
+            send = true;
+        } else {
+            this.extra_data.send_counter -= 1;
+        }
+
+        if(this.old_extra_data != this.extra_data) { state.content.extra_data = this.extra_data; send = true;}
+
+        if(this.input.keysDown.size > 0) { send = true; }
+
+        if(send) { this.ws.send(JSON.stringify(state)); }
+
+        this.old_extra_data = this.extra_data;
     }
 
     draw() {
@@ -382,11 +514,11 @@ class Game {
             if(document.getElementById("sp").checked) this.renderer.drawImage("player", p.x, p.y);
             else this.renderer.drawBoundingBox("player", p.x, p.y, "pink")
         })
-        this.objects.values().filter(o => o.name != "player" && this.visible_objects.includes(o.name)).forEach(o => {
+        this.objects.values().filter(o => o.name != "player" && o.tile_id == player.tile_id).forEach(o => {
             if(document.getElementById("so").checked) o.draw();
             else if(o.visible) this.renderer.drawBoundingBox(o.name, o.x, o.y, o.collides ? "red" : "blue");
         });
-        this.visible_triggers.forEach(t => {
+        this.triggers.values().filter(t => t.tile_id == player.tile_id).forEach(t => {
             t.draw();
         });
         player.draw();
@@ -527,11 +659,41 @@ class Window {
         return canvas;
     }
 
+    static getLines(ctx, text, maxWidth) {
+        var words = text.split(" ");
+        var lines = [];
+        var currentLine = words[0];
+    
+        for (var i = 1; i < words.length; i++) {
+            var word = words[i];
+            var width = ctx.measureText(currentLine + " " + word).width;
+            if (width < maxWidth) {
+                currentLine += " " + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        }
+        lines.push(currentLine);
+        return lines;
+    }
+
+    drawText(text, x, y, maxWidth) {
+        let lines = Window.getLines(this.canvas, text, maxWidth);
+        for(let z = 0; z < lines.length; z++) {
+            let l = lines[z];
+            let metrics = this.canvas.measureText(l);
+            let height = ((metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent)-25) + (z*40);
+            this.canvas.fillText(l, x, y+height, maxWidth);
+        }
+    }
+
     draw() {
         this.canvas.clearRect(0, 0, this.width, this.height);
         if(!this.visible) return;
         this.onRender(this);
         this.renderer.ctx.drawImage(this.canvas_obj, this.x, this.y);
+        if(this.renderer.showBoundingBoxes) this.renderer.drawBoundBoxWH(this.x, this.y, this.width, this.height, "violet")
     }
 }
 
@@ -549,6 +711,7 @@ class Renderer {
         this.hidden = true;
         this.showBoundingBoxes = false;
         this.windows = new Map();
+        this.windowsOpen = false;
     }
 
     setBackground(name) {
@@ -639,6 +802,7 @@ class Renderer {
             windows.push(window);
         })
         windows.sort((a, b) => a.z_index - b.z_index);
+        this.windowsOpen = windows.length > 0;
         windows.forEach(w => { w.draw(); })
     }
 }
@@ -646,55 +810,64 @@ class Renderer {
 let imgs = [];
 
 function preloadImagesWithCallback(imageUrls) {
-    let total = imageUrls.length; let progress = 0; let t = document.getElementById("loading"); let t2 = document.getElementById("loading2")
-    t.textContent = `LOADING: ${progress}/${total}`
     const promises = imageUrls.map(src => new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = () => { resolve(img); imgs.push([src, img]); progress += 1; t.textContent = `LOADING: ${progress}/${total}`; t2.textContent = `"${src.replace("res/game/", "")}"`}
+        img.onload = () => { resolve(img); imgs.push([src, img]); updateLoadingBar(src.replace("res/game/", ""));}
         img.onerror = () => reject(src); 
         img.src = src;
     }));
 
     return Promise.all(promises);
 }
+let g;
 
 document.getElementById("desync-t").textContent = document.getElementById("desync").value
 document.getElementById("desync").addEventListener("input", () => {
     document.getElementById("desync-t").textContent = document.getElementById("desync").value
+})
+document.getElementById("stuck").addEventListener("click", () => {
+    g.ws.send(JSON.stringify({"type": "input", "method": "stuck"}));
 })
 const textAsCheck = (t_id, c_id) => {
     document.getElementById(t_id).addEventListener("click", () => {
         document.getElementById(c_id).checked = !document.getElementById(c_id).checked
     });
 }
-//textAsCheck("adt", "ad");
 textAsCheck("sot", "so");
 textAsCheck("dit", "di");
 textAsCheck("spt", "sp");
 textAsCheck("sbb", "sb");
 
-/*const ad_handler = () => {
-    if(!document.getElementById("ad").checked) document.getElementById("desync-t").textContent = document.getElementById("desync").value
-}*/
+let files = await fetch(getApiLink("/game/files"));
+files = await files.json();
 
-//document.getElementById("adt").addEventListener("click", ad_handler)
-//document.getElementById("ad").addEventListener("click", ad_handler)
+let images = files.filter(f => f.includes(".png") || f.includes(".webp"));
+let sounds = files.filter(f => f.includes(".mp3"));
 
-let images = await fetch(getApiLink("/game/files"));
-images = await images.json();
+let progress = 0;
+let total = images.length + sounds.length;
 
-let g;
+function updateLoadingBar(src) {
+    let t = document.getElementById("loading"); let t2 = document.getElementById("loading2");
+    progress += 1;
+    t.textContent = `LOADING: ${progress}/${total}`;
+    t2.textContent = `"${src}"`
+}
+
 preloadImagesWithCallback(images).then(() => {
-    document.getElementById("loading2").style.display = "none";
-    document.getElementById("loading").textContent = "Connecting"
     g = new Game();
     g.init();
     imgs.forEach(i => {
         let src = i[0];
         let img = i[1];
         g.renderer.images[src.replaceAll("res/game/", "")] = img;
-    })
+    });
+    sounds.forEach(s => {
+        g.audio.registerSound(s.replace("res/game/", ""), s);
+        updateLoadingBar(s.replace("res/game/", ""));
+    });
+    document.getElementById("loading2").style.display = "none";
     document.getElementById("loading").textContent = "Starting"
     setInterval(() => { g.update(); g.draw(); }, (1000/FPS));
     document.getElementById("loading").style.display = "none";
-})
+});

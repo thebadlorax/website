@@ -36,7 +36,9 @@ import { CacheWizard } from "./backend/cache";
 import { LogWizard } from "./backend/logging";
 import { AuthorizationWizard, userToJSON } from "./backend/auth";
 import { TimeWizard } from "./backend/time";
+
 import { GameWizard } from "./backend/game";
+import { TestModule } from "./backend/modules/TestModule";
 
 let log = new LogWizard();
 await log.init();
@@ -49,18 +51,11 @@ const cache = new CacheWizard();
 cache.addRoot("src/res")
 cache.addRoot("src/pages")
 const chat = new ChatWizard(db);
+
 const game = new GameWizard(db);
 await game.init();
-/*let main_chat;
-if(!await db.exists("main_chat")) {
-  // @ts-expect-error
-  await db.modify("main_chat", await chat.create())
-} else {
-  chat.publicize(chat.fromID(await chat.createInheritance(await db.fetch("main_chat")))!)
-}
-main_chat = chat.fromID(await db.fetch("main_chat"))!;
-main_chat.display_name = "main";
-main_chat.immutable = true;*/
+new TestModule(game).init();
+
 const time = new TimeWizard();
 
 // TODO: move these to different files/structures
@@ -510,7 +505,7 @@ const server = Bun.serve({
             if(success2) return undefined;
             return corsResponse("WebSocket upgrade failed", { status: 400 });
           case "/game/files":
-            const glob2 = new Glob(`src/res/game/**/**.png`);
+            const glob2 = new Glob(`src/res/game/**/*`);
             var data = [];
       
             for (const file of glob2.scanSync(".")) {
@@ -520,6 +515,17 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify(data), {
               headers: { "Content-Type": "application/json" },
             });
+            case "/fishing/files":
+              const glob3 = new Glob(`src/res/fishing/**/*`);
+              var data = [];
+        
+              for (const file of glob3.scanSync(".")) {
+                data.push(file.replace("src/", ""));
+              }
+  
+              return corsResponse(JSON.stringify(data), {
+                headers: { "Content-Type": "application/json" },
+              });
           case "/health":
             return corsResponse("OK"); 
           default: // dynamic route endpoints
@@ -540,20 +546,12 @@ const server = Bun.serve({
         let staticResponse = await serveStaticIfAllowed(url);
         if (staticResponse) return staticResponse;
         switch (url) {
-          case "/":
-            return corsResponse(Bun.file("src/pages/index.html"), { headers: { "Content-Type": "text/html" } });
-      
-          case "/files":
-            return corsResponse(Bun.file("src/pages/files.html"), { headers: { "Content-Type": "text/html" } });
-      
-          case "/chat":
-            return corsResponse(Bun.file("src/pages/chat.html"), { headers: { "Content-Type": "text/html" } });
-
-          case "/gambling":
-            return corsResponse(Bun.file("src/pages/gambling.html"), { headers: { "Content-Type": "text/html" } });
-
-          case "/game":
-            return corsResponse(Bun.file("src/pages/game.html"), { headers: { "Content-Type": "text/html" } });
+          case "/":return corsResponse(Bun.file("src/pages/index.html"), { headers: { "Content-Type": "text/html" } });
+          case "/files": return corsResponse(Bun.file("src/pages/files.html"), { headers: { "Content-Type": "text/html" } });
+          case "/chat": return corsResponse(Bun.file("src/pages/chat.html"), { headers: { "Content-Type": "text/html" } });
+          case "/gambling": return corsResponse(Bun.file("src/pages/gambling.html"), { headers: { "Content-Type": "text/html" } });
+          //case "/game": return corsResponse(Bun.file("src/pages/game.html"), { headers: { "Content-Type": "text/html" } });
+          case "/fishing": return corsResponse(Bun.file("src/pages/fishing.html"), { headers: { "Content-Type": "text/html" } });
       
           default:
             return corsResponse(Bun.file("src/pages/error.html"), {

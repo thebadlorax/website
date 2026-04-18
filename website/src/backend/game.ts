@@ -10,13 +10,6 @@ import { Database } from "./db";
 import { clamp, generateRandomString, getImageSize } from "./utils";
 import { type ServerWebSocket } from "bun";
 
-const TRIGGER_FUNCTIONS = {
-    "": (t: GameTrigger, p: GamePlayer) => {},
-    "portalEnter": (t: GameTrigger, p: GamePlayer) => { p.data.wallPhasing = true; p.data.nextTile = t.data.tile_id;},
-    "portalExit": (t: GameTrigger, p: GamePlayer) => { p.data.wallPhasing = false; p.data.nextTile = undefined; },
-    "test": (t: GameTrigger, p: GamePlayer) => { console.log("test"); }
-}
-
 const FPS = 60;
 
 const RECT_INTERSECTION = (x1: number, y1: number, w1: number, h1: number, x2: number, y2: number, h2: number, w2: number): boolean => {
@@ -25,10 +18,10 @@ const RECT_INTERSECTION = (x1: number, y1: number, w1: number, h1: number, x2: n
         y1 + h1 < y2 || 
         x1 > x2 + w2 || 
         y1 > y2 + w2
-    )
-}
+    );
+};
 
-class GamePlayer {
+export class GamePlayer {
     public instance: GameInstance;
     public user: User;
     public name: string;
@@ -38,11 +31,15 @@ class GamePlayer {
     public width: number = 75;
     public height: number = 75;
     public data: any = {};
+    public client_data: any = {};
+    public last_frame_client_data: any = {};
+    public server_data: any = {};
     public keysDown: Array<string> = new Array();
     public ws: ServerWebSocket<{ source: string }>;
+    public game: GameWizard;
 
-    constructor(instance: GameInstance, user: User, name: string, tile_id: string, ws: ServerWebSocket<{ source: string }>) {
-        this.instance = instance; this.user = user; this.name = name; this.tile_id = tile_id; this.ws = ws;
+    constructor(instance: GameInstance, wiz: GameWizard, user: User, name: string, tile_id: string, ws: ServerWebSocket<{ source: string }>) {
+        this.instance = instance; this.user = user; this.name = name; this.tile_id = tile_id; this.ws = ws; this.game = wiz;
     }
 
     intersects(other: GameObject): boolean | undefined;
@@ -118,7 +115,7 @@ class GameObject {
     }
 }
 
-class GameTrigger {
+export class GameTrigger {
     public x: number;
     public y: number;
     public width: number;
@@ -138,14 +135,16 @@ class GameTrigger {
     public active: boolean = true;
     public players = new Array();
     public id: string;
+    public game: GameWizard;
 
-    constructor(instance: GameInstance, x: number, y: number, w: number, h: number, tile_id: string) {
+    constructor(instance: GameInstance, game: GameWizard, x: number, y: number, w: number, h: number, tile_id: string) {
         this.instance = instance;
         this.x = x;
         this.y = y;
         this.width = w;
         this.height = h;
         this.tile_id = tile_id;
+        this.game = game;
         this.id = generateRandomString(5);
     }
 
@@ -169,9 +168,10 @@ class GameTrigger {
     }
 }
 
-class Tile {
+export class Tile {
     public objects: Array<GameObject> = new Array();
     public triggers: Array<GameTrigger> = new Array();
+    public changes: Array<GameTrigger | GameObject> = new Array();
     public id: string;
     public start_x: number = 400;
     public start_y: number = 400;
@@ -179,18 +179,21 @@ class Tile {
     constructor(id: string) { this.id = id; }
 
     asSendable() {
-        return {
-            "objects": [...this.objects.map(o => o.asSendable())], 
-            "triggers": [...this.triggers.map(t => t.asSendable())]
+        let s = {
+            "objects": [...this.objects.filter(o => this.changes.includes(o)).map(o => o.asSendable())],
+            "triggers": [...this.triggers.filter(t => this.changes.includes(t)).map(t => t.asSendable())]
         };
+        this.changes = new Array();
+        return s;
     };
 }
 
 class GameInstance {
     public id = `g_${generateRandomString(10)}`;
     public tiles: Array<Tile> = new Array();
+    public game: GameWizard;
 
-    constructor() {  };
+    constructor(g: GameWizard) { this.game = g; };
 
     getTile(id: string): Tile | undefined {
         let tile = this.tiles.find(t => t.id == id);
@@ -198,14 +201,52 @@ class GameInstance {
     }
 }
 
+export class Module {
+    public game: GameWizard;
+    public trigger_functions: any = {};
+
+    constructor(g: GameWizard) { 
+        this.game = g; 
+    }
+
+    onPlayerUpdate(p: GamePlayer) {}
+    onPlayerRegistration(p: GamePlayer) {}
+    middlemanSaveData(p: GamePlayer, d: any): any {}
+    middlemanInstancePropogation(t: Tile, d: any) {}
+    middlemanStateSending(p: GamePlayer) {}
+    handleWSInput(ws: ServerWebSocket<{ source: string }>, p: GamePlayer, d: any) {}
+
+    init() {
+        this.game.onPlayerUpdate.push(this.onPlayerUpdate);
+        this.game.onPlayerRegistration.push(this.onPlayerRegistration);
+        this.game.middlemanSaveData.push(this.middlemanSaveData);
+        this.game.middlemanInstancePropogation.push(this.middlemanInstancePropogation);
+        this.game.middlemanStateSending.push(this.middlemanStateSending);
+    };
+}
+
 export class GameWizard {
     private instances: Array<GameInstance> = new Array();
-    private players: Map<ServerWebSocket<{ source: string }>, GamePlayer> = new Map();
+    public players: Map<ServerWebSocket<{ source: string }>, GamePlayer> = new Map();
     private queue: Map<ServerWebSocket<{ source: string }>, Array<any>> = new Map();
     private db: Database;
     private auth: AuthorizationWizard;
     private fps = 60;
-    
+
+    //public onUpdate: Array<any> = new Array();
+    public onPlayerUpdate: Array<any> = new Array();
+    public onPlayerRegistration: Array<any> = new Array();
+    public middlemanSaveData: Array<any> = new Array();
+    public middlemanInstancePropogation: Array<any> = new Array();
+    public middlemanStateSending: Array<any> = new Array();
+    public TRIGGER_FUNCTIONS = {
+        "": (t: GameTrigger, p: GamePlayer) => {},
+        "portalEnter": (t: GameTrigger, p: GamePlayer) => { p.data.wallPhasing = true; p.data.nextTile = t.data.target;},
+        "portalExit": (t: GameTrigger, p: GamePlayer) => { p.data.wallPhasing = false; p.data.nextTile = undefined; },
+        "test": (t: GameTrigger, p: GamePlayer) => { console.log("test"); },
+        "goToHell": (p: GamePlayer) => { p.game.changePlayerTile(p.ws, "hell"); }
+    }
+    public wsInteractions = {};
 
     constructor(db: Database) {
         this.db = db;
@@ -237,11 +278,23 @@ export class GameWizard {
             "method": "create",
             "content": o.asSendable()
         });
+        tile.changes.push(o);
         return o;
     }
 
+    modifyObject(instance: GameInstance, tile_id: string, name: string, new_obj: GameObject) {
+        let t = instance.getTile(tile_id);
+        if(!t) return;
+        let old = t.objects.find(o => o.name == name);
+        if(!old) return;
+        t.objects.splice(t.objects.indexOf(old), 1);
+        t.objects.push(new_obj);
+        t.changes.push(new_obj);
+        return new_obj;
+    }
+
     createTrigger(instance: GameInstance, x: number, y: number, w: number, h: number, tile_id: string) {
-        let t = new GameTrigger(instance, x ,y, w, h, tile_id);
+        let t = new GameTrigger(instance, this, x ,y, w, h, tile_id);
         let tile = instance.getTile(tile_id);
         if(!tile) return;
         tile.triggers.push(t);
@@ -250,6 +303,7 @@ export class GameWizard {
             "method": "create",
             "content": t.asSendable()
         });
+        tile.changes.push(t);
         return t;
     }
 
@@ -265,7 +319,7 @@ export class GameWizard {
         let json = await file.json();
         let data = json.tile_data;
         let all_tiles = Object.keys(data);
-        all_tiles.forEach(t => {
+        all_tiles.forEach(async t => {
             let tile = data[t];
             let objects = tile.objects || {};
             let triggers = tile.triggers || [];
@@ -274,6 +328,7 @@ export class GameWizard {
             tile_obj.start_x = tile.start_x || 400;
             tile_obj.start_y = tile.start_y || 400;
 
+            this.middlemanInstancePropogation.forEach(m => { m(tile_obj, data); })
             inst.tiles.push(tile_obj);
             
             if(triggers) {
@@ -289,16 +344,16 @@ export class GameWizard {
                     obj.onTickString = f.onTick || "";
                     obj.onClickString = f.onClick || "";
                     // @ts-expect-error
-                    obj.onEnter = TRIGGER_FUNCTIONS[f.onEnter || ""] || TRIGGER_FUNCTIONS[""];
+                    obj.onEnter = this.TRIGGER_FUNCTIONS[f.onEnter || ""] || this.TRIGGER_FUNCTIONS[""];
                     // @ts-expect-error
-                    obj.onExit = TRIGGER_FUNCTIONS[f.onExit || ""] || TRIGGER_FUNCTIONS[""];
+                    obj.onExit = this.TRIGGER_FUNCTIONS[f.onExit || ""] || this.TRIGGER_FUNCTIONS[""];
                     // @ts-expect-error
-                    obj.onTick = TRIGGER_FUNCTIONS[f.onTick || ""] || TRIGGER_FUNCTIONS[""];
+                    obj.onTick = this.TRIGGER_FUNCTIONS[f.onTick || ""] || this.TRIGGER_FUNCTIONS[""];
                     // @ts-expect-error
-                    obj.onClick = TRIGGER_FUNCTIONS[f.onClick || ""] || TRIGGER_FUNCTIONS[""];
+                    obj.onClick = this.TRIGGER_FUNCTIONS[f.onClick || ""] || this.TRIGGER_FUNCTIONS[""];
                     obj.tag == trig.tag || "";
-                })
-            }
+                });
+            };
             if(objects) {
                 let all_objects = Object.keys(objects);
                 all_objects.forEach(o => {
@@ -306,12 +361,12 @@ export class GameWizard {
                     let ob = this.createObject(inst, o, obj.src, t, obj.x, obj.y, obj.scale || 1);
                     if(!ob) return;
                 })
-            }
+            };
         })
     }
 
     async createInstance() {
-        let ni = new GameInstance();
+        let ni = new GameInstance(this);
         await this.propogateInstance(ni);
         this.instances.push(ni);
     }
@@ -349,13 +404,14 @@ export class GameWizard {
     registerPlayer(ws: ServerWebSocket<{ source: string }>, i: GameInstance, u: User) {
         let p = new GamePlayer(
             i,
+            this,
             u,
             u.account.id,
             "start",
             ws
         )
         this.db.fetch("game").then(d => {
-            let pd = d[u.account.id];
+            let pd = d.player_data[u.account.id];
             if(!pd) return;
             p.tile_id = pd.tile_id;
             p.x = pd.x; p.y = pd.y;
@@ -376,7 +432,7 @@ export class GameWizard {
                     "content": o.asSendable()
                 }
             );
-        })
+        });
         all_triggers.forEach(t => {
             this.queueInstance(i, 
                 {
@@ -385,9 +441,10 @@ export class GameWizard {
                     "content": t.asSendable()
                 }
             );
-        })
+        });
         this.setBackground(ws, p.tile_id);
         this.queueMessage(ws, {"type": "rendering", "method": "unhide"});
+        this.onPlayerRegistration.forEach(m => { m(); });
     }
 
     changePlayerTile(ws: ServerWebSocket<{ source: string }>, tile_id: string) {
@@ -403,7 +460,7 @@ export class GameWizard {
         if(!tile) return;
         tile.triggers.forEach(t => {
             let was_in = t.players.includes(p);
-            t.players.splice(t.players.indexOf(p));
+            t.players.splice(t.players.indexOf(p), 1);
             if(p.intersects(t)) t.players.push(p);
             let entered = !was_in && t.players.includes(p);
             if(was_in && !t.players.includes(p)) { t.onExit(t, p); }
@@ -418,6 +475,15 @@ export class GameWizard {
         let tile = p.instance.getTile(p.tile_id);
         if(!tile) return;
         this.handleTriggers(p);
+        if(p.client_data.speech_line_function) {
+            if(p.last_frame_client_data.speech_line_function != p.client_data.speech_line_function) {
+                // @ts-expect-error
+                if(this.TRIGGER_FUNCTIONS[p.client_data.speech_line_function] != undefined) {
+                    // @ts-expect-error
+                    this.TRIGGER_FUNCTIONS[p.client_data.speech_line_function](p);
+                }
+            }
+        };
         if(keys.includes("KeyW") || keys.includes("ArrowUp"   )) dv[1]! -= 1;
         if(keys.includes("KeyA") || keys.includes("ArrowLeft" )) dv[0]! -= 1;
         if(keys.includes("KeyS") || keys.includes("ArrowDown" )) dv[1]! += 1;
@@ -444,18 +510,23 @@ export class GameWizard {
         p.y = clamp(p.y, p.data.wallPhasing ? -1000 : 0, p.data.wallPhasing ? 1000 : 725);
         p.x = clamp(p.x, p.data.wallPhasing ? -1000 : 0, p.data.wallPhasing ? 1000 : 725);
         if(p.y > 775) { 
-            this.changePlayerTile(ws, p.data.nextTile)
+            this.changePlayerTile(ws, p.data.nextTile);
             p.y = -49;
         } else if(p.y < -50) {
-            this.changePlayerTile(ws, p.data.nextTile)
+            this.changePlayerTile(ws, p.data.nextTile);
             p.y = 774;
         } else if(p.x > 775) {
-            this.changePlayerTile(ws, p.data.nextTile)
+            this.changePlayerTile(ws, p.data.nextTile);
             p.x = -49;
         } else if(p.x < -50) {
-            this.changePlayerTile(ws, p.data.nextTile)
+            this.changePlayerTile(ws, p.data.nextTile);
             p.x = 774
         }
+        this.handleTriggers(p);
+        this.onPlayerUpdate.forEach(m => {
+            m(p);
+        });
+        p.keysDown = [];
     }
 
     async handleMessage(ws: ServerWebSocket<{ source: string }>, json: any) {
@@ -465,7 +536,7 @@ export class GameWizard {
             case "state":
                 if(!p) return;
                 switch(json.method) {
-                    case "update": p.keysDown = Object.keys(json.content.keys); this.updatePlayer(p); break;
+                    case "update": p.keysDown = json.content.keys; p.last_frame_client_data = p.client_data; if(json.content.extra_data != undefined) p.client_data = json.content.extra_data; break;
                 } break;
             case "input":
                 if(!p) return;
@@ -475,7 +546,9 @@ export class GameWizard {
                             if(RECT_INTERSECTION(t.x, t.y, t.width, t.height, json.content.x-15, json.content.y-15, 25, 25)){
                                 t.onClick(t, p);
                             }
-                        })
+                        }); break;
+                    case "stuck":
+                        p.x = 0; p.y = 0; this.handleTriggers(p); break;
                 }; break;
             case "system":
                 switch(json.method) {
@@ -498,7 +571,8 @@ export class GameWizard {
         this.players.delete(ws);
         if(!p) return;
         this.db.fetch("game").then(d => {
-            d[p.user.account.id] = p.serialize();
+            d.player_data[p.user.account.id] = p.serialize();
+            this.middlemanSaveData.forEach(m => { d = m(p, d); })
             this.db.modify("game", d);
         })
         if(this.getPlayerCount(p.instance) < 1) {
@@ -516,9 +590,11 @@ export class GameWizard {
     sendState(instance: GameInstance) {
         let players = Array.from(this.players).filter(([k, v]) => v.instance == instance);
         players.forEach(p => {
+            this.updatePlayer(p[1]);
             let tile = p[1].instance.getTile(p[1].tile_id)
             if(!tile) return;
             tile.triggers.filter(t => t.active).forEach(t => { t.onTick(t); })
+            this.middlemanStateSending.forEach(m => { m(p); })
             let queue = this.queue.get(p[0]);
             if(queue) {
                 queue.forEach(json => {
