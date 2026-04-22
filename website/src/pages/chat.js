@@ -1,6 +1,6 @@
 const {getApiLink, changeSettingOnAccount, getSettingOnAccount, getCookie, setCookie } = await import('./common.js');
 
-let fetch_size = 100;
+let fetch_size = 30;
 let fetching = false;
 let at_top = false;
 let con_x, con_y;
@@ -29,7 +29,6 @@ const emojiGrid = document.querySelector(".emoji-grid");
 const categoryButtons = document.querySelectorAll(".emoji-cat");
 const color_input = document.getElementById("color");
 const chatter_text = document.getElementById("chatters");
-//const startBtn = document.getElementById("startVoiceBtn");
 const connection_check = document.getElementById("show-con-messages");
 let id = "";
 let index = 0;
@@ -38,14 +37,17 @@ connection_check.addEventListener("click", () => {
     setCookie("con-msg", connection_check.checked, 90);
     refresh();
 })
+const go_back = () => {
+    document.getElementById("chat").style.display = "none";
+    document.getElementById("picker").style.display = "block";
+    ws.send(JSON.stringify({"type": "wizard", "method": "unsubscribe", "content": "", "id": id}));
+    history.pushState({page: "test"}, "test", "/chat");
+};
 document.getElementById("banner").addEventListener("click", () => {
     if(document.getElementById("chat").style.display == "none") {
         window.location.href = "/";
     } else {
-        document.getElementById("chat").style.display = "none";
-        document.getElementById("picker").style.display = "block";
-        ws.send(JSON.stringify({"type": "wizard", "method": "unsubscribe", "content": "", "id": id}));
-        history.pushState({page: "test"}, "test", "/chat");
+        go_back();
     }
 })
 let color;
@@ -59,6 +61,12 @@ color_input.addEventListener("input", () => {
         color = color_input.value;
         color_input.style.color = color;
         changeSettingOnAccount("color", color);
+    }
+})
+
+document.addEventListener("keydown", (e) => {
+    if(e.key == "Escape") {
+        go_back();
     }
 })
 
@@ -109,6 +117,7 @@ ws.addEventListener('message', (e) => {
                     });
                     index += new_messages.length;
                     if(new_messages.length != fetch_size) at_top = true;
+                    message_box.scrollTop += new_messages.length;
                     fetching = false;
             }
             break;

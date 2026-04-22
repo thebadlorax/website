@@ -111,7 +111,6 @@ let websockets = new Array();
 let voice_websockets = new Array();
 const clientIds = new Map<ServerWebSocket<{source: string}>, string>();
 const starting_time = new Date();
-const latest_commit = await $`git log -1 --pretty=format:"%s" `.text();
 let key = await db.fetch("key")
 if(!key) {
   key = generateRandomString(5);
@@ -435,8 +434,7 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify({
               "key": key, 
               "visitor-count": visitor_count_2, 
-              "uptime": Math.floor((new Date().getTime() - starting_time.getTime())/ 1000),
-              "latest-commit": latest_commit
+              "uptime": Math.floor((new Date().getTime() - starting_time.getTime())/ 1000)
             }), { status: 200});
           case "/user/init":
             let id = generateRandomString(10);
@@ -515,17 +513,6 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify(data), {
               headers: { "Content-Type": "application/json" },
             });
-            case "/fishing/files":
-              const glob3 = new Glob(`src/res/fishing/**/*`);
-              var data = [];
-        
-              for (const file of glob3.scanSync(".")) {
-                data.push(file.replace("src/", ""));
-              }
-  
-              return corsResponse(JSON.stringify(data), {
-                headers: { "Content-Type": "application/json" },
-              });
           case "/health":
             return corsResponse("OK"); 
           default: // dynamic route endpoints

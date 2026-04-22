@@ -58,33 +58,29 @@ export class ChatWizard {
         let names; let assignees;
         try { names = Object.values(all_chats).map(a => a.display_name); assignees = Object.values(all_chats).map(a => a.assignees); }
         catch { return };
-        //if(all_chats == undefined) return;
         all_chats = Object.keys(all_chats);
-        all_chats.forEach(id => {
-            this.createInheritance(id);/*.then((a) => {
-                //let chat = this.fromID(a)!;
-                //this.publicize(chat);
-            });*/
-        });
+        all_chats.forEach(async id => { await this.createInheritance(id); });
     }
 
     async create() { let n = new ChatInstance(this.db, undefined, this); this.instances.push(n); await n.init(); return n; };
     async createInheritance(id: string) { let n = new ChatInstance(this.db, id, this); n.id = id; this.instances.push(n); await n.init(); return n; }
     fromID(id: string) { try { return this.instances.find(ins => ins.id == id); } catch { return undefined; } };
     async destroy(i: ChatInstance, u: string) {
-        if(!i) {
-            return
-        }
+        if(!i) return;
         if(i.immutable) return;
-        delete this.instances[this.instances.indexOf(i)];
-        let data;
-        try { data = await this.db.fetch("chats"); }
+        let data; try { data = await this.db.fetch("chats"); }
         catch { return; }
-        delete data[i.id]
-        await this.db.modify("chats", data);
         if(this.assignees.get(u) == undefined) return;
-        this.assignees.set(u, this.assignees.get(u)!.toSpliced(this.assignees.get(u)!.indexOf(i)));
-        if(this.assignees.get("*")?.includes(i)) this.assignees.set("*", this.assignees.get("*")!.toSpliced(this.assignees.get("*")!.indexOf(i)));
+
+        this.assignees.get(u)!.splice(this.assignees.get(u)!.indexOf(i), 1);
+        if(this.assignees.get("*")!.includes(i)) {
+            this.assignees.set("*", this.assignees.get("*")!.toSpliced(this.assignees.get("*")!.indexOf(i), 1));
+        }
+
+        delete this.instances[this.instances.indexOf(i)];
+        delete data[i.id];
+        await this.db.modify("chats", data);
+        await this.revitalizeOldChats();
      };
     async assign(id: string, i: ChatInstance) { 
         if(i.immutable) return;
@@ -97,13 +93,7 @@ export class ChatWizard {
             await i.modifyProperty("assignees", found_assignees)
         }
     };
-    publicize(i: ChatInstance) {
-        /*let e = this.assignees.get("*") || new Array();
-        e.push(i);
-        this.assignees.set("*", e);*/
-        this.assign("*", i);
-        return i;
-    }
+    publicize(i: ChatInstance) { this.assign("*", i); return i; }
     deassign(u: User, i: ChatInstance) {
         if(this.assignees.get(u.account.id)?.includes(i)) return;
         let e = this.assignees.get(u.account.id);
@@ -146,7 +136,7 @@ export class ChatWizard {
                     if(!new_chat) return; //ERROR out
                     await new_chat.modifyProperty("display_name", json.content);
                     new_chat.display_name = json.content;
-                    if(!json.private) this.assign(json.user.account.id, new_chat);
+                    if(!json.private) await this.assign(json.user.account.id, new_chat);
                     else this.publicize(new_chat);
                     await this.revitalizeOldChats();
                     if(new_chat) ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "OK"}));
@@ -202,6 +192,7 @@ export class ChatInstance {
         if(!chats) return;
         if(chats[this.id] != undefined) { // inherited chat
             this.display_name = chats[this.id].display_name;
+            this.immutable = chats[this.id].immutable;
             // @ts-expect-error
             chats[this.id].assignees.forEach(a => {
                 this.w.assign(a, this.w.fromID(this.id)!);
@@ -212,7 +203,7 @@ export class ChatInstance {
             type: "message",
             content: `this is the start of the chat: ${this.id}`,
             timestamp: Date.now()
-        } as message], "assignees": [], "display_name": "", "timestamp": Date.now()}
+        } as message], "assignees": [], "display_name": "", "timestamp": Date.now(), "immutable": this.immutable};
         await this.db.modify("chats", chats);
     }
     

@@ -1,4 +1,4 @@
-const { getApiLink, setCookie, getCookie, refreshAccount, getAccountCredentials } = await import('./common.js');
+const { getApiLink, getCookie, refreshAccount, getAccountCredentials } = await import('./common.js');
 
 const contextMenu = document.getElementById("context");
 let con_x, con_y;
@@ -20,10 +20,12 @@ const host_check = document.getElementById("host");
 const host_check_div = document.getElementById("host-div");
 host_check_div.style.display = "none";
 
-const banned_click_extensions = [".rar", ".zip", ".gzip", ".7z"]
+const whitelisted_clicks = [".png", ".jpg", ".txt", ".mp4", ".mkv", ".webm", ".gif", ".pdf", ".mp3", ".wav", ".html"];
+const custom_clicks = {
+}
 
 if(window.localStorage.getItem("user") == null) {
-    alert("make an account")
+    alert("make an account");
     window.location.href = `${location.protocol}//${location.host}/?account`;
 }
 
@@ -69,28 +71,6 @@ async function confirmRename() {
 function cancelRename() {
     renameOverlay.style.display = "none";
     renameTargetPath = null;
-}
-
-async function confirmPassword() {
-    let response = await fetch(getApiLink("/file/unprotect"), {
-        method: "POST",
-        headers: {
-          "Content-Disposition": `attachment; filepath=/${current_dir.slice(0, -1)};password=${passwordInput.value.trim()}`
-        }
-    });
-    if(response.status == 200) {
-        cancelPassword();
-        await fetchDataFromServer(); 
-        return;
-    } else {
-        passwordInput.value = "";
-        alert("incorrect password");
-    }
-}
-
-function cancelPassword() {
-    passwordOverlay.style.display = "none";
-    passwordInput.value = "";
 }
 
 async function menuAction(action) {
@@ -244,13 +224,24 @@ async function fetchDataFromServer() {
         element.dataset.size = file_size_text;
         element.textContent = `${file_name}`
         container.appendChild(element)
-        if(!banned_click_extensions.some(v => file_name.includes(v))) {
+        if(whitelisted_clicks.some(v => file_name.includes(v))) {
+            let file_ext = `.${file_name.split('.').pop()}`;
+            if(custom_clicks[file_ext] != undefined) element.style.border = ".2vw solid cyan";
             element.addEventListener("click", async (e) => {
-                let password = getCookie(`/${current_dir.slice(0, -1)}`) || ""
-                let url_path = `${location.protocol}//api.${location.host}/file/fetch/${file_path}`
-                url_path = url_path.replace("fetch//", "fetch/")
-                window.open(url_path);
-            })
+                let url_path = `${location.protocol}//api.${location.host}/file/fetch/${file_path}`;
+                url_path = url_path.replace("fetch//", "fetch/");
+                
+                if(custom_clicks[file_ext] != undefined) {
+                    element.style.border = ".2vw solid cyan";
+                    window.open(`${custom_clicks[file_ext]}?url=${url_path}`);
+                } else {
+                    element.style.border = ".2vw solid black";
+                    window.open(url_path);
+                }
+            });
+        } else {
+            element.style.border = ".2vw solid darkgrey"
+            element.style.cursor = "default"
         }
         element.addEventListener("contextmenu", (e) => {
             e.preventDefault();
@@ -318,6 +309,7 @@ document.addEventListener("keydown", (e) => {
 
 dirInput.addEventListener("change", () => { 
     dirInput.value = dirInput.value.replaceAll(".", "").replaceAll("/", "");
+    history.pushState({page: "test"}, "test", `/files${dirInput.value ? `?dir=${dirInput.value}` : ""}`);
     fetchDataFromServer();
 })
 
@@ -356,6 +348,18 @@ host_check.addEventListener("change", async (e) => {
         }
     });
 })
+
+if(window.location.href.includes("?dir=")) {
+    let dir = window.location.href.split("?dir=")[1];
+    dirInput.value = dir;
+}
+
+window.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      dirInput.focus();
+    }
+  });
 
 fetchDataFromServer();
 hideMenu();
