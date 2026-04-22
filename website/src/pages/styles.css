@@ -31,6 +31,43 @@ body {
   height: 100vw;
 }
 
+.ticker {
+    overflow: hidden;
+    width: 100%;
+    background: #111;
+    color: #fff;
+}
+  
+.ticker-track {
+    display: flex;
+    width: max-content;
+    animation: scroll 20s linear infinite;
+}
+  
+.ticker-content {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+  
+.item {
+    padding-right: 12px; /* space after text */
+}
+  
+.dot {
+    padding-right: 12px; /* space after dot */
+    opacity: 1;
+}
+  
+@keyframes scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+  
+.ticker:hover .ticker-track {
+    animation-play-state: paused;
+}
+
 .main-container {
     display: flex;
     position: absolute;

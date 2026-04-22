@@ -1,15 +1,6 @@
 const { getCookie, setCookie, formatSeconds, getApiLink, formatNumber } = await import('./common.js');
 import { openMenu } from './account.js';
 
-/*const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'; // dynamic swap for testing
-let wsUri;
-if(location.host.includes("66.65.25.15")) {
-    wsUri = `${protocol}//${location.host}/subdomain=api/chat/live`;
-} else {
-    wsUri = `${protocol}//api.${location.host}/chat/live`;
-}
-
-const ws = new WebSocket(wsUri);*/
 const uptime_text = document.getElementById("uptime");
 const visitor_text = document.getElementById("visitors");
 const redirect = (loc) => {
@@ -80,6 +71,23 @@ async function update_stats(do_fetch) {
     }
     visitor_text.textContent = `Unique Visitors: ${formatNumber(data["visitor-count"])}`;
 }
+
+
+const track = document.querySelector('.ticker-track');
+
+fetch(getApiLink("/news"), { method: "GET" })
+.then(res => res.json())
+.then(items => {
+    const html = items.map(item => `
+        <span class="item">${item}</span>
+        <span class="dot">•</span>
+    `).join('');
+
+    track.innerHTML = `
+        <div class="ticker-content">${html}</div>
+        <div class="ticker-content">${html}</div>
+    `;
+});
 
 await update_stats(false);
 setInterval(() => {

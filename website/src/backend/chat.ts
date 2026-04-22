@@ -11,7 +11,7 @@ import { generateRandomString } from "./utils";
 import { type User, AuthorizationWizard, JSONToUser } from "./auth"
 import type { ServerWebSocket } from "bun";
 
-type message = {
+export type message = {
     type: string;
     content: string;
     timestamp: number;
@@ -240,7 +240,7 @@ export class ChatInstance {
         return data[this.id][name];
     }
       
-    async fetchMessagesFromHistory(amt: number, con_msgs: (string | boolean), start_index?: number) {
+    async fetchMessagesFromHistory(amt: number, con_msgs: (string | boolean), start_index?: number): Promise<message[] | undefined> {
         let data;
         try { data = await this.db.fetch("chats"); }
         catch { return; }

@@ -443,12 +443,29 @@ function hideMenu() {
 
 document.getElementById("delete").addEventListener("click", () => { menuAction("delete", document.getElementById("id-context").textContent); })
 document.getElementById("link").addEventListener("click", () => { menuAction("link", document.getElementById("id-context").textContent); })
+document.getElementById("download").addEventListener("click", () => { menuAction("download", document.getElementById("id-context").textContent); })
+document.getElementById("id-context").addEventListener("click", () => { navigator.clipboard.writeText(document.getElementById("id-context").textContent); })
+
+function downloadJSON(data, filename = "data.json") {
+    const jsonString = JSON.stringify(data, null, 2); // pretty print
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob); const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
 
 async function menuAction(action, rec_id) {
     if(action === "delete") { 
         ws.send(JSON.stringify({"type": "wizard", "method": "delete", "content": rec_id, "id": JSON.parse(window.localStorage.getItem("user")).account.id}))
     } else if(action === "link") {
         await navigator.clipboard.writeText(`${window.location.href}?room=${rec_id}`);
+    } else if(action === "download") {
+        fetch(getApiLink("/chat/download"), { method: "POST", priority: "high", body: JSON.stringify({"id": rec_id}) }).then((e) => {
+            e.json().then((json) => {
+                downloadJSON(json, `${rec_id}.json`)
+            })
+        });
     }
     hideMenu();
 }

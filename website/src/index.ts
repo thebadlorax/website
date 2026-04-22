@@ -31,7 +31,7 @@ import { deleteFile, renameFile } from "./backend/file";
 import { Database } from "./backend/db"
 import { BlackjackInstance, Deck } from "./backend/games";
 import { corsResponse, CORS_HEADERS } from "./backend/connectivity";
-import { ChatWizard } from "./backend/chat";
+import { ChatWizard, type message } from "./backend/chat";
 import { CacheWizard } from "./backend/cache";
 import { LogWizard } from "./backend/logging";
 import { AuthorizationWizard, userToJSON } from "./backend/auth";
@@ -57,6 +57,16 @@ await game.init();
 new TestModule(game).init();
 
 const time = new TimeWizard();
+
+let news = [
+  "added this sick ass news ticker",
+  "the game is under maintenance for now, too laggy",
+  "blackjack scoring bug is being fixed, ikik",
+  "making and deleting chatrooms actually work now",
+  "scrolling on chatrooms will not go all the way to the start of it",
+  "you can send chatroom links and also file directory links",
+  "ads are probably gonna be the next thing, prepare yourself"
+]
 
 // TODO: move these to different files/structures
 async function serveStaticIfAllowed(url: string) {
@@ -156,6 +166,11 @@ const server = Bun.serve({
     switch(subdomain) {
       case "api":
         switch(url) {
+          case "/news": {
+            return corsResponse(JSON.stringify(news), {
+              headers: { "Content-Type": "application/json" },
+            });
+          }
           case "/file/download":
             if (req.method !== "GET") return corsResponse(null, { status: 405 });
         
@@ -428,6 +443,43 @@ const server = Bun.serve({
                 headers: { "Content-Type": "application/json" },
               });
             };
+          case "/chat/download": {
+            let req_json;
+            try { req_json = await req.json(); }
+            catch { return corsResponse(null, { status: 401 }); };
+            let chat_id = req_json.id;
+            if(!chat_id) { return corsResponse(null, { status: 401 }); };
+
+            let chatroom = chat.fromID(chat_id);
+            if(!chatroom) { return corsResponse(null, { status: 401 }); };
+            let data = await chatroom.fetchMessagesFromHistory(-1, true);
+            if(!data) return;
+
+            const messageToJSON = (msg: message) => {
+              return {
+                "content": msg.content,
+                "type": msg.type,
+                "timestamp": msg.timestamp
+              }
+            }
+
+            // @ts-expect-error
+            let parsed = [];
+            data.forEach(m => { parsed.push(messageToJSON(m)); })
+
+            const blob = new Blob(
+              // @ts-expect-error
+              [JSON.stringify(parsed)],
+              { type: "application/json" }
+            );
+
+            return corsResponse(blob, {
+              headers: {
+                "Content-Type": "application/json",
+              },
+            });
+          }
+            
           case "/stats":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
             let visitor_count_2 = await db.fetch("visitors") || 0;
