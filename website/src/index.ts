@@ -638,6 +638,33 @@ const server = Bun.serve({
             await auth._adminUpdate(json["name2"], old, new_acc);
             return corsResponse(null, { status: 200 });
           }
+          case "/admin/deleteFeedback": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+
+            let fb = await db.fetch("feedback") || new Array();
+            let index = fb.indexOf(json.feedback);
+            if(index == -1) return corsResponse(null, { status: 400 });
+            fb.splice(index, 1);
+            await db.modify("feedback", fb);
+            return corsResponse(null, { status: 200 });
+          }
+          case "/feedback/give": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let fb = await db.fetch("feedback") || new Array();
+            fb.push(json.feedback);
+            await db.modify("feedback", fb);
+            return corsResponse(null, { status: 200 });
+          }
+          case "/feedback/fetch": {
+            let fb = await db.fetch("feedback") || new Array();
+            return corsResponse(JSON.stringify({"feedback": fb}), { status: 200 }); 
+          }
           case "/game/live":
             const success2 = server.upgrade(req, {
               data: { source: "/game/live" }, // Attach per-socket data

@@ -307,17 +307,16 @@ export class BlackjackInstance {
             ws.send(`round;{}`)
             setTimeout(() => { this.broadcast(`reset;{}`); this.soft_reset(); this.updatePlayersOnState(); this.broadcast(`bet;{}`);}, 3000);
             return;
-        }
+        };
         this.turn += 1;
         this.updatePlayersOnState();
     }
 
     hasWon(checking: number, opponent: number) {
         if(checking == opponent) return null;      // both are the same : nothing
-        else if(checking > 21) return false;       // player bust       : lose
-        else if(opponent > 21) return true;        // opponent bust     : win
-        else if(checking > opponent) return true;  // player has more   : win
-        else if(checking < opponent) return false; // player has less   : lose
+        if(checking > 21) return false;            // player bust       : lose
+        if(checking < opponent) return false;      // player has less   : lose
+        return true;
     }
 
     protected scorePlayer = async (ws: ServerWebSocket<{ source: string; }>) => {

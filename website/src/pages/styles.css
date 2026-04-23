@@ -264,3 +264,16 @@ body {
         display: block;
     }
 }
+
+.input {
+    font-family: "Jersey 20";
+    color: black;
+    background-color: #4e4e4e;
+    outline: none;
+    border: .2vw solid #353536;
+    font-size: 1.5vw;
+}
+
+.input::placeholder {
+    font-size: .8vw;
+}

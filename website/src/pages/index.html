@@ -22,7 +22,7 @@
     <p class="unhide" style="color: white; font-size: 10px;">(if you really want to go for it directly going to a page will remove this popup)</p>
     <div class="ticker"><div class="ticker-track"></div></div>
     <div class="main-container" id="main-container">
-        <div class="banner-container">
+        <div class="banner-container unselectable" draggable="false">
             <img src="../res/transparent_banner.png" class="banner-image" draggable="false">
         </div>
         <div class="row-container">
@@ -52,7 +52,9 @@
                     <p class="basic-text">github: <a href="https://github.com/thebadlorax" class="basic-link" target="_blank" rel="noopener noreferrer">thebadlorax</a></p>
                 </div>
                 <div class="small-item unselectable" id="recent-chats">
-                    repurposing
+                    feedback
+                    <textarea id="fb" class="input" placeholder="write your feedback here" style="position: absolute; top: 37.5vw; right: 8.5vw; width: 11vw; height: 4vw; min-height: 4vw; resize: vertical; max-height: 9vw; z-index: 2; font-size: 1vw;"></textarea>
+                    <button  id="sfb" class="input" style="position: absolute; top: 47.5vw; right: 11.5vw; z-index: 1; width: 5vw; font-size: 1.5vw; cursor: pointer;">submit</button>
                 </div>
                 <div class="small-item unselectable cursor" id="stats">
                     stats
@@ -64,12 +66,10 @@
             </div>
         </div>
     </div>
-    <!--<div id="f" style="display: none; position: absolute; top: 83vw; left: 22vw; width: 60vw; height: 5vw; background-size:contain; background-repeat:no-repeat;"></div>-->
     <p class="basic-link unselectable" id="account-button" style="position: absolute; left: 75%; top: 11%; font-size: 2vw;">Account Management</p>
     <div id="account-menu" style="display: none;">
         <div id="sign-in">
             <p class="basic-text unselectable" style="position: absolute; left: 40%; top: 50%; font-size: 6vw;">Sign In</p>
-            <!--<p class="basic-text unselectable" style="position: absolute; left: 10%; top: 30%; font-size: 2vw; color: darkred; text-decoration: underline; font-weight: 700;">All accounts got wiped recently, you may need to remake your account</p>-->
             <input class="input" id="name" placeholder="Username" maxlength="15" style="position: absolute; top: 80%; left: 35%; width: 30vw; height: 1.5vw;"></input>
             <input class="input" id="pass" placeholder="Password" maxlength="20" style="position: absolute; top: 90%; left: 35%; width: 30vw; height: 1.5vw;"></input>
             <p class="basic-link unselectable" id="sign-in-button" style="display: none; position: absolute; left: 35%; top: 95%; font-size: 2vw;">Sign In</p>
