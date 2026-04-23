@@ -34,7 +34,7 @@ body {
 .ticker {
     overflow: hidden;
     width: 100%;
-    background: #111;
+    background: none;
     color: #fff;
 }
   

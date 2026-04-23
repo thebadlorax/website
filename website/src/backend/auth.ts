@@ -130,8 +130,6 @@ export class AuthorizationWizard {
         let json;
         try { json = await this.db.fetch("auth"); }
         catch { return; }
-        //try { json = JSON.parse(json); }
-        //catch { return; }
         if(!json) return;
         let accounts = json["users"];
         return accounts
@@ -163,6 +161,13 @@ export class AuthorizationWizard {
         }
     }
 
+    async _adminFetch(name: string) {
+        if(!this.exists(name)) return undefined;
+        let accounts = await this._getAccounts();
+        let user = JSONToUser(accounts[name]);
+        return user;
+    }
+
     async _confirmAccessAndExistance(name: string, pass: string) {
         if(!await this.exists(name)) return false;
         if(!this.checkPass(name, pass)) return false;
@@ -188,7 +193,7 @@ export class AuthorizationWizard {
         return user.account.id;
     }
 
-    private async _updateFullUser(name: string, pass: string, updated: User) {
+    async _adminUpdate(name: string, pass: string, updated: User) {
         let json = await this._getAccounts();
         if(updated.account.name !== name) {
             await this.renameAccount(name, pass, updated.account.name);
@@ -257,7 +262,7 @@ export class AuthorizationWizard {
         }
         let old = await this.fetchAccount(name, pass);
         if(!old) return undefined;
-        old.account.name = sanitize(updated.account.name);
+        if(!await this.exists(updated.account.name)) old.account.name = sanitize(updated.account.name);
         old.account.pass = sanitize(updated.account.pass);
         if(updated.account.pass !== pass) {
             this.log.log(`Changing password for account ${updated.account.name} from ${pass} to ${updated.account.pass}`)

@@ -51,22 +51,17 @@ const cache = new CacheWizard();
 cache.addRoot("src/res")
 cache.addRoot("src/pages")
 const chat = new ChatWizard(db);
+const time = new TimeWizard();
 
 const game = new GameWizard(db);
 await game.init();
 new TestModule(game).init();
 
-const time = new TimeWizard();
-
-let news = [
-  "added this sick ass news ticker",
-  "the game is under maintenance for now, too laggy",
-  "blackjack scoring bug is being fixed, ikik",
-  "making and deleting chatrooms actually work now",
-  "scrolling on chatrooms will not go all the way to the start of it",
-  "you can send chatroom links and also file directory links",
-  "ads are probably gonna be the next thing, prepare yourself"
-]
+let news: any = undefined;
+const reset_news = async () => {
+  news = await db.fetch("news") || 
+  ["no news", "no news", "no news", "no news", "no news", "no news", "no news", "no news", "no news", "no news"];
+}; await reset_news();
 
 // TODO: move these to different files/structures
 async function serveStaticIfAllowed(url: string) {
@@ -548,6 +543,101 @@ const server = Bun.serve({
             let req_json2 = await req.json(); 
             await auth.changePoints(req_json2["name"], req_json2["pass"], parseInt(req_json2["amt"]))
             return corsResponse(null, { status: 200 });
+          case "/admin/verify": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+            return corsResponse(null, { status: 200 });
+          }
+          case "/admin/changeNews": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+
+            await db.modify("news", json["news"]);
+            await reset_news();
+            return corsResponse(null, { status: 200 });
+          }
+          case "/admin/getID": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+
+            if(!await auth.exists(json["nameToFetch"])) return corsResponse(null, { status: 400 });
+            let id = await auth.fetchUserID(json["nameToFetch"]);
+            return corsResponse(JSON.stringify({"id": id}), { status: 200 });
+          }
+          case "/admin/fetchPass": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+
+            if(!await auth.exists(json["nameToFetch"])) return corsResponse(null, { status: 400 });
+            let pass: any = await auth._adminFetch(json["nameToFetch"]);
+            if(!pass) return corsResponse(null, { status: 400 });
+            pass = pass.account.pass;
+            return corsResponse(JSON.stringify({"pass": pass}), { status: 200 });
+          }
+          case "/admin/deleteAccount": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+
+            if(!await auth.exists(json["name2"])) return corsResponse(null, { status: 400 });
+            let acc: any = await auth._adminFetch(json["name2"]);
+            if(!acc) return corsResponse(null, { status: 400 });
+            auth.deleteAccount(json["name2"], acc.account.pass);
+            return corsResponse(null, { status: 200 });
+          }
+          case "/admin/changePassword": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+
+            if(!await auth.exists(json["name2"])) return corsResponse(null, { status: 400 });
+            let acc: any = await auth._adminFetch(json["name2"]);
+            if(!acc) return corsResponse(null, { status: 400 });
+            let old = acc.account.pass
+            let new_acc = acc;
+            new_acc.account.pass = json["pass2"];
+            await auth._adminUpdate(json["name2"], old, new_acc);
+            return corsResponse(null, { status: 200 });
+          }
+          case "/admin/setPoints": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+
+            if(!await auth.exists(json["name2"])) return corsResponse(null, { status: 400 });
+            let acc: any = await auth._adminFetch(json["name2"]);
+            if(!acc) return corsResponse(null, { status: 400 });
+            let old = acc.account.pass
+            let new_acc = acc;
+            new_acc.statistics.points = parseInt(json["amt"]);
+            await auth._adminUpdate(json["name2"], old, new_acc);
+            return corsResponse(null, { status: 200 });
+          }
           case "/game/live":
             const success2 = server.upgrade(req, {
               data: { source: "/game/live" }, // Attach per-socket data
@@ -590,7 +680,7 @@ const server = Bun.serve({
           case "/chat": return corsResponse(Bun.file("src/pages/chat.html"), { headers: { "Content-Type": "text/html" } });
           case "/gambling": return corsResponse(Bun.file("src/pages/gambling.html"), { headers: { "Content-Type": "text/html" } });
           //case "/game": return corsResponse(Bun.file("src/pages/game.html"), { headers: { "Content-Type": "text/html" } });
-          case "/fishing": return corsResponse(Bun.file("src/pages/fishing.html"), { headers: { "Content-Type": "text/html" } });
+          case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
       
           default:
             return corsResponse(Bun.file("src/pages/error.html"), {

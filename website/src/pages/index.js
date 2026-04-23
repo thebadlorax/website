@@ -19,7 +19,6 @@ const ad_positions = {
 }
 
 const createAd = (pos) => {
-    console.log(pos);
     let ad = document.createElement("div");
     ad.style.display = "block"; ad.style.position = "absolute"; ad.style.backgroundSize = "contain"; ad.style.backgroundRepeat = "no-repeat";
     ad.style.top    = `${pos[0]}vw`; 
