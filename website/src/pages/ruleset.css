@@ -115,6 +115,10 @@
     cursor: pointer;
 }
 
+.workspace-item-container div.focused {
+    border: 0.2vw solid cyan;
+}
+
 .disabled-section {
     background: repeating-linear-gradient(
         45deg,

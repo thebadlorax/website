@@ -10,40 +10,33 @@
 const blocks = {
     "test1": {
         "name": "testing block",
-        "onClick": () => {
-            open_submenu("test_submenu");
-        },
-        "onEnterWorkspace": () => {},
+        "menu": "test_submenu",
         "color": "yellow"
     },
     "test2": {
         "name": "testing block 2",
-        "onClick": () => {},
-        "onEnterWorkspace": () => {},
-        "color": ""
+        "menu": "test_submenu2",
+        "color": "purple"
     },
     "test3": {
         "name": "testing block 3",
-        "onClick": () => {},
-        "onEnterWorkspace": () => {},
-        "color": "cyan"
-    },
-    "test4": {
-        "name": "testing block 4",
-        "onClick": () => {},
-        "onEnterWorkspace": () => {},
-        "color": ""
-    },
-    "test5": {
-        "name": "testing block 5",
-        "onClick": () => {},
-        "onEnterWorkspace": () => {},
-        "color": "green"
+        "menu": "test_submenu3",
+        "color": "pink"
     },
     "submenu_test1": {
         "name": "test setting",
         "submenu": true,
+        "color": "green"
+    },
+    "submenu_test2": {
+        "name": "test setting 2",
+        "submenu": true,
         "color": ""
+    },
+    "submenu_test3": {
+        "name": "test setting 3",
+        "submenu": true,
+        "color": "yellow"
     },
 }
 
@@ -51,6 +44,18 @@ const menus = {
     "test_submenu": {
         "blocks": [
             "submenu_test1"
+        ],
+        "color": ""
+    },
+    "test_submenu2": {
+        "blocks": [
+            "submenu_test2"
+        ],
+        "color": ""
+    },
+    "test_submenu3": {
+        "blocks": [
+            "submenu_test3"
         ],
         "color": ""
     }
@@ -61,7 +66,8 @@ let context = {
     "window_title": "",
     "current_tab": 0,
     "toolbar_disabled": false,
-    "in_toolbar_submenu": false
+    "toolbar_submenu": "",
+    "focused_block": document.body
 }; const ruleset_div = document.getElementById("ruleset-maker");
 const exit_button = document.getElementById("rm_exit_button");
 const window_title_text = document.getElementById("rm_title_text");
@@ -82,8 +88,9 @@ const on_close_ruleset_div = () => {
     context.is_open = true;
 }; const on_open_tab = (tab) => {
     clear_toolbar_blocks();
-    context.in_toolbar_submenu = false;
+    context.toolbar_submenu = "";
     toolbar_div.style.backgroundColor = ""
+    context.focused_block.classList.remove("focused");
     switch(tab) {
         case 0: {
             set_toolbar_visible(true);
@@ -93,9 +100,7 @@ const on_close_ruleset_div = () => {
             return;
         }
         case 1: {
-            set_toolbar_visible(true);
-            create_block_on_toolbar("test4");
-            create_block_on_toolbar("test5");
+            set_toolbar_visible(false);
             return;
         }
         case 2: {
@@ -107,7 +112,7 @@ const on_close_ruleset_div = () => {
             return;
         }
         case 4: {
-            set_toolbar_visible(true);
+            set_toolbar_visible(false);
             return;
         }
     }
@@ -134,17 +139,21 @@ const set_toolbar_visible = (state) => {
     clear_toolbar_blocks();
     toolbar_div.style.backgroundColor = menu.color || ""
     menu.blocks.forEach((b) => {create_block_on_toolbar(b)});
-    context.in_toolbar_submenu = true;
+    context.toolbar_submenu = menuid;
 }
 
 // WORKSPACE
 const create_block_in_workspace = (id) => {
-    blocks[id].onEnterWorkspace();
     let ele = document.createElement("div");
     ele.textContent = blocks[id]["name"];
     ele.style.backgroundColor = blocks[id]["color"] || "";
     ele.addEventListener("click", () => {
-        if(!context.in_toolbar_submenu) blocks[id].onClick();
+        if(context.toolbar_submenu != blocks[id].menu) {
+            context.focused_block.classList.remove("focused");
+            ele.classList.add("focused");
+            context.focused_block = ele;
+            open_submenu(blocks[id].menu);
+        }
         else on_open_tab(context.current_tab);
     });
     ele.classList.add("unselectable");
