@@ -20,7 +20,7 @@ const ad_positions = {
 
 const createAd = (pos) => {
     let ad = document.createElement("div");
-    ad.style.display = "block"; ad.style.position = "absolute"; ad.style.backgroundSize = "contain"; ad.style.backgroundRepeat = "no-repeat";
+    ad.style.position = "absolute"; ad.style.backgroundSize = "contain"; ad.style.backgroundRepeat = "no-repeat"; //ad.classList.add("hide");
     ad.style.top    = `${pos[0]}vw`; 
     ad.style.left   = `${pos[1]}vw`; 
     ad.style.width  = `${pos[2]}vw`; 
