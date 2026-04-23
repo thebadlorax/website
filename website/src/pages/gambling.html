@@ -76,7 +76,9 @@
 </div>
 
 <div id="ruleset-maker" class="ruleset-container" style="display: none;">
-  <div id="rm_toolbar_div"   style=" position: absolute; width: 30%; height: 95%; bottom: 0%; z-index: 2; border-right: 0.2vw solid #353536;       "></div>
+  <div id="rm_toolbar_div" class="disabled-section"  style=" position: absolute; width: 30%; height: 95%; bottom: 0%; z-index: 2; border-right: 0.2vw solid #353536;       ">
+    <div id="rm_toolbar_blocks_div" class="toolbar-item-container"></div>
+  </div>
   <div id="rm_title_div"     style=" position: absolute; width: 100%; height: 5%; top: 0%; z-index: 3; border-bottom: 0.2vw solid #353536;         ">
     <div class="titlebar-container">
       <button id="rm_titlebar_button0" class="input">timeline</button>
@@ -86,11 +88,13 @@
       <div id="rm_titlebar_div" class="unselectable" style="width: 40%; max-width: 40%; text-wrap: wrap; height: 100%; display: flex; justify-content: center; align-items: center;">
         <p id="rm_title_text"></p>
       </div>
-      <button id="rm_titlebar_button4" class="input" style="margin-left: auto; border-right: none; border-left: 0.2vw solid #353536;">save</button>
+      <button id="rm_titlebar_button4" class="input" style="margin-left: auto; border-right: none; border-left: 0.2vw solid #353536;">test / save</button>
       <button id="rm_exit_button" class="input" style="margin-left: auto; border-right: none; border-left: 0.2vw solid #353536;">exit</button>
     </div>
   </div>
-  <div id="rm_workspace_div" style=" position: absolute; width: 65%; height: 90%; left: 32.5%; top: 7.5%; z-index: 3; border: 0.2vw solid #353536; "></div>
+  <div id="rm_workspace_div" style=" position: absolute; width: 65%; height: 90%; left: 32.5%; top: 7.5%; z-index: 3; border: 0.2vw solid #353536; ">
+    <div id="rm_workspace_blocks_div" class="workspace-item-container"></div>
+  </div>
 </div>
 
 <p class="basic-text unselectable" style="position: absolute; top: 100vw; color: rgb(162, 30, 30); font-size: 6vw; left: 40vw">Work In Progress</p>
