@@ -1,0 +1,82 @@
+/*
+ * author thebadlorax
+ * created on 23-04-2026-17h-31m
+ * github: https://github.com/thebadlorax
+ * copyright 2026
+*/
+
+.ruleset-container {
+    position: fixed; 
+    width: 94%; 
+    height: 94%; 
+    background-color: #4e4e4e;
+    top: 3%; 
+    left: 3%;
+    z-index: 10;
+    border: .3vw solid #353536
+}
+
+.input {
+    font-family: "Jersey 20";
+    color: black;
+    background-color: #4e4e4e;
+    outline: none;
+    border: .2vw solid #353536;
+    font-size: 1.5vw;
+}
+
+.input::placeholder {
+    font-size: .8vw;
+}
+
+.no-scroll {
+    overflow: hidden;
+    height: 100%;
+  }
+
+.unselectable {
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none;   /* Chrome, Safari, Opera */
+    -khtml-user-select: none;    /* Konqueror */
+    -moz-user-select: none;      /* Firefox */
+    -ms-user-select: none;       /* Internet Explorer/Edge */
+    user-select: none;           /* Standard syntax */
+}
+
+.titlebar-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.titlebar-container button:not(.focused-titlebar-button) {
+    cursor: pointer;
+    height: 100%;
+    width: 10%;
+    background: none;
+    outline: none;
+    border: none;
+    border-right: 0.2vw solid #353536;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.titlebar-container button:not(.focused-titlebar-button):hover {
+    background-color: #3c3c3c;
+}
+
+.titlebar-container button.focused-titlebar-button {
+    cursor: default;
+    height: 100%;
+    width: 10%;
+    background-color: #424242;
+    outline: none;
+    border: none;
+    border-right: 0.2vw solid #353536;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

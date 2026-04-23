@@ -64,6 +64,16 @@ async function updateManagementValues() {
         owned_folders_parent_text.style.display = "none"
     }
    
+    await fetch(getApiLink("/admin/verify"), {
+        method: "POST",
+        body: JSON.stringify({"name": saved_data["account"]["name"], "pass": saved_data["account"]["pass"]})
+    }).then(r => {
+        if(r.status == 200) {
+            manage_text.style.color = "darkred";
+        } else {
+            manage_text.style.color = "black"
+        }
+    })
 }
 
 export async function openMenu() {

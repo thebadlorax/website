@@ -37,18 +37,23 @@ const reset_feedback = async () => {
     let title = document.createElement("p");
     title.textContent = "feedback";
     title.style.fontSize = "3vw";
+    title.style.width = "25vw";
     title.style.textDecoration = "underline";
     feedback.appendChild(title);
-    
+
     let fb = await fetch(getApiLink("/feedback/fetch"), { method: "GET" }); fb = await fb.json(); fb = fb.feedback;
     fb.forEach(f => {
         let ele = document.createElement("p");
-        ele.textContent = f;
+        ele.textContent = `- ${f}`;
         ele.style.cursor = "pointer";
+        ele.style.textWrap = "wrap";
+        ele.style.width = "25vw";
         ele.addEventListener("click", async () => {
-            await fetch(getApiLink("/admin/deleteFeedback"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "feedback": ele.textContent})}).then((e) => {
+            await fetch(getApiLink("/admin/deleteFeedback"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "feedback": ele.textContent.replace("- ", "")})}).then((e) => {
                 if(e.status == 200) {
                     reset_feedback();
+                } else if(e.status == 400) {
+                    alert("invalid feedback?")
                 } else {
                     alert("not authorized");
                     window.location.href = "/";

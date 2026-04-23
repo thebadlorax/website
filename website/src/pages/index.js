@@ -90,6 +90,8 @@ fetch(getApiLink("/news"), { method: "GET" })
 
 document.getElementById("sfb").addEventListener("click", async () => {
     let feedback = document.getElementById("fb").value;
+    if(!feedback) return;
+    if(feedback.trim() == "") return;
     await fetch(getApiLink("/feedback/give"), { method: "POST", body: JSON.stringify({"feedback": feedback})});
     alert("feedback sent :)");
     document.getElementById("fb").value = "";

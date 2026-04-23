@@ -102,7 +102,7 @@ body {
     transform: scale(0.8) rotate(30deg);
     top: 65%; 
     left: -25%;
-    z-index: 999;
+    z-index: 5;
     width: 50vw;
     height: 50vw;
     transition: transform 0.3s ease-in-out; 
@@ -174,4 +174,17 @@ body {
 .survey:hover {
     font-size: 1.55vw;
     cursor: pointer;
+}
+
+.input {
+    font-family: "Jersey 20";
+    color: black;
+    background-color: #4e4e4e;
+    outline: none;
+    border: .2vw solid #353536;
+    font-size: 1.5vw;
+}
+
+.input::placeholder {
+    font-size: .8vw;
 }
