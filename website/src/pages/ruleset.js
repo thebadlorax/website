@@ -156,12 +156,13 @@ const create_block_in_workspace = (id) => {
     ele.style.backgroundColor = blocks[id]["color"] || "";
     ele.addEventListener("click", () => {
         if(context.focused_block != ele) {
-            context.focused_block.classList.remove("focused");
-            ele.classList.add("focused");
-            context.focused_block = ele;
-            open_submenu(blocks[id].menu);
+            focus_block_in_workspace(ele);
         }
         else on_open_tab(context.current_tab);
+    });
+    ele.addEventListener("contextmenu", () => {
+        if(blocks[id].menu == context.toolbar_submenu) on_open_tab(context.current_tab);
+        ele.remove();
     });
     ele.classList.add("unselectable");
     ele.dataset.is_block_in_workspace = true;
@@ -170,12 +171,14 @@ const create_block_in_workspace = (id) => {
     ele.dataset.index = workspace_blocks_div.childElementCount;
     workspace_blocks_div.appendChild(ele)
 }; const hide_timeline = () => { workspace_blocks_div.style.display = "none"; };
-const delete_block_in_workspace = (ele) => {
-    if(blocks[ele.dataset.id].menu == context.toolbar_submenu) on_open_tab(context.current_tab);
-    ele.remove();
-}; const set_workspace_visiblity = (state) => {
+const set_workspace_visiblity = (state) => {
     if(!state) workspace_div.classList.add("disabled-section")
     else workspace_div.classList.remove("disabled-section")
+}; const focus_block_in_workspace = (ele) => {
+    context.focused_block.classList.remove("focused");
+    ele.classList.add("focused");
+    context.focused_block = ele;
+    open_submenu(blocks[ele.dataset.id].menu);
 }
 
 const change_window_title = (title) => {
@@ -197,12 +200,22 @@ document.addEventListener("keydown", (e) => { // temporary
     if(e.key == "Escape") {
         if(context.is_open) on_close_ruleset_div();
         else on_open_ruleset_div();
-    }
+    } else if(e.key == "ArrowUp") {
+        if(!context.focused_block.dataset.is_block_in_workspace) return;
+        if(context.focused_block.dataset.index == 0) return;
+        focus_block_in_workspace(workspace_blocks_div.children[context.focused_block.dataset.index-1]);
+    } else if(e.key == "ArrowDown") {
+        if(!context.focused_block.dataset.is_block_in_workspace) return;
+        if(context.focused_block.dataset.index == workspace_blocks_div.children.length-1) return;
+        focus_block_in_workspace(workspace_blocks_div.children[parseInt(context.focused_block.dataset.index)+1]);
+    } else if(e.key == "ArrowLeft") {
+        if(!context.focused_block.dataset.is_block_in_workspace) return;
+        on_open_tab(context.current_tab);
+    } 
 }); document.addEventListener("contextmenu", (e) => { 
     if(!context.is_open) return;
 
     e.preventDefault();
-    if(e.target.dataset.is_block_in_workspace) delete_block_in_workspace(e.target);
 }); document.addEventListener("click", (e) => {
 })
 
