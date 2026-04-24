@@ -67,7 +67,7 @@ let context = {
     "current_tab": 0,
     "toolbar_disabled": false,
     "toolbar_submenu": "",
-    "focused_block": document.body
+    "focused_block": document.body,
 }; const ruleset_div = document.getElementById("ruleset-maker");
 const exit_button = document.getElementById("rm_exit_button");
 const window_title_text = document.getElementById("rm_title_text");
@@ -88,12 +88,15 @@ const on_close_ruleset_div = () => {
     context.is_open = true;
 }; const on_open_tab = (tab) => {
     clear_toolbar_blocks();
-    context.toolbar_submenu = "";
+    hide_timeline();
     toolbar_div.style.backgroundColor = ""
     context.focused_block.classList.remove("focused");
+    context.focused_block = document.body;
     switch(tab) {
         case 0: {
             set_toolbar_visible(true);
+            set_workspace_visiblity(true);
+            workspace_blocks_div.style.display = "block";
             create_block_on_toolbar("test1");
             create_block_on_toolbar("test2");
             create_block_on_toolbar("test3");
@@ -101,18 +104,22 @@ const on_close_ruleset_div = () => {
         }
         case 1: {
             set_toolbar_visible(false);
+            set_workspace_visiblity(false);
             return;
         }
         case 2: {
             set_toolbar_visible(false);
+            set_workspace_visiblity(false);
             return;
         }
         case 3: {
             set_toolbar_visible(false);
+            set_workspace_visiblity(false);
             return;
         }
         case 4: {
             set_toolbar_visible(false);
+            set_workspace_visiblity(false);
             return;
         }
     }
@@ -148,7 +155,7 @@ const create_block_in_workspace = (id) => {
     ele.textContent = blocks[id]["name"];
     ele.style.backgroundColor = blocks[id]["color"] || "";
     ele.addEventListener("click", () => {
-        if(context.toolbar_submenu != blocks[id].menu) {
+        if(context.focused_block != ele) {
             context.focused_block.classList.remove("focused");
             ele.classList.add("focused");
             context.focused_block = ele;
@@ -162,7 +169,14 @@ const create_block_in_workspace = (id) => {
     ele.id = `rm_workspace_block$${id}`;
     ele.dataset.index = workspace_blocks_div.childElementCount;
     workspace_blocks_div.appendChild(ele)
-};
+}; const hide_timeline = () => { workspace_blocks_div.style.display = "none"; };
+const delete_block_in_workspace = (ele) => {
+    if(blocks[ele.dataset.id].menu == context.toolbar_submenu) on_open_tab(context.current_tab);
+    ele.remove();
+}; const set_workspace_visiblity = (state) => {
+    if(!state) workspace_div.classList.add("disabled-section")
+    else workspace_div.classList.remove("disabled-section")
+}
 
 const change_window_title = (title) => {
     context.window_title = title;
@@ -188,7 +202,7 @@ document.addEventListener("keydown", (e) => { // temporary
     if(!context.is_open) return;
 
     e.preventDefault();
-    if(e.target.dataset.is_block_in_workspace) e.target.remove();
+    if(e.target.dataset.is_block_in_workspace) delete_block_in_workspace(e.target);
 }); document.addEventListener("click", (e) => {
 })
 
