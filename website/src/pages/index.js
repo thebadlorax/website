@@ -97,6 +97,63 @@ document.getElementById("sfb").addEventListener("click", async () => {
     document.getElementById("fb").value = "";
 })
 
+
+let clicks = 0;
+let last_click_time = 0;
+let in_cool_mode = false;
+document.getElementById("banner").addEventListener("click", () => {
+    if(in_cool_mode) return;
+    clicks += 1;
+    if(clicks > 5) {
+        cool_mode();
+        in_cool_mode = true;
+    }
+})
+setInterval(() => {
+    if(Date.now() - last_click_time > 3) clicks = 0;
+}, 1000);
+
+function create_cool_mode_image(src, x, y, size) {
+    let img = document.createElement("img");
+    img.src = src;
+    img.style.position = "absolute";
+    img.style.top = y;
+    img.style.left = x;
+    img.style.width = size;
+    document.getElementById("main-container").appendChild(img);
+}
+
+function cool_mode() {
+    create_cool_mode_image("../res/wooper.jpg", "40vw", "45vw", "10vw");
+    create_cool_mode_image("../res//meowl_cursor.png", "20vw", "20vw", "10vw");
+
+    document.getElementById("banner").src = "../res/transparent_banner_pride.png"
+
+    let song = new Audio("../res/cool_music.mp3");
+    song.volume = 0.2;
+    song.loop = true;
+    song.play();
+
+    const html = [
+        "woah everything is strange now", "what did you do?", 
+        "please someone get the song out of my head", "meowl", 
+        "there's no way to turn it off?!", "HELPHELPHELP", 
+        "wooper", "wattesigma", "gomen gomen", "esaesaesa",
+        "puts leg up", "don't climb mountains", "how'd you find this anyways",
+        "the secret passcode is: ", "what were you expecting bro",
+        "stop reading the news", "it's fake anyways"].map(item => `
+        <span class="item">${item}</span>
+        <span class="dot">•</span>
+    `).join('');
+
+    track.innerHTML = `
+        <div class="ticker-content">${html}</div>
+        <div class="ticker-content">${html}</div>
+    `;
+}   
+
+
+
 await update_stats(false);
 setInterval(() => {
     update_stats(true)

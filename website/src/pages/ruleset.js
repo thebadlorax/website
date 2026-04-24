@@ -400,18 +400,7 @@ document.addEventListener("keydown", (e) => { // temporary
     if(e.key == "Escape") {
         if(context.is_open) on_close_ruleset_div();
         else on_open_ruleset_div();
-    } else if(e.key == "ArrowUp") {
-        if(!context.focused_block.dataset.is_block_in_workspace) return;
-        if(context.focused_block.dataset.index == 0) return;
-        focus_block_in_workspace(workspace_blocks_div.children[context.focused_block.dataset.index-1]);
-    } else if(e.key == "ArrowDown") {
-        if(!context.focused_block.dataset.is_block_in_workspace) return;
-        if(context.focused_block.dataset.index == workspace_blocks_div.children.length-1) return;
-        focus_block_in_workspace(workspace_blocks_div.children[parseInt(context.focused_block.dataset.index)+1]);
-    } else if(e.key == "ArrowLeft") {
-        if(!context.focused_block.dataset.is_block_in_workspace) return;
-        on_open_tab(context.current_tab);
-    } 
+    }
 }); document.addEventListener("contextmenu", (e) => { 
     if(!context.is_open) return;
 
