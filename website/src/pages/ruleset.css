@@ -79,6 +79,8 @@
     flex-direction: column;
     align-items: center;
     margin-top: 2.5%;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .toolbar-item-container div {
@@ -86,8 +88,8 @@
     border: 0.2vw solid #353536;
     width: 95%;
     height: 5%;
-    margin-top: 2.5%;
-    margin-bottom: 2.5%;
+    margin-top: .5%;
+    margin-bottom: .5%;
     padding-left: 1%;
     display: flex;
     align-items: center;
@@ -119,6 +121,8 @@
     align-items: left;
     margin-left: 1%;
     margin-top: 1%;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .workspace-item-container div {

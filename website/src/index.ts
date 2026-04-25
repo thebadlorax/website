@@ -657,7 +657,7 @@ const server = Bun.serve({
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let json = await req.json(); 
             let fb = await db.fetch("feedback") || new Array();
-            fb.push(json.feedback);
+            fb.push(json.feedback.slice(0, 250));
             await db.modify("feedback", fb);
             return corsResponse(null, { status: 200 });
           }

@@ -53,7 +53,7 @@
                 </div>
                 <div class="small-item unselectable" id="recent-chats">
                     feedback
-                    <textarea id="fb" maxlength="100" class="input" placeholder="write your feedback here" style="position: absolute; top: 37.5vw; right: 8.5vw; width: 11vw; height: 4vw; min-height: 4vw; resize: vertical; max-height: 9vw; z-index: 2; font-size: 1vw;"></textarea>
+                    <textarea id="fb" maxlength="250" class="input" placeholder="write your feedback here" style="position: absolute; top: 37.5vw; right: 8.5vw; width: 11vw; height: 4vw; min-height: 4vw; resize: vertical; max-height: 9vw; z-index: 2; font-size: 1vw;"></textarea>
                     <button  id="sfb" class="input" style="position: absolute; top: 47.5vw; right: 11.5vw; z-index: 1; width: 5vw; font-size: 1.5vw; cursor: pointer;">submit</button>
                 </div>
                 <div class="small-item unselectable cursor" id="stats">
@@ -66,7 +66,7 @@
             </div>
         </div>
     </div>
-    <p class="basic-link unselectable" id="account-button" style="position: absolute; left: 75%; top: 11%; font-size: 2vw;">Account Management</p>
+    <p class="basic-link unselectable" id="account-button" style="position: absolute; left: 87vw; top: 11%; font-size: 2vw;">Settings</p>
     <div id="account-menu" style="display: none;">
         <div id="sign-in">
             <p class="basic-text unselectable" style="position: absolute; left: 40%; top: 50%; font-size: 6vw;">Sign In</p>
@@ -77,21 +77,31 @@
             <p class="basic-link unselectable" id="create-account-button" style="display: none; position: absolute; left: 54%; top: 95%; font-size: 2vw;">Create Account</p>
         </div>
         <div id="account-management">
-            <p class="basic-text unselectable" id="mng-txt" style="position: absolute; left: 30%; top: 30%; font-size: 6vw;">Manage Account</p>
-            <input class="input" id="new-name" placeholder="" style="position: absolute; top: 60%; left: 25%; width: 30vw; height: 1.5vw;"></input>
-            <p class="basic-text unselectable" style="position: absolute; left: 22.5%; top: 55%; font-size: 2vw;">Username</p>
-            <input class="input" id="new-pass" placeholder="" style="position: absolute; top: 70%; left: 25%; width: 30vw; height: 1.5vw;"></input>
-            <p class="basic-text unselectable" style="position: absolute; left: 22.5%; top: 66%; font-size: 2vw;">Password</p>
-            <p class="basic-link unselectable" id="sign-out-button" style="position: absolute; left: 35%; top: 95%; font-size: 3vw;">Sign Out</p>
-            <p class="basic-link unselectable" id="update-button" style="position: absolute; left: 55%; top: 95%; font-size: 3vw;">Update</p>
-            <p class="basic-link unselectable" id="delete-button" style="position: absolute; left: 45%; top: 145%; font-size: 3vw; color: darkred;">Delete Account</p>
-            <p class="basic-text unselectable" id="points-acc"style="position: absolute; left: 55%; top: 55%; font-size: 2.25vw;">Points: x</p>
-            <p class="basic-text unselectable" id="display-name-acc"style="position: absolute; left: 55%; top: 65%; font-size: 2.25vw;">xxx</p>
-            <p class="basic-text unselectable" id="timestamp-acc"style="position: absolute; left: 55%; top: 75%; font-size: 2.25vw;">Created: x</p>
-            <p class="basic-text unselectable" id="unq-visitors" style="position: absolute; left: 55%; top: 85%; font-size: 2.25vw;">x unique visitors when you joined</p>
-            <p class="basic-text unselectable" id="owned-folders-parent" style="display: none; position: absolute; left: 15%; top: 80%; font-size: 2.25vw;">Owned folders:</p>
-            <p class="basic-text unselectable" id="owned-folders-acc" style="display: none; position: absolute; left: 15%; top: 85%; font-size: 2.25vw;">x, x, x</p>
-            <p class="basic-text unselectable" id="id-acc"style="display: none; position: absolute; left: 20%; top: 20%; font-size: 2.5vw;">ID: x</p>
+            <p class="basic-link unselectable" id="ws1" style="position: absolute; left: 8%; top: 11%; font-size: 2vw;">Settings</p>
+            <div id="am-main">
+                <p class="basic-text unselectable" id="mng-txt" style="position: absolute; left: 30%; top: 30%; font-size: 6vw;">Manage Account</p>
+                <input class="input" id="new-name" placeholder="" style="position: absolute; top: 60%; left: 25%; width: 30vw; height: 1.5vw;"></input>
+                <p class="basic-text unselectable" style="position: absolute; left: 22.5%; top: 55%; font-size: 2vw;">Username</p>
+                <input class="input" id="new-pass" placeholder="" style="position: absolute; top: 70%; left: 25%; width: 30vw; height: 1.5vw;"></input>
+                <p class="basic-text unselectable" style="position: absolute; left: 22.5%; top: 66%; font-size: 2vw;">Password</p>
+                <p class="basic-link unselectable" id="sign-out-button" style="position: absolute; left: 35%; top: 95%; font-size: 3vw;">Sign Out</p>
+                <p class="basic-link unselectable" id="update-button" style="position: absolute; left: 55%; top: 95%; font-size: 3vw;">Update</p>
+                <p class="basic-link unselectable" id="delete-button" style="position: absolute; left: 45%; top: 145%; font-size: 3vw; color: darkred;">Delete Account</p>
+                <p class="basic-text unselectable" id="points-acc"style="position: absolute; left: 55%; top: 55%; font-size: 2.25vw;">Points: x</p>
+                <p class="basic-text unselectable" id="display-name-acc"style="position: absolute; left: 55%; top: 65%; font-size: 2.25vw;">xxx</p>
+                <p class="basic-text unselectable" id="timestamp-acc"style="position: absolute; left: 55%; top: 75%; font-size: 2.25vw;">Created: x</p>
+                <p class="basic-text unselectable" id="unq-visitors" style="position: absolute; left: 55%; top: 85%; font-size: 2.25vw;">x unique visitors when you joined</p>
+                <p class="basic-text unselectable" id="owned-folders-parent" style="display: none; position: absolute; left: 15%; top: 80%; font-size: 2.25vw;">Owned folders:</p>
+                <p class="basic-text unselectable" id="owned-folders-acc" style="display: none; position: absolute; left: 15%; top: 85%; font-size: 2.25vw;">x, x, x</p>
+                <p class="basic-text unselectable" id="id-acc"style="display: none; position: absolute; left: 20%; top: 20%; font-size: 2.5vw;">ID: x</p>
+                
+            </div>
+            <div id="am-settings">
+                <p class="basic-text unselectable" style="position: absolute; left: 30%; top: 30%; font-size: 6vw;">Website Settings</p>
+
+                <p class="basic-text unselectable" id="ticker-speed-text" style="position: absolute; top: 29vw; left: 17.5vw;">News Speed: x</p>
+                <input type="range" min="20" max="250" class="input" id="ticker-speed" style="position: absolute; top: 30vw; left: 20vw;">
+            </div>
         </div>
     </div>
   </body>

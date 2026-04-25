@@ -24,6 +24,17 @@ export function* range(start, end, step = 1) {
     }
 }
 
+export function preloadImages(imageUrls) {
+    const promises = imageUrls.map(src => new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => { resolve(img); }
+        img.onerror = () => reject(src); 
+        img.src = src;
+    }));
+
+    return Promise.all(promises);
+}
+
 export async function updateId() {
     let key_data = await fetch(getApiLink("/stats"), { method: "GET" });
     key_data = await key_data.json();

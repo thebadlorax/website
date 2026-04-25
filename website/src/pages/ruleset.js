@@ -377,8 +377,13 @@ const get_save = async () => {
 document.getElementById("rm_titlebar_button4").addEventListener("click", async () => {
     await display_save();
 }); document.getElementById("rm_titlebar_button4").addEventListener("contextmenu", async () => {
-    await update_save_from_encoded(await navigator.clipboard.readText());
-    alert("imported save!")
+    
+    try {
+        await update_save_from_encoded(await navigator.clipboard.readText());
+        alert("imported save!")
+    } catch {
+        alert("invalid save")
+    }
 });
 
 const change_window_title = (title) => {

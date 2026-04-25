@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { getApiLink, getSettingOnAccount, changeSettingOnAccount, refreshAccount } from "./common.js";
+import { getApiLink, getSettingOnAccount, changeSettingOnAccount, refreshAccount, preloadImages } from "./common.js";
 
 let color_picker = document.getElementById("color-picker");
 let name_picker = document.getElementById("name-picker");
@@ -59,8 +59,8 @@ export class ServersideDeck {
 }
 
 function showSurveyMenu() {
-    document.getElementById("receipt-bg").src = "../res/gambling_balance_survey.png"
-    document.getElementById("survey").classList.add("hide")
+    document.getElementById("receipt-bg").src = `../res/gambling_balance_survey.png`
+    document.getElementById("survey").classList.add("hide");
     document.getElementById("points").classList.add("hide");
     document.getElementById("survey-div").classList.remove("hide")
     document.getElementById("receipt-snail-racing").style.display = "none";
@@ -114,7 +114,9 @@ name_picker.value = name;
 name_picker.addEventListener("input", () => {
     name = name_picker.value;
     changeSettingOnAccount("display_name", name);
-})
+});
+
+preloadImages(["/res/gambling_balance_survey.png"])
 
 document.getElementById("receipt").addEventListener("mouseleave", () => { // hide survey menu after 1sec of being put away
     setTimeout(() => {

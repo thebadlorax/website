@@ -20,6 +20,7 @@ type Account = {
 type UserSettings = {
     display_name: string;
     color: string;
+    news_speed: number;
 }
 
 type Statistics = {
@@ -44,7 +45,8 @@ export const userToJSON = (user: User) => {
         },
         "settings": {
             "display_name": user.settings.display_name,
-            "color": user.settings.color
+            "color": user.settings.color,
+            "news_speed": user.settings.news_speed
         },
         "statistics": {
             "points": user.statistics.points,
@@ -64,7 +66,8 @@ export const JSONToUser = (json: any) => {
         },
         settings: {
             display_name: json.settings.display_name,
-            color: json.settings.color
+            color: json.settings.color,
+            news_speed: json.settings.news_speed
         },
         statistics: {
             points: json.statistics.points,
@@ -86,7 +89,8 @@ const generateUser = (name: string, pass: string, uniques: number, index: number
         },
         settings: {
             display_name: name,
-            color: "#000000"
+            color: "#000000",
+            news_speed: 100,
         },
         statistics: {
             points: 100,
@@ -269,6 +273,7 @@ export class AuthorizationWizard {
         }
         old.settings.display_name = updated.settings.display_name;
         old.settings.color = updated.settings.color;
+        old.settings.news_speed = updated.settings.news_speed || 100;
         json[updated.account.name] = userToJSON(old);
         setTimeout(async () => { await this.db.modify("auth", {"users": json}); }, 500);
         return updated;

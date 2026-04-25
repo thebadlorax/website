@@ -6,6 +6,7 @@
 */
 
 import { getApiLink } from "./common.js";
+import { handle_ticker_speed_change } from "./index.js";
 
 const account_button = document.getElementById("account-button");
 const sign_in_button = document.getElementById("sign-in-button");
@@ -35,6 +36,7 @@ let menu_is_open = false;
 
 async function updateManagementValues() {
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
+    if(!saved_data) return;
     let req = await fetch(getApiLink("/user/account/fetch"), {
         method: "POST",
         body: JSON.stringify({"name": saved_data["account"]["name"], "pass": saved_data["account"]["pass"]})
@@ -52,6 +54,8 @@ async function updateManagementValues() {
     display_name_text.style.color = json["settings"]["color"]
     display_name_text.textContent = json["settings"]["display_name"]
     unique_text.textContent = `${json["statistics"]["uniquesOnCreation"]} unique visitors when you joined`
+    document.getElementById("ticker-speed").value = json["settings"]["news_speed"] || 100;
+    handle_ticker_speed_change();
     let owned_folders = json["ownedFolders"].join(", ");
     if(owned_folders != "") {
         owned_folders_text.textContent = `${owned_folders}`;
@@ -78,6 +82,8 @@ async function updateManagementValues() {
 
 export async function openMenu() {
     let user = window.localStorage.getItem("user");
+    main_am_div.style.display = "block";
+    settings_am_div.style.display = "none";
     let menu_to_open = 0
     if(user !== null) {
         try {
@@ -110,9 +116,11 @@ export async function openMenu() {
 function hideMenu() {
     main_container.style.display = "flex"
     account_menu.style.display = "none"
-    account_button.style.left = "75vw"
-    account_button.textContent = "Account Management"
+    account_button.style.left = "87vw"
+    account_button.textContent = "Settings"
     menu_is_open = false;
+    settings_open = false;
+    website_settings_open_button.textContent = "Settings"
 }
 
 async function handleSignIn() {
@@ -177,7 +185,7 @@ function sanitize(str) {
     return n;
 }
 
-async function handle_updating() {
+export async function handle_updating() {
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
     let name = saved_data["account"]["name"];
     let pass = saved_data["account"]["pass"];
@@ -304,3 +312,24 @@ const signInVisibilityHandler = () => {
 
 pass_input.addEventListener("input", signInVisibilityHandler)
 name_input.addEventListener("input", signInVisibilityHandler)
+
+let settings_open = false;
+const website_settings_open_button = document.getElementById("ws1");
+website_settings_open_button.addEventListener("click", () => {
+    if(settings_open) {
+        main_am_div.style.display = "block";
+        settings_am_div.style.display = "none";
+        website_settings_open_button.textContent = "Settings"
+    } else {
+        main_am_div.style.display = "none";
+        settings_am_div.style.display = "block";
+        website_settings_open_button.textContent = "Account"
+    };
+    settings_open = !settings_open;
+})
+const main_am_div = document.getElementById("am-main");
+const settings_am_div = document.getElementById("am-settings");
+
+try {
+    updateManagementValues();
+} catch {}

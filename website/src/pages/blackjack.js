@@ -256,4 +256,4 @@ document.getElementById("reciept-blackjack-stand").addEventListener("click", () 
 
 setInterval(() => {
     refreshPoints();
-}, 1000);
+}, 2000);

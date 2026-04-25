@@ -1,5 +1,5 @@
 const { getCookie, setCookie, formatSeconds, getApiLink, formatNumber } = await import('./common.js');
-import { openMenu } from './account.js';
+import { openMenu, handle_updating } from './account.js';
 
 const uptime_text = document.getElementById("uptime");
 const visitor_text = document.getElementById("visitors");
@@ -73,10 +73,10 @@ async function update_stats(do_fetch) {
 
 
 const track = document.querySelector('.ticker-track');
+let sd = JSON.parse(window.localStorage.getItem("user"));
+let news_speed = sd ? sd.settings.news_speed : 100;
 
-fetch(getApiLink("/news"), { method: "GET" })
-.then(res => res.json())
-.then(items => {
+function updateNews(items) {
     const html = items.map(item => `
         <span class="item">${item}</span>
         <span class="dot">•</span>
@@ -85,14 +85,53 @@ fetch(getApiLink("/news"), { method: "GET" })
     track.innerHTML = `
         <div class="ticker-content">${html}</div>
         <div class="ticker-content">${html}</div>
+        <div class="ticker-content">${html}</div>
+        <div class="ticker-content">${html}</div>
     `;
+
+    changeNewsSpeed(news_speed);
+
+    const first = track.children[0];
+
+    let pos = 0;
+    let lastTime = null;
+
+    function animate(time) {
+    if (!lastTime) lastTime = time;
+    const delta = (time - lastTime) / 1000;
+
+    pos -= news_speed * delta;
+
+    const loopWidth = first.offsetWidth;
+
+    if (Math.abs(pos) >= loopWidth) {
+        pos += loopWidth; // NOT reset to 0 → prevents jump
+    }
+
+    track.style.transform = `translateX(${pos}px)`;
+
+    lastTime = time;
+    requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+}
+
+export const changeNewsSpeed = (speed) => {
+    news_speed = speed;
+}
+
+fetch(getApiLink("/news"), { method: "GET" })
+.then(res => res.json())
+.then(items => {
+    updateNews(items);
 });
 
 document.getElementById("sfb").addEventListener("click", async () => {
     let feedback = document.getElementById("fb").value;
     if(!feedback) return;
     if(feedback.trim() == "") return;
-    await fetch(getApiLink("/feedback/give"), { method: "POST", body: JSON.stringify({"feedback": feedback})});
+    await fetch(getApiLink("/feedback/give"), { method: "POST", body: JSON.stringify({"feedback": feedback.slice(0, 250)})});
     alert("feedback sent :)");
     document.getElementById("fb").value = "";
 })
@@ -134,24 +173,55 @@ function cool_mode() {
     song.loop = true;
     song.play();
 
-    const html = [
-        "woah everything is strange now", "what did you do?", 
-        "please someone get the song out of my head", "meowl", 
-        "there's no way to turn it off?!", "HELPHELPHELP", 
-        "wooper", "wattesigma", "gomen gomen", "esaesaesa",
-        "puts leg up", "don't climb mountains", "how'd you find this anyways",
-        "the secret passcode is: ", "what were you expecting bro",
-        "stop reading the news", "it's fake anyways"].map(item => `
-        <span class="item">${item}</span>
-        <span class="dot">•</span>
-    `).join('');
-
-    track.innerHTML = `
-        <div class="ticker-content">${html}</div>
-        <div class="ticker-content">${html}</div>
-    `;
+    updateNews(
+        [
+            "woah everything is strange now", "what did you do?", 
+            "please someone get the song out of my head", "meowl", 
+            "there's no way to turn it off?!", "HELPHELPHELP", 
+            "wooper", "wattesigma", "gomen gomen", "esaesaesa",
+            "puts leg up", "don't climb mountains", "how'd you find this anyways",
+            "the secret passcode is: ", "what were you expecting bro",
+            "stop reading the news", "it's fake anyways"
+        ]
+    );
 }   
 
+
+const ticker_speed_slider = document.getElementById("ticker-speed");
+const ticker_speed_text = document.getElementById("ticker-speed-text");
+let last_speed = news_speed;
+export const handle_ticker_speed_change = () => {
+    let nspeed = ticker_speed_slider.value;
+    let do_update = ticker_speed_slider.value != news_speed;
+    if(nspeed <= 20) {
+        ticker_speed_text.textContent = `News Speed: DISABLED`;
+        track.style.display = "none";
+    } else {
+        ticker_speed_text.textContent = `News Speed: ${nspeed}`;
+        if(track.style.display == "none") track.style.display = "flex";
+        changeNewsSpeed(nspeed);
+    };
+    if(do_update) {
+        
+    }
+};
+ticker_speed_slider.addEventListener("change", () => {
+    if(ticker_speed_slider.value != last_speed) {
+        let saved_data = JSON.parse(window.localStorage.getItem("user"));
+        saved_data.settings.news_speed = ticker_speed_slider.value;
+        fetch(getApiLink("/user/account/update"), {
+            method: "POST",
+            body: JSON.stringify({"name": saved_data.account.name, "pass": saved_data.account.pass, "updated": saved_data})
+        });
+        last_speed = ticker_speed_slider.value
+        window.localStorage.setItem("user", JSON.stringify(saved_data));
+    }
+})
+
+ticker_speed_slider.addEventListener("input", () => {
+    handle_ticker_speed_change();
+});
+handle_ticker_speed_change();
 
 
 await update_stats(false);

@@ -41,7 +41,6 @@ body {
 .ticker-track {
     display: flex;
     width: max-content;
-    animation: scroll 20s linear infinite;
 }
   
 .ticker-content {
@@ -57,11 +56,6 @@ body {
 .dot {
     padding-right: 12px; /* space after dot */
     opacity: 1;
-}
-  
-@keyframes scroll {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
 }
   
 .ticker:hover .ticker-track {
@@ -276,4 +270,43 @@ body {
 
 .input::placeholder {
     font-size: .8vw;
+}
+
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+    border: none;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+    background: #4e4e4e;
+    height: 8px;
+    border-radius: 4px;
+    border: 0.1vw solid black;
+}
+
+input[type="range"]::-moz-range-track {
+    background: #4e4e4e;
+    height: 8px;
+    border-radius: 4px;
+    border: 0.1vw solid black;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 20px;
+    width: 20px;
+    background: #353536;
+    border-radius: 50%;
+    margin-top: -6px;
+}
+ 
+input[type="range"]::-moz-range-thumb {
+    height: 20px;
+    width: 20px;
+    background: #353536;
+    border-radius: 50%;
+    border: none;
 }
