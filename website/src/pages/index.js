@@ -18,6 +18,12 @@ const ad_positions = {
     "btm": [83, 22, 60, 5]
 }
 
+async function getRepoStars(owner, repo) {
+    const response = await fetch(`http://api.github.com/repos/${owner}/${repo}`);
+    const data = await response.json();
+    return data.stargazers_count;
+}
+
 const createAd = (pos) => {
     let ad = document.createElement("div");
     ad.style.position = "absolute"; ad.style.backgroundSize = "contain"; ad.style.backgroundRepeat = "no-repeat"; //ad.classList.add("hide");
@@ -69,6 +75,9 @@ async function update_stats(do_fetch) {
         uptime_text.textContent = ``;
     }
     visitor_text.textContent = `Unique Visitors: ${formatNumber(data["visitor-count"])}`;
+    getRepoStars("thebadlorax", "website").then(star_count => {
+        document.getElementById("star_count").textContent = `Github Stars: ${star_count}`;
+    })
 }
 
 

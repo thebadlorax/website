@@ -30,6 +30,9 @@ document.getElementById("submit_cn").addEventListener("click", async () => {
         }
     });
 }); let news = await fetch(getApiLink("/news"), { method: "GET" }); news = await news.json(); news_input.value = news.join("\n");
+document.getElementById("main-text").addEventListener("click", () => {
+    window.location.href = `${location.protocol}//${location.host}/`
+})
 
 const feedback = document.getElementById("feedback");
 const reset_feedback = async () => {

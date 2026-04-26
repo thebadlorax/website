@@ -34,6 +34,34 @@ let password = ""
 pass_input.value = "";
 let menu_is_open = false;
 
+const change_site_based_on_is_admin = (data, force_false=false) => {
+    fetch(getApiLink("/admin/verify"), {
+        method: "POST",
+        body: JSON.stringify({"name": data["account"]["name"], "pass": data["account"]["pass"]})
+    }).then(r => {
+        if(r.status == 200 && !force_false) {
+            manage_text.style.color = "darkred";
+            document.getElementById("ws-text").style.color = "darkred";
+            document.getElementById("admin-link").style.display = "block";
+            document.getElementById("admin-link").addEventListener("click", () => {
+                window.location.href = `${location.protocol}//${location.host}/admin`
+            })
+        } else {
+            manage_text.style.color = "black"
+            document.getElementById("admin-link").style.display = "none";
+            document.getElementById("admin-link").addEventListener("click", () => {
+                alert("wtf r u doing bro");
+            })
+        }
+    })
+}
+
+let saved_data = JSON.parse(window.localStorage.getItem("user"));
+if(saved_data != undefined) {
+    change_site_based_on_is_admin(saved_data);
+}
+
+
 async function updateManagementValues() {
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
     if(!saved_data) return;
@@ -67,17 +95,7 @@ async function updateManagementValues() {
         owned_folders_text.style.display = "none"
         owned_folders_parent_text.style.display = "none"
     }
-   
-    await fetch(getApiLink("/admin/verify"), {
-        method: "POST",
-        body: JSON.stringify({"name": saved_data["account"]["name"], "pass": saved_data["account"]["pass"]})
-    }).then(r => {
-        if(r.status == 200) {
-            manage_text.style.color = "darkred";
-        } else {
-            manage_text.style.color = "black"
-        }
-    })
+    change_site_based_on_is_admin(saved_data);
 }
 
 export async function openMenu() {
@@ -176,6 +194,7 @@ account_button.addEventListener('click', async () => {
 sign_out_button.addEventListener("click", () => {
     window.localStorage.removeItem("user");
     password = "";
+    change_site_based_on_is_admin({"account": {"pass": "abc", "name": "abc"}}, true);
     openMenu();
 })
 
