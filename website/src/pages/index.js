@@ -19,7 +19,7 @@ const ad_positions = {
 }
 
 async function getRepoStars(owner, repo) {
-    const response = await fetch(`http://api.github.com/repos/${owner}/${repo}`);
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
     const data = await response.json();
     return data.stargazers_count;
 }

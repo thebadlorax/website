@@ -171,6 +171,14 @@ ws.addEventListener("open", () => {
     ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
 })
 
+const edits = document.querySelector('input');
+edits.addEventListener('paste', (e) => {
+    e.preventDefault();
+    console.log("sonion")
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
+  });
+
 const refreshPicker = (json) => {
     document.getElementById("chat-picker-list").replaceChildren();
     for(let x = 0; x < json.content.ids.length; x++) {
