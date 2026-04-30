@@ -174,7 +174,6 @@ ws.addEventListener("open", () => {
 const edits = document.querySelector('input');
 edits.addEventListener('paste', (e) => {
     e.preventDefault();
-    console.log("sonion")
     const text = (e.clipboardData || window.clipboardData).getData('text/plain');
     document.execCommand('insertText', false, text);
   });
@@ -216,9 +215,23 @@ const kaomojis = [
 
 const emojiRowHeight = 35;
 
+let msg_cooldown = 0;
+let last_msg_time = Date.now();
+const change_cooldown = (cooldown) => {
+    msg_cooldown = cooldown;
+    document.getElementById("cooldown-text").textContent = `${cooldown/1000}s`
+}
+change_cooldown(1000);
+
 msg_input.addEventListener("keydown", (event) => { 
     if (event.key === "Enter") {
         if(msg_input.value.trim() == "") return;
+
+        if(Date.now() - last_msg_time < msg_cooldown) return;
+        last_msg_time = Date.now();
+        document.getElementById("cooldown-text").style.color = "darkred";
+        setTimeout(() => { document.getElementById("cooldown-text").style.color = "black"}, msg_cooldown);
+
         ws.send(JSON.stringify({"type": "message", "content": `${color}[${name}]: ${msg_input.value}`, "id": id}));
         msg_input.value = "";
     }
@@ -262,17 +275,6 @@ function update_messages(newMessage, front) {
     else message_box.appendChild(ele);
     if(!front) message_box.scrollTop = message_box.scrollHeight;
 }
-
-/*async function fetch_history(length) {
-    if (!res.ok || !res.body) return [];
-    let new_messages = new Array();
-    let rec_messages = await res.json();
-    for(let x = 0; x < rec_messages.length; x++) {
-        let msg = rec_messages[x];
-        new_messages.push(msg.content);
-    }
-    return new_messages;
-}*/
 
 const bufferRows = 3;
 
