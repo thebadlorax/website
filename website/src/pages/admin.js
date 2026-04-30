@@ -139,3 +139,31 @@ document.getElementById("submit_sp").addEventListener("click", async () => {
         }
     });
 })
+
+const ma = document.getElementById("ma");
+document.getElementById("submit_ma").addEventListener("click", async () => {
+    await fetch(getApiLink("/admin/giveAdmin"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "name2": ma.value})}).then(async (e) => {
+        if(e.status == 200) {
+            alert("success")
+        } else if(e.status == 400) {
+            alert("invalid username")
+        } else {
+            alert("not authorized");
+            window.location.href = "/";
+        }
+    });
+})
+
+const ra = document.getElementById("ra");
+document.getElementById("submit_ra").addEventListener("click", async () => {
+    await fetch(getApiLink("/admin/revokeAdmin"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "name2": ra.value})}).then(async (e) => {
+        if(e.status == 200) {
+            alert("success")
+        } else if(e.status == 400) {
+            alert("invalid username")
+        } else {
+            alert("not authorized");
+            window.location.href = "/";
+        }
+    });
+})

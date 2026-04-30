@@ -549,7 +549,40 @@ const server = Bun.serve({
             let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
             catch { return corsResponse(null, { status: 401 }); }
             if(!e) return corsResponse(null, { status: 401 });
-            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
+            return corsResponse(null, { status: 200 });
+          }
+          case "/admin/giveAdmin": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
+
+            if(!await auth.exists(json["name2"])) return corsResponse(null, { status: 400 });
+
+            admins.push(json.name2);
+            await db.modify("admins", admins);
+            return corsResponse(null, { status: 200 });
+          }
+          case "/admin/revokeAdmin": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
+
+            if(!await auth.exists(json["name2"])) return corsResponse(null, { status: 400 });
+            if(json["name2"] == "admin") return corsResponse(null, { status: 400 }); 
+
+            admins.splice(admins.indexOf(json.name2));
+            await db.modify("admins", admins);
             return corsResponse(null, { status: 200 });
           }
           case "/admin/changeNews": {
@@ -558,7 +591,8 @@ const server = Bun.serve({
             let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
             catch { return corsResponse(null, { status: 401 }); }
             if(!e) return corsResponse(null, { status: 401 });
-            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
             await db.modify("news", json["news"]);
             await reset_news();
@@ -570,7 +604,8 @@ const server = Bun.serve({
             let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
             catch { return corsResponse(null, { status: 401 }); }
             if(!e) return corsResponse(null, { status: 401 });
-            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
             if(!await auth.exists(json["nameToFetch"])) return corsResponse(null, { status: 400 });
             let id = await auth.fetchUserID(json["nameToFetch"]);
@@ -582,9 +617,11 @@ const server = Bun.serve({
             let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
             catch { return corsResponse(null, { status: 401 }); };
             if(!e) return corsResponse(null, { status: 401 });
-            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
             if(!await auth.exists(json["nameToFetch"])) return corsResponse(null, { status: 400 });
+            if(json["nameToFetch"] == "admin") return corsResponse(null, { status: 400 }); 
             let pass: any = await auth._adminFetch(json["nameToFetch"]);
             if(!pass) return corsResponse(null, { status: 400 });
             pass = pass.account.pass;
@@ -596,9 +633,11 @@ const server = Bun.serve({
             let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
             catch { return corsResponse(null, { status: 401 }); };
             if(!e) return corsResponse(null, { status: 401 });
-            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
             if(!await auth.exists(json["name2"])) return corsResponse(null, { status: 400 });
+            if(json["name2"] == "admin") return corsResponse(null, { status: 400 }); 
             let acc: any = await auth._adminFetch(json["name2"]);
             if(!acc) return corsResponse(null, { status: 400 });
             auth.deleteAccount(json["name2"], acc.account.pass);
@@ -610,9 +649,11 @@ const server = Bun.serve({
             let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
             catch { return corsResponse(null, { status: 401 }); };
             if(!e) return corsResponse(null, { status: 401 });
-            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
             if(!await auth.exists(json["name2"])) return corsResponse(null, { status: 400 });
+            if(json["name2"] == "admin") return corsResponse(null, { status: 400 }); 
             let acc: any = await auth._adminFetch(json["name2"]);
             if(!acc) return corsResponse(null, { status: 400 });
             let old = acc.account.pass
@@ -627,9 +668,11 @@ const server = Bun.serve({
             let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
             catch { return corsResponse(null, { status: 401 }); };
             if(!e) return corsResponse(null, { status: 401 });
-            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
             if(!await auth.exists(json["name2"])) return corsResponse(null, { status: 400 });
+            if(json["name2"] == "admin") return corsResponse(null, { status: 400 }); 
             let acc: any = await auth._adminFetch(json["name2"]);
             if(!acc) return corsResponse(null, { status: 400 });
             let old = acc.account.pass
@@ -644,7 +687,8 @@ const server = Bun.serve({
             let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
             catch { return corsResponse(null, { status: 401 }); };
             if(!e) return corsResponse(null, { status: 401 });
-            if(json["name"] != "admin") return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
             let fb = await db.fetch("feedback") || new Array();
             let index = fb.indexOf(json.feedback);
