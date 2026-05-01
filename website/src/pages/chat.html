@@ -35,8 +35,10 @@
                     <div class="small-item" style="max-height: 33%;">
                         chat settings
                         <div></div>
-                        <input class="input" id="invite-input" placeholder="Account Name" maxlength="15" style="width: 10vw; margin-top: 0vw; margin-left: 0vw;"></input>
-                        <p id = "invite-input-button" class="basic-link clickable unselectable" style="position: absolute; left: 5.5vw; top: 6vw; font-size: 1.5vw;">Invite</p>
+                        <p class="basic-text unselectable" id="not-owner-text" style="display: none; position: absolute; left: 6.5vw;  color: darkred; top: 6vw; font-size: 1.5vw;">not the owner</p>
+                        <input class="input" id="invite-input" placeholder="Account Name" maxlength="15" style="display: none; position: absolute; width: 10vw; left: 5.5vw; top: 5vw; margin-top: 0vw; margin-left: 0vw;"></input>
+                        <p id = "invite-input-button" class="basic-link clickable unselectable" style="display: none; position: absolute; left: 9vw; top: 5.5vw; font-size: 1.5vw;">Invite</p>
+                        <input class="input" id="cooldown-input" placeholder="Chat Cooldown (ms)" maxlength="5" style="display: none; position: absolute; width: 10vw; left: 5.5vw; top: 9vw; margin-top: 0vw; margin-left: 0vw;"></input>
                     </div>
                     <div class="small-item" style="max-height: 33%;">
                         information

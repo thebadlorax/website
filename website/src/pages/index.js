@@ -133,7 +133,21 @@ export const changeNewsSpeed = (speed) => {
 fetch(getApiLink("/news"), { method: "GET" })
 .then(res => res.json())
 .then(items => {
-    updateNews(items);
+    if(!items) updateNews([
+        "failure to fetch news",
+        "failure to fetch news",
+        "failure to fetch news",
+        "failure to fetch news",
+        "failure to fetch news",
+        "failure to fetch news",
+        "failure to fetch news",
+        "failure to fetch news",
+        "failure to fetch news",
+    ])
+    else {
+        updateNews(items);
+    }
+    
 });
 
 document.getElementById("sfb").addEventListener("click", async () => {

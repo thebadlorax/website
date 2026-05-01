@@ -101,6 +101,8 @@ document.getElementById("invite-input-button").addEventListener("click", () => {
     if(document.getElementById("invite-input").value == "") { return; }
     ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": document.getElementById("invite-input").value, "id": id}));
 })
+let is_owner = false;
+
 ws.addEventListener('message', (e) => {
     let json = JSON.parse(e.data);
     switch(json.type) {
@@ -143,6 +145,21 @@ ws.addEventListener('message', (e) => {
                     } else if(json.content == "IMM") {
                         alert("this chat is marked as immutable");
                     } break;
+                case "data":
+                    change_cooldown(json.content.text_cooldown);
+                    is_owner = json.content.owner == JSON.parse(window.localStorage.getItem("user")).account.id;
+                    if(!is_owner) {
+                        document.getElementById("invite-input").style.display = "none";
+                        document.getElementById("cooldown-input").style.display = "none";
+                        document.getElementById("not-owner-text").style.display = "block";
+                        document.getElementById("invite-input-button").style.display = "none";
+                    } else {
+                        document.getElementById("invite-input").style.display = "block";
+                        document.getElementById("cooldown-input").style.display = "block";
+                        document.getElementById("cooldown-input").value = json.content.text_cooldown;
+                        document.getElementById("invite-input-button").style.display = "block";
+                        document.getElementById("not-owner-text").style.display = "none";
+                    }
                 case "delete":
                     ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
                     break;
@@ -171,12 +188,28 @@ ws.addEventListener("open", () => {
     ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
 })
 
-const edits = document.querySelector('input');
-edits.addEventListener('paste', (e) => {
+document.getElementById("cooldown-input").addEventListener("change", () => {
+    ws.send(JSON.stringify({"type": "wizard", "method": "change_cooldown", "content": {"user_id": JSON.parse(window.localStorage.getItem("user")).account.id, "chat_id": id, "cooldown": document.getElementById("cooldown-input").value}}));
+})
+
+const edits = [msg_input, name_input, color_input, document.getElementById("chat-name-input"), document.getElementById("invite-input")];
+let first_paste = window.localStorage.getItem("has_pasted") == null;
+const cleanText = (text) => {
+    return text
+      .normalize("NFKD")
+      .replace(/[^\x00-\x7F]/g, '');
+};
+edits.forEach(obj => obj.addEventListener('paste', (e) => {
     e.preventDefault();
-    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    let text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    text = cleanText(text);
     document.execCommand('insertText', false, text);
-  });
+    if(first_paste) {
+        alert("pasting deletes special characters, that's why your pastes might be messed up. \n\nyou won't see this again.");
+        window.localStorage.setItem("has_pasted", "true");
+        first_paste = false;
+    };
+}));
 
 const refreshPicker = (json) => {
     document.getElementById("chat-picker-list").replaceChildren();
@@ -220,8 +253,8 @@ let last_msg_time = Date.now();
 const change_cooldown = (cooldown) => {
     msg_cooldown = cooldown;
     document.getElementById("cooldown-text").textContent = `${cooldown/1000}s`
+    last_msg_time = Date.now();
 }
-change_cooldown(1000);
 
 msg_input.addEventListener("keydown", (event) => { 
     if (event.key === "Enter") {
@@ -230,7 +263,7 @@ msg_input.addEventListener("keydown", (event) => {
         if(Date.now() - last_msg_time < msg_cooldown) return;
         last_msg_time = Date.now();
         document.getElementById("cooldown-text").style.color = "darkred";
-        setTimeout(() => { document.getElementById("cooldown-text").style.color = "black"}, msg_cooldown);
+        setTimeout(() => { document.getElementById("cooldown-text").style.color = "black"; }, msg_cooldown);
 
         ws.send(JSON.stringify({"type": "message", "content": `${color}[${name}]: ${msg_input.value}`, "id": id}));
         msg_input.value = "";

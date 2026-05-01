@@ -120,22 +120,38 @@ export class ChatWizard {
                 case "subscribe":
                     let chats_2 = this.assignees.get(json.content.account.id) || new Array();
                     chats_2 = chats_2.concat(this.assignees.get("*")!);
-                    if(!chats_2.includes(this.fromID(json.id))) {
+                    let chat = this.fromID(json.id);
+                    if(!chat) { ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "NO"})); return; }
+                    if(!chats_2.includes(chat)) {
                         ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "NO"}));
                         break;
                     }
-                    this.fromID(json.id)?.registerUser(ws, json.content);
+                    
+                    chat.registerUser(ws, json.content);
                     ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "OK"}));
+                    ws.send(JSON.stringify({"type": "wizard", "method": "data", "content": {"text_cooldown": chat.text_cooldown, "owner": chat.owner || ""}}));
                     break;
                 case "unsubscribe":
                     this.fromID(json.id)?.deregisterUser(ws);
                     ws.send(JSON.stringify({"type": "wizard", "method": "unsubscribe", "content": "OK"}));
                     break;
+
+                case "change_cooldown": {
+                    let chat = this.fromID(json.content.chat_id);
+                    if(!chat) { ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "NO"})); return; }
+                    chat.modifyProperty("text_cooldown", json.content.cooldown);
+                    chat.text_cooldown = json.content.cooldown;
+                    chat.broadcast(JSON.stringify({"type": "wizard", "method": "data", "content": {"text_cooldown": chat.text_cooldown, "owner": chat.owner || ""}}));
+                    ws.send(JSON.stringify({"type": "wizard", "method": "change_cooldown", "content": "OK"}));
+                    break;
+                }
                 case "create":
                     let new_chat = await this.create();
                     if(!new_chat) return; //ERROR out
                     await new_chat.modifyProperty("display_name", json.content);
                     new_chat.display_name = json.content;
+                    await new_chat.modifyProperty("owner", json.user.account.id);
+                    new_chat.owner = json.user.account.id;
                     if(!json.private) await this.assign(json.user.account.id, new_chat);
                     else this.publicize(new_chat);
                     await this.revitalizeOldChats();
@@ -183,6 +199,8 @@ export class ChatInstance {
     public users: Map<ServerWebSocket<{ source: string }>, User> = new Map();
     public display_name: string = "";
     public immutable: boolean = false;
+    public text_cooldown: number = 1000;
+    public owner: string = "";
 
     constructor(db: Database, id: (string | null) = null, w: ChatWizard) { this.db = db; if(id != null) id = id; this.w = w;}
 
@@ -193,6 +211,8 @@ export class ChatInstance {
         if(chats[this.id] != undefined) { // inherited chat
             this.display_name = chats[this.id].display_name;
             this.immutable = chats[this.id].immutable;
+            this.text_cooldown = chats[this.id].text_cooldown;
+            this.owner = chats[this.id].owner || "";
             // @ts-expect-error
             chats[this.id].assignees.forEach(a => {
                 this.w.assign(a, this.w.fromID(this.id)!);
@@ -203,7 +223,7 @@ export class ChatInstance {
             type: "message",
             content: `this is the start of the chat: ${this.id}`,
             timestamp: Date.now()
-        } as message], "assignees": [], "display_name": "", "timestamp": Date.now(), "immutable": this.immutable};
+        } as message], "assignees": [], "display_name": "", "timestamp": Date.now(), "immutable": this.immutable, "text_cooldown": this.text_cooldown};
         await this.db.modify("chats", chats);
     }
     
