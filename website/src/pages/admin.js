@@ -29,7 +29,9 @@ document.getElementById("submit_cn").addEventListener("click", async () => {
             window.location.href = "/";
         }
     });
-}); let news = await fetch(getApiLink("/news"), { method: "GET" }); news = await news.json(); news_input.value = news.join("\n");
+}); 
+const update_news = async () => { let news = await fetch(getApiLink("/news"), { method: "GET" }); news = await news.json(); news_input.value = news.join("\n"); }
+news_input.value = "loading";
 document.getElementById("main-text").addEventListener("click", () => {
     window.location.href = `${location.protocol}//${location.host}/`
 })
@@ -167,3 +169,56 @@ document.getElementById("submit_ra").addEventListener("click", async () => {
         }
     });
 })
+
+document.getElementById("get_db").addEventListener("click", async () => {
+    alert("this may take a little bit (click to start)")
+    await fetch(getApiLink("/admin/fetchDatabase"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})}).then(async (e) => {
+        if(e.status == 200) {
+            let json = await e.json();
+            const blob = new Blob([JSON.stringify(json)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            URL.revokeObjectURL(url);
+        } else if(e.status == 500) {
+            alert("server error")
+        } else {
+            alert("not authorized");
+            window.location.href = "/";
+        }
+    });
+});
+
+let last_db_update_time = 0;
+const refresh_db_info = async () => {
+    await fetch(getApiLink("/admin/dbInfo"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})}).then(async (e) => {
+        if(e.status == 200) {
+            let json = await e.json();
+            let h = json.bk_diff;
+            last_db_update_time = h;
+            document.getElementById("db_bk").textContent = `last database backup: ${(json.bk_diff/60/60/1000).toFixed(2)}h ago`
+        } else if(e.status == 500) {
+            alert("server error")
+        } else {
+            alert("not authorized");
+            window.location.href = "/";
+        }
+    });
+    update_news();
+}
+refresh_db_info();
+
+document.getElementById("restore_db").addEventListener("click", async () => {
+    if(!confirm(`are you sure? the last backup was ${(last_db_update_time/60/60/1000).toFixed(2)} hours ago.`)) return;
+    await fetch(getApiLink("/admin/restoreDatabase"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})}).then(async (e) => {
+        if(e.status == 200) {
+            alert("success")
+            refresh_db_info();
+        } else if(e.status == 500) {
+            alert("server error")
+        } else {
+            alert("not authorized");
+            window.location.href = "/";
+        }
+    });
+})
+

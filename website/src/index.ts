@@ -158,10 +158,10 @@ const recreate_backup_database = async () => {
   await rename(tempPath, db.path);
 
   log.log("db restoration complete", "BACKUP");
+  await backup_database();
 };
 
 await backup_database();
-await recreate_backup_database();
 setTimeout(async () => { await backup_database(); }, HOURS_TO_MS(3));
 
 log.log("server initalized >:3", "SERVER")
@@ -734,6 +734,52 @@ const server = Bun.serve({
             fb.splice(index, 1);
             await db.modify("feedback", fb);
             return corsResponse(null, { status: 200 });
+          }
+          case "/admin/fetchDatabase": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
+
+            try {
+              const data = Bun.file(db.path);
+              return corsResponse(data, {
+                headers: {
+                  "Content-Type": "application/json",
+                },
+              });
+            } catch (err) {
+              return corsResponse(JSON.stringify({ error: "failure to get database" }), {
+                status: 500,
+                headers: { "Content-Type": "application/json" },
+              });
+            };
+          }
+          case "/admin/restoreDatabase": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
+
+            await recreate_backup_database();
+            return corsResponse(null, { status: 200 });
+          }
+          case "/admin/dbInfo": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
+
+            return corsResponse(JSON.stringify({"bk_diff": Date.now() - last_backup_time}), { status: 200 });
           }
           case "/feedback/give": {
             if(req.method != "POST") return corsResponse(null, { status: 405 });
