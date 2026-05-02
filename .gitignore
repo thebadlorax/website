@@ -4,8 +4,10 @@ website/public
 website/.DS_Store
 website/node_modules
 website/database.json
+website/database.json.bk.gz
 website/logs/
 website/logs
 .vscode
 .DS_Store
 .gitignore
+website/src/.DS_Store

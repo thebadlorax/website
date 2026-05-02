@@ -70,7 +70,7 @@ async function update_stats(do_fetch) {
     }
 
     if(show_full_stats) {
-        uptime_text.textContent = `Uptime: ${formatSeconds(data["uptime"])}`;
+        uptime_text.textContent = `Uptime: ${formatSeconds(data["uptime"]*1000)}`;
     } else {
         uptime_text.textContent = ``;
     }
