@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { getApiLink } from "./common.js";
+import { getApiLink, formatSeconds } from "./common.js";
 
 const user = JSON.parse(window.localStorage.getItem("user"));
 if(!user) { alert("not authorized"); window.location.href = "/"; }
@@ -195,7 +195,7 @@ const refresh_db_info = async () => {
             let json = await e.json();
             let h = json.bk_diff;
             last_db_update_time = h;
-            document.getElementById("db_bk").textContent = `last database backup: ${(json.bk_diff/60/60/1000).toFixed(2)}h ago`
+            document.getElementById("db_bk").textContent = `last database backup: ${formatSeconds(json.bk_diff)} ago`
         } else if(e.status == 500) {
             alert("server error")
         } else {
@@ -203,12 +203,12 @@ const refresh_db_info = async () => {
             window.location.href = "/";
         }
     });
-    update_news();
 }
 refresh_db_info();
+update_news();
 
 document.getElementById("restore_db").addEventListener("click", async () => {
-    if(!confirm(`are you sure? the last backup was ${(last_db_update_time/60/60/1000).toFixed(2)} hours ago.`)) return;
+    if(!confirm(`are you sure? the last backup was ${formatSeconds(last_db_update_time)} ago.`)) return;
     await fetch(getApiLink("/admin/restoreDatabase"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})}).then(async (e) => {
         if(e.status == 200) {
             alert("success")
@@ -221,4 +221,6 @@ document.getElementById("restore_db").addEventListener("click", async () => {
         }
     });
 })
+
+setInterval(refresh_db_info, 5000);
 

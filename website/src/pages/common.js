@@ -59,20 +59,26 @@ export function getCookie(cname) {
     return "";
 }
 
-export function formatSeconds(seconds) {
-    let text = `${seconds}s` // sec
-    if(seconds >= 60) { // min
-        text = `${(seconds/60).toFixed(1)}m`;
-    } if(seconds >= 3600) { // hour
-        text = `${((seconds/60)/60).toFixed(1)}h`;
-    } if(seconds >= 86400) { // day
-        text = `${(((seconds/60)/60)/24).toFixed(1)}d`;
-    } if(seconds >= 604800) { // week
-        text = `${((((seconds/60)/60)/24)/7).toFixed(1)}w`;
-    } if(seconds >= 31556952) { // year
-        text = `${(((((seconds/60)/60)/24)/7)/52.1775).toFixed(1)}y`;
+export function formatSeconds(ms, decimals = 1) {
+    const units = [
+        { label: "decade",  ms: 1000 * 60 * 60 * 24 * 365 * 10 },
+        { label: "year",    ms: 1000 * 60 * 60 * 24 * 365 },
+        { label: "week",    ms: 1000 * 60 * 60 * 24 * 7 },
+        { label: "day",     ms: 1000 * 60 * 60 * 24 },
+        { label: "hour",    ms: 1000 * 60 * 60 },
+        { label: "minute",  ms: 1000 * 60 },
+        { label: "second",  ms: 1000 }
+    ];
+
+    for (const unit of units) {
+        const value = ms / unit.ms;
+        if (value >= 1) {
+            const rounded = Number(value.toFixed(decimals));
+            return `${rounded} ${unit.label}${rounded !== 1 ? "s" : ""}`;
+        }
     }
-    return text;
+
+    return `${ms} ms`;
 }
 
 export function formatNumber(number) {
