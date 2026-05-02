@@ -1,5 +1,5 @@
 const { getCookie, setCookie, formatSeconds, getApiLink, formatNumber } = await import('./common.js');
-import { openMenu, handle_updating } from './account.js';
+import { openMenu } from './account.js';
 
 const uptime_text = document.getElementById("uptime");
 const visitor_text = document.getElementById("visitors");
@@ -84,6 +84,12 @@ async function update_stats(do_fetch) {
 const track = document.querySelector('.ticker-track');
 let sd = JSON.parse(window.localStorage.getItem("user"));
 let news_speed = sd ? sd.settings.news_speed : 100;
+let pause = false;
+document.getElementById("ticker").addEventListener("mouseenter", () => {
+    pause = true;
+}); document.getElementById("ticker").addEventListener("mouseleave", () => {
+    pause = false;
+})
 
 function updateNews(items) {
     const html = items.map(item => `
@@ -106,21 +112,27 @@ function updateNews(items) {
     let lastTime = null;
 
     function animate(time) {
-    if (!lastTime) lastTime = time;
-    const delta = (time - lastTime) / 1000;
-
-    pos -= news_speed * delta;
-
-    const loopWidth = first.offsetWidth;
-
-    if (Math.abs(pos) >= loopWidth) {
-        pos += loopWidth; // NOT reset to 0 → prevents jump
-    }
-
-    track.style.transform = `translateX(${pos}px)`;
-
-    lastTime = time;
-    requestAnimationFrame(animate);
+        if (!lastTime) lastTime = time;
+    
+        if (pause) {
+            lastTime = time;
+            requestAnimationFrame(animate);
+            return;
+        }
+    
+        const delta = (time - lastTime) / 1000;
+        pos -= news_speed * delta;
+    
+        const loopWidth = first.offsetWidth;
+    
+        if (Math.abs(pos) >= loopWidth) {
+            pos += loopWidth;
+        }
+    
+        track.style.transform = `translateX(${pos}px)`;
+    
+        lastTime = time;
+        requestAnimationFrame(animate);
     }
 
     requestAnimationFrame(animate);

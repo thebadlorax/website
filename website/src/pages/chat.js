@@ -99,7 +99,7 @@ document.getElementById("create-room-button").addEventListener("click", () => {
 })
 document.getElementById("invite-input-button").addEventListener("click", () => {
     if(document.getElementById("invite-input").value == "") { return; }
-    ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": document.getElementById("invite-input").value, "id": id}));
+    ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": document.getElementById("invite-input").value, "id": id, "user_id": JSON.parse(window.localStorage.getItem("user")).account.id}));
 })
 let is_owner = false;
 
@@ -161,6 +161,10 @@ ws.addEventListener('message', (e) => {
                         document.getElementById("not-owner-text").style.display = "none";
                     }
                 case "delete":
+                    if(json.content == "NO") {
+                        alert("failed to delete (probably not the owner)");
+                        return;
+                    }
                     ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
                     break;
                 case "subscribe":
@@ -171,6 +175,11 @@ ws.addEventListener('message', (e) => {
                     refresh();
                     history.pushState({page: "test"}, "test", `/chat?room=${id}`);
                     break;
+                case "rename":
+                    if(json.content == "NO") {
+                        alert("failed to rename (probably not the owner)");
+                        return;
+                    }
             }
             break;
         case "message":
@@ -487,7 +496,8 @@ function hideMenu() {
 document.getElementById("delete").addEventListener("click", () => { menuAction("delete", document.getElementById("id-context").textContent); })
 document.getElementById("link").addEventListener("click", () => { menuAction("link", document.getElementById("id-context").textContent); })
 document.getElementById("download").addEventListener("click", () => { menuAction("download", document.getElementById("id-context").textContent); })
-document.getElementById("id-context").addEventListener("click", () => { navigator.clipboard.writeText(document.getElementById("id-context").textContent); })
+document.getElementById("rename").addEventListener("click", () => { menuAction("rename", document.getElementById("id-context").textContent); })
+document.getElementById("id-context").addEventListener("click", () => { alert("copied to clipboard"); navigator.clipboard.writeText(document.getElementById("id-context").textContent); })
 
 function downloadJSON(data, filename = "data.json") {
     const jsonString = JSON.stringify(data, null, 2); // pretty print
@@ -500,7 +510,7 @@ function downloadJSON(data, filename = "data.json") {
 
 async function menuAction(action, rec_id) {
     if(action === "delete") { 
-        ws.send(JSON.stringify({"type": "wizard", "method": "delete", "content": rec_id, "id": JSON.parse(window.localStorage.getItem("user")).account.id}))
+        ws.send(JSON.stringify({"type": "wizard", "method": "delete", "content": rec_id, "id": JSON.parse(window.localStorage.getItem("user")).account.id, "user_id": JSON.parse(window.localStorage.getItem("user")).account.id}))
     } else if(action === "link") {
         await navigator.clipboard.writeText(`${window.location.href}?room=${rec_id}`);
     } else if(action === "download") {
@@ -509,6 +519,8 @@ async function menuAction(action, rec_id) {
                 downloadJSON(json, `${rec_id}.json`)
             })
         });
+    } else if(action === "rename") {
+        ws.send(JSON.stringify({"type": "wizard", "method": "rename", "content": prompt("new name"), "id": rec_id, "user_id": JSON.parse(window.localStorage.getItem("user")).account.id}))
     }
     hideMenu();
 }

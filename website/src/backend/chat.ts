@@ -93,7 +93,7 @@ export class ChatWizard {
             await i.modifyProperty("assignees", found_assignees)
         }
     };
-    publicize(i: ChatInstance) { this.assign("*", i); return i; }
+    async publicize(i: ChatInstance) { await this.assign("*", i); return i; }
     deassign(u: User, i: ChatInstance) {
         if(this.assignees.get(u.account.id)?.includes(i)) return;
         let e = this.assignees.get(u.account.id);
@@ -153,18 +153,21 @@ export class ChatWizard {
                     await new_chat.modifyProperty("owner", json.user.account.id);
                     new_chat.owner = json.user.account.id;
                     if(!json.private) await this.assign(json.user.account.id, new_chat);
-                    else this.publicize(new_chat);
+                    else await this.publicize(new_chat);
                     await this.revitalizeOldChats();
                     if(new_chat) ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "OK"}));
                     else ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "NO"}));
                     break;
                 case "invite":
-                    // TODO: make it so only creator of chat can invite? maybe
                     let req_id = await this.auth.fetchUserID(json.content);
                     if(!req_id) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "NO"})); return; }
                     if(this.check(req_id, this.fromID(json.id)!) || this.check("*", this.fromID(json.id)!)) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "ALR"})); return; }
                     if(this.fromID(json.id)!.immutable) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "IMM"})); return; }
                     this.assign(req_id, this.fromID(json.id)!)
+                    if(this.fromID(json.id)!.owner != json.user_id) {
+                        ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "NO"}));
+                        return;
+                    }
                     this.fromID(json.id)!.send({
                         type: "message",
                         content: `${json.content} has been added to the chat`,
@@ -174,11 +177,20 @@ export class ChatWizard {
                     break;
                 case "delete":
                     let e = this.fromID(json.content)!
+                    if((e.owner || "") != json.user_id) {
+                        ws.send(JSON.stringify({"type": "wizard", "method": "delete", "content": "NO"}));
+                        return;
+                    }
                     await this.destroy(e, json.id);
                     ws.send(JSON.stringify({"type": "wizard", "method": "delete", "content": "OK"}));
                     break;
                 case "rename":
                     let a = this.fromID(json.id)!
+                    if(a.owner != json.user_id) {
+                        ws.send(JSON.stringify({"type": "wizard", "method": "rename", "content": "NO"}));
+                        return;
+                    }
+                    await a.modifyProperty("display_name", json.content);
                     a.display_name = json.content;
                     ws.send(JSON.stringify({"type": "wizard", "method": "rename", "content": "OK"}));
                     break;
