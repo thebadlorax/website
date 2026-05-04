@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { getApiLink, formatSeconds } from "./common.js";
+import { getApiLink, formatSeconds, formatBytes } from "./common.js";
 
 const user = JSON.parse(window.localStorage.getItem("user"));
 if(!user) { alert("not authorized"); window.location.href = "/"; }
@@ -195,7 +195,7 @@ const refresh_db_info = async () => {
             let json = await e.json();
             let h = json.bk_diff;
             last_db_update_time = h;
-            document.getElementById("db_bk").textContent = `last database backup: ${formatSeconds(json.bk_diff)} ago`
+            document.getElementById("db_bk").textContent = `last database backup: ${formatSeconds(json.bk_diff)} ago, database size: ${formatBytes(json.size)}`
         } else if(e.status == 500) {
             alert("server error")
         } else {

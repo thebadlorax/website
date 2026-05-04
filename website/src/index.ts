@@ -772,7 +772,11 @@ const server = Bun.serve({
             let admins = await db.fetch("admins") || ["admin"];
             if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
-            return corsResponse(JSON.stringify({"bk_diff": Date.now() - last_backup_time}), { status: 200 });
+
+            let file = Bun.file(db.path);
+            let fsize = file.size;
+
+            return corsResponse(JSON.stringify({"bk_diff": Date.now() - last_backup_time, "size": fsize}), { status: 200 });
           }
           case "/feedback/give": {
             if(req.method != "POST") return corsResponse(null, { status: 405 });
