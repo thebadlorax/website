@@ -6,12 +6,16 @@
 */
 
 import { LogWizard } from "./logging";
-import { writeFileSync } from "fs";
+import { createReadStream, createWriteStream } from "fs";
+import { pipeline } from "stream/promises";
+import { createGzip, createGunzip } from "zlib";
+import { rename } from "node:fs/promises";
 
 export class Database {
     public path: string
     private log: LogWizard
     private lock: Promise<void> = Promise.resolve();
+    public last_backup_time: number = 0;
 
     constructor(path: string) {
         this.path = path;
@@ -76,4 +80,35 @@ export class Database {
     }
 
     async exists(element: string) { return await this.fetch(element) != undefined; }
+
+    backup_database = async () => {
+        this.log.log("moving old database backup", "DATABASE")
+        await rename(`${this.path}.bk.gz`, `${this.path}.old.bk.gz`)
+        this.log.log("starting database backup", "DATABASE")
+        
+        await pipeline(
+            createReadStream(this.path),
+            createGzip(),
+            createWriteStream(`${this.path}.bk.gz`)
+        );
+        
+        this.log.log("finished backing up database", "DATABASE")
+        this.last_backup_time = Date.now();
+    }
+    recreate_backup_database = async () => {
+        this.log.log("restoring database from backup", "DATABASE");
+        
+        const tempPath = `${this.path}.tmp`;
+        
+        await pipeline(
+            createReadStream(`${this.path}.bk.gz`),
+            createGunzip(),
+            createWriteStream(tempPath)
+        );
+        
+        await rename(tempPath, this.path);
+        
+        this.log.log("db restoration complete", "DATABASE");
+        await this.backup_database();
+    };
 }

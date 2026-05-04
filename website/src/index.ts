@@ -18,10 +18,6 @@
 
 import { Glob, $, type ServerWebSocket } from "bun";
 import { resolve } from 'node:path';
-import { createReadStream, createWriteStream } from "fs";
-import { rename } from "node:fs/promises"
-import { createGzip, createGunzip } from "zlib";
-import { pipeline } from "stream/promises";
 
 import { generateRandomString, clamp, getSubdomain, streamToBlob } from "./backend/utils";
 import { deleteFile, renameFile } from "./backend/file";
@@ -122,38 +118,9 @@ let blackjack: BlackjackInstance = new BlackjackInstance();
 let decks = new Map<string, Deck>();
 
 const HOURS_TO_MS = (h: number) => { return (h * 60 * 60 * 1000) };
-let last_backup_time = 0;
-const backup_database = async () => {
-  log.log("starting database backup", "BACKUP")
 
-  await pipeline(
-    createReadStream(db.path),
-    createGzip(),
-    createWriteStream(`${db.path}.bk.gz`)
-  );
-  
-  log.log("finished backing up database", "BACKUP")
-  last_backup_time = Date.now();
-}
-const recreate_backup_database = async () => {
-  log.log("restoring database from backup", "BACKUP");
-
-  const tempPath = `${db.path}.tmp`;
-
-  await pipeline(
-    createReadStream(`${db.path}.bk.gz`),
-    createGunzip(),
-    createWriteStream(tempPath)
-  );
-
-  await rename(tempPath, db.path);
-
-  log.log("db restoration complete", "BACKUP");
-  await backup_database();
-};
-
-await backup_database();
-setInterval(async () => { await backup_database(); }, HOURS_TO_MS(3));
+await db.backup_database();
+setInterval(async () => { await db.backup_database(); }, HOURS_TO_MS(3));
 
 log.log("server initalized >:3", "SERVER")
 const server = Bun.serve({
@@ -763,7 +730,7 @@ const server = Bun.serve({
             let admins = await db.fetch("admins") || ["admin"];
             if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
-            await recreate_backup_database();
+            await db.recreate_backup_database();
             return corsResponse(null, { status: 200 });
           }
           case "/admin/dbInfo": {
@@ -775,11 +742,10 @@ const server = Bun.serve({
             let admins = await db.fetch("admins") || ["admin"];
             if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
-
             let file = Bun.file(db.path);
             let fsize = file.size;
 
-            return corsResponse(JSON.stringify({"bk_diff": Date.now() - last_backup_time, "size": fsize}), { status: 200 });
+            return corsResponse(JSON.stringify({"bk_diff": Date.now() - db.last_backup_time, "size": fsize}), { status: 200 });
           }
           case "/feedback/give": {
             if(req.method != "POST") return corsResponse(null, { status: 405 });
