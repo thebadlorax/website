@@ -313,10 +313,10 @@ export class BlackjackInstance {
     }
 
     hasWon(checking: number, opponent: number) {
-        if(checking == opponent) return null;      // both are the same : nothing
-        if(checking > 21) return false;            // player bust       : lose
-        if(checking < opponent) return false;      // player has less   : lose
-        return true;
+        if (checking > 21) return false;        // player busts → lose
+        if (opponent > 21) return true;         // dealer busts → win
+        if (checking === opponent) return null; // push (tie)
+        return checking > opponent;             // higher hand wins
     }
 
     protected scorePlayer = async (ws: ServerWebSocket<{ source: string; }>) => {

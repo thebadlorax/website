@@ -281,6 +281,10 @@ msg_input.addEventListener("keydown", (event) => {
 
 name_input.addEventListener("keydown", (event) => { 
     if (event.key === "Enter") {
+        if(Date.now() - last_msg_time < msg_cooldown) return;
+        last_msg_time = Date.now();
+        document.getElementById("cooldown-text").style.color = "darkred";
+        setTimeout(() => { document.getElementById("cooldown-text").style.color = "black"; }, msg_cooldown);
         let new_name = name_input.value || "No Name";
         ws.send(JSON.stringify({"type": "message", "content": `${name} changed their name to ${new_name}`, "id": id}));
         name = new_name;
