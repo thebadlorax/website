@@ -123,3 +123,12 @@ document.getElementById("receipt").addEventListener("mouseleave", () => { // hid
         if(!document.getElementById("receipt").matches(":hover")) hideSurveyMenu();
     }, 1000);
 })
+
+
+const checkIfDisabled = async () => {
+    await fetch(getApiLink("/stats")).then(async e => {
+        let json = await e.json();
+        if(json.disabled_features.includes("gambling")) window.location.href = "/";
+    })
+}
+setInterval(async () => {await checkIfDisabled()}, 3000);

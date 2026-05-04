@@ -871,3 +871,11 @@ preloadImagesWithCallback(images).then(() => {
     setInterval(() => { g.update(); g.draw(); }, (1000/FPS));
     document.getElementById("loading").style.display = "none";
 });
+
+const checkIfDisabled = async () => {
+    await fetch(getApiLink("/stats")).then(async e => {
+        let json = await e.json();
+        if(json.disabled_features.includes("game")) window.location.href = "/";
+    })
+}
+setInterval(async () => {await checkIfDisabled()}, 3000);

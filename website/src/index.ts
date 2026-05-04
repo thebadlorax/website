@@ -56,6 +56,8 @@ const reset_news = async () => {
   ["no news", "no news", "no news", "no news", "no news", "no news", "no news", "no news", "no news", "no news"];
 }; await reset_news();
 
+let disabled_features = await db.fetch("disabled_features") || [];
+
 // TODO: move these to different files/structures
 async function serveStaticIfAllowed(url: string) {
   if(url.includes("/res/")) url = url.replace("/res", "");
@@ -479,7 +481,8 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify({
               "key": key, 
               "visitor-count": visitor_count_2, 
-              "uptime": Math.floor((new Date().getTime() - starting_time.getTime())/ 1000)
+              "uptime": Math.floor((new Date().getTime() - starting_time.getTime())/ 1000),
+              "disabled_features": disabled_features
             }), { status: 200});
           case "/user/init":
             let id = generateRandomString(10);
@@ -747,6 +750,43 @@ const server = Bun.serve({
 
             return corsResponse(JSON.stringify({"bk_diff": Date.now() - db.last_backup_time, "size": fsize}), { status: 200 });
           }
+          case "/admin/disableFeature": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
+
+            let disabled = await db.fetch("disabled_features") || [];
+            disabled.push(json.feature);
+            disabled_features.push(json.feature);
+            await db.modify("disabled_features", disabled);
+
+            switch(json.feature) {
+              case "chat": {
+                await chat.broadcastToAll(JSON.stringify({"type": "wizard", "method": "sendHome", "content": "byebye"}))
+              }
+            }
+            return corsResponse(null, { status: 200 });
+          }
+          case "/admin/enableFeature": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
+
+            let disabled = await db.fetch("disabled_features") || [];
+            if(!disabled.includes(json.feature)) return corsResponse(null, { status: 200 });;
+            disabled.splice(disabled.indexOf(json.feature));
+            disabled_features.splice(disabled_features.indexOf(json.feature));
+            await db.modify("disabled_features", disabled);
+            return corsResponse(null, { status: 200 });
+          }
           case "/feedback/give": {
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let json = await req.json(); 
@@ -796,18 +836,27 @@ const server = Bun.serve({
         let staticResponse = await serveStaticIfAllowed(url);
         if (staticResponse) return staticResponse;
         switch (url) {
-          case "/":return corsResponse(Bun.file("src/pages/index.html"), { headers: { "Content-Type": "text/html" } });
-          case "/files": return corsResponse(Bun.file("src/pages/files.html"), { headers: { "Content-Type": "text/html" } });
-          case "/chat": return corsResponse(Bun.file("src/pages/chat.html"), { headers: { "Content-Type": "text/html" } });
-          case "/gambling": return corsResponse(Bun.file("src/pages/gambling.html"), { headers: { "Content-Type": "text/html" } });
-          //case "/game": return corsResponse(Bun.file("src/pages/game.html"), { headers: { "Content-Type": "text/html" } });
+          case "/": return corsResponse(Bun.file("src/pages/index.html"), { headers: { "Content-Type": "text/html" } });
+          case "/files": { 
+            if(!disabled_features.includes("files")) return corsResponse(Bun.file("src/pages/files.html"), { headers: { "Content-Type": "text/html" } }); 
+            else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
+          }
+          case "/chat": { 
+            if(!disabled_features.includes("chat")) return corsResponse(Bun.file("src/pages/chat.html"), { headers: { "Content-Type": "text/html" } }); 
+            else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
+          }
+          case "/gambling": { 
+            if(!disabled_features.includes("gambling")) return corsResponse(Bun.file("src/pages/gambling.html"), { headers: { "Content-Type": "text/html" } }); 
+            else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
+          }
+          case "/game": { 
+            if(!disabled_features.includes("game")) return corsResponse(Bun.file("src/pages/game.html"), { headers: { "Content-Type": "text/html" } }); 
+            else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
+          }
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
       
           default:
-            return corsResponse(Bun.file("src/pages/error.html"), {
-              status: 404,
-              headers: { "Content-Type": "text/html" },
-            });
+            return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
         };
       case "professional": 
         let staticResponse_2 = await serveStaticIfAllowed(url);

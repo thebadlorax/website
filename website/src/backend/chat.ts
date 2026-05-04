@@ -199,6 +199,23 @@ export class ChatWizard {
             this.fromID(json.id)?.handleRecieved(ws, json);
         }
     }
+
+    broadcastToAllSync(msg: any) {
+        this.viewers.forEach(v => {
+            v.send(msg);
+        })
+        this.instances.forEach(i => {
+            i.broadcast(msg);
+        })
+    }
+    async broadcastToAll(msg: any) {
+        this.viewers.forEach(v => {
+            v.send(msg);
+        })
+        this.instances.forEach(async i => {
+            await i.broadcast(msg);
+        })
+    }
     deregister(ws:  ServerWebSocket<{ source: string }>) { this.instances.filter(i => i.users.keys().toArray().includes(ws)).forEach(i => 
         { i.deregisterUser(ws); }) };
 }

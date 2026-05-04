@@ -160,6 +160,10 @@ ws.addEventListener('message', (e) => {
                         document.getElementById("invite-input-button").style.display = "block";
                         document.getElementById("not-owner-text").style.display = "none";
                     }
+                    break;
+                case "sendHome":
+                    window.location.href = "/";
+                    break;
                 case "delete":
                     if(json.content == "NO") {
                         alert("failed to delete (probably not the owner)");

@@ -188,6 +188,47 @@ document.getElementById("get_db").addEventListener("click", async () => {
     });
 });
 
+const chat_feature_check = document.getElementById("disable_chat");
+chat_feature_check.addEventListener("click", async () => {
+    if(!chat_feature_check.checked) await disable_feature("chat");
+    else await enable_feature("chat");
+});
+const files_feature_check = document.getElementById("disable_files");
+files_feature_check.addEventListener("click", async () => {
+    if(!files_feature_check.checked) await disable_feature("files");
+    else await enable_feature("files");
+});
+const gambling_feature_check = document.getElementById("disable_gambling");
+gambling_feature_check.addEventListener("click", async () => {
+    if(!gambling_feature_check.checked) await disable_feature("gambling");
+    else await enable_feature("gambling");
+});
+const game_feature_check = document.getElementById("disable_game");
+game_feature_check.addEventListener("click", async () => {
+    if(!game_feature_check.checked) await disable_feature("game");
+    else await enable_feature("game");
+});
+
+const disable_feature = async (ft) => {
+    await fetch(getApiLink("/admin/disableFeature"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "feature": ft})}).then(async (e) => {
+        if(e.status == 200) {} else if(e.status == 400) {
+            alert("invalid username")
+        } else {
+            alert("not authorized");
+            window.location.href = "/";
+        }
+    });
+}; const enable_feature = async (ft) => {
+    await fetch(getApiLink("/admin/enableFeature"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "feature": ft})}).then(async (e) => {
+        if(e.status == 200) {} else if(e.status == 400) {
+            alert("invalid username")
+        } else {
+            alert("not authorized");
+            window.location.href = "/";
+        }
+    });
+};
+
 let last_db_update_time = 0;
 const refresh_db_info = async () => {
     await fetch(getApiLink("/admin/dbInfo"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})}).then(async (e) => {
@@ -203,6 +244,20 @@ const refresh_db_info = async () => {
             window.location.href = "/";
         }
     });
+
+    await fetch(getApiLink("/stats")).then(async (e) => {
+        let json = await e.json();
+        let disabled = json.disabled_features;
+
+        if(disabled.includes("chat")) chat_feature_check.checked = false;
+        else chat_feature_check.checked = true;
+        if(disabled.includes("files")) files_feature_check.checked = false;
+        else files_feature_check.checked = true;
+        if(disabled.includes("gambling")) gambling_feature_check.checked = false;
+        else gambling_feature_check.checked = true;
+        if(disabled.includes("game")) game_feature_check.checked = false;
+        else game_feature_check.checked = true;
+    })
 }
 refresh_db_info();
 update_news();

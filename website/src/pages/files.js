@@ -43,6 +43,14 @@ document.getElementById("rename").addEventListener("click", () => { menuAction("
 document.getElementById("link").addEventListener("click", () => { menuAction("link"); })
 document.getElementById("download").addEventListener("click", () => { menuAction("download"); })
 
+const checkIfDisabled = async () => {
+    await fetch(getApiLink("/stats")).then(async e => {
+        let json = await e.json();
+        if(json.disabled_features.includes("files")) window.location.href = "/";
+    })
+}
+setInterval(async () => {await checkIfDisabled()}, 3000);
+
 // Function to hide the menu
 function hideMenu() {
     contextMenu.style.display = 'none';
