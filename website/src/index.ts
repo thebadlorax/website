@@ -87,7 +87,6 @@ async function serveStaticIfAllowed(url: string) {
       });
     }
 
-    // Read file from disk
     const file = Bun.file(resolvedPath);
     if (await file.exists()) {
       const stats = await file.stat();
@@ -96,7 +95,6 @@ async function serveStaticIfAllowed(url: string) {
       const etag = `${file.size}-${Date.parse(lastModified)}`;
       const type = file.type || "application/octet-stream";
 
-      // Cache it
       cache.addToCache(resolvedPath, { content, type, etag, lastModified });
 
       return corsResponse(content, {
@@ -125,7 +123,7 @@ if(!key) {
   key = generateRandomString(5);
   await db.modify("key", key);
 }
-// end
+// end todo
 
 let blackjack: BlackjackInstance = new BlackjackInstance();
 let decks = new Map<string, Deck>();
@@ -162,7 +160,7 @@ const recreate_backup_database = async () => {
 };
 
 await backup_database();
-setTimeout(async () => { await backup_database(); }, HOURS_TO_MS(3));
+setInterval(async () => { await backup_database(); }, HOURS_TO_MS(3));
 
 log.log("server initalized >:3", "SERVER")
 const server = Bun.serve({
@@ -502,7 +500,10 @@ const server = Bun.serve({
 
             const blob = new Blob(
               // @ts-expect-error
-              [JSON.stringify(parsed)],
+              [JSON.stringify({"id": chatroom.id, "messages": parsed, "assignees": await chatroom.fetchProperty("assignees"), 
+              "display_name": await chatroom.fetchProperty("display_name") || "", "owner": await chatroom.fetchProperty("owner") || "",
+              "text_cooldown": await chatroom.fetchProperty("text_cooldown") || "1000"
+              })],
               { type: "application/json" }
             );
 
@@ -512,7 +513,6 @@ const server = Bun.serve({
               },
             });
           }
-            
           case "/stats":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
             let visitor_count_2 = await db.fetch("visitors") || 0;
