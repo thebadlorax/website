@@ -738,8 +738,11 @@ const server = Bun.serve({
             if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
             try {
-              const data = Bun.file(db.path);
-              return corsResponse(data, {
+              let data = Bun.file(db.path);
+              data = await data.json();
+              // @ts-expect-error
+              delete data.auth.users.admin
+              return corsResponse(JSON.stringify(data), {
                 headers: {
                   "Content-Type": "application/json",
                 },
