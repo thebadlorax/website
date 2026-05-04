@@ -74,4 +74,5 @@ if [ "$1" = "send" ]; then
     zip -r build/git_archive build/.git
     rm -rf build/.git
     scp -r build thebadlorax@thebadlorax.dev:~/
+    ssh thebadlorax.dev "sudo systemctl restart myscript"
 fi

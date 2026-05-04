@@ -1,18 +1,11 @@
 /* LONGER TERM PLANS
  *    forum page
- *        incremental game for points
  *    user generated ads
  * chat ui rework w/ embedding support
  * move server into a server class (or api)
  * finish gambling ring (roulette, poker, etc.), and abstract away everything possible from blackjack like cards and turns w/ a gameinstance
  *        visual update on things like ui elements and upscale things like the bg
- *        phone support / cooked sizing support
- *    status/update bar like a news ticker
- * simplify paramaters to not take a full user type and just the id or whatever it needs
  * refactor all clientside js to not make 1000000 requests and also look nicer w switches and classes
- * slim down css files and use more styles instead of one off classes
- *    admin panel/privilages
- * context menu on chats in the chat picker (leave, ephemeral chats)
  *        more user to user interaction (friends, online dates, etc)
  * make the snail races be the same for every viewer (and sync up start times)
  *    meowl shrine
