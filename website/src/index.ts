@@ -30,9 +30,6 @@ import { LogWizard } from "./backend/logging";
 import { AuthorizationWizard, userToJSON } from "./backend/auth";
 import { TimeWizard } from "./backend/time";
 
-import { GameWizard } from "./backend/game";
-import { TestModule } from "./backend/modules/TestModule";
-
 let log = new LogWizard();
 await log.init();
 log.log("starting server :3", "SERVER")
@@ -45,10 +42,6 @@ cache.addRoot("src/res")
 cache.addRoot("src/pages")
 const chat = new ChatWizard(db);
 const time = new TimeWizard();
-
-const game = new GameWizard(db);
-await game.init();
-new TestModule(game).init();
 
 let news: any = undefined;
 const reset_news = async () => {
@@ -124,7 +117,7 @@ const HOURS_TO_MS = (h: number) => { return (h * 60 * 60 * 1000) };
 await db.backup_database();
 setInterval(async () => { await db.backup_database(); }, HOURS_TO_MS(3));
 
-log.log("server initalized >:3", "SERVER")
+log.log("server initalized >:3", "SERVER");
 const server = Bun.serve({
   port: 8081,
   /*tls: {
@@ -850,7 +843,7 @@ const server = Bun.serve({
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
           case "/game": { 
-            if(!disabled_features.includes("game")) return corsResponse(Bun.file("src/pages/game.html"), { headers: { "Content-Type": "text/html" } }); 
+            if(!disabled_features.includes("game")) return corsResponse(Bun.file("src/pages/game/test.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
@@ -955,8 +948,6 @@ websocket: {
 
       case "/gambling/blackjack/join": blackjack.handleRecieved(ws, message); break;
 
-      case "/game/live": game.handleMessage(ws, message); break;
-
       default:
         ws.send("where u come from :-(");
     }
@@ -985,8 +976,7 @@ websocket: {
       case "/gambling/blackjack/join":
         blackjack.deregisterPlayer(ws);
         break;
-    
-      case "/game/live": game.deregisterPlayer(ws); break;
+  
     }
   },
 

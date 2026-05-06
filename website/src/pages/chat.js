@@ -540,3 +540,11 @@ document.addEventListener("click", function(e) {
 });
 
 hideMenu();
+
+const checkIfDisabled = async () => {
+    await fetch(getApiLink("/stats")).then(async e => {
+        let json = await e.json();
+        if(json.disabled_features.includes("chat")) window.location.href = "/";
+    })
+}
+setInterval(async () => {await checkIfDisabled()}, 3000);
