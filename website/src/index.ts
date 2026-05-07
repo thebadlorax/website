@@ -843,7 +843,7 @@ const server = Bun.serve({
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
           case "/game": { 
-            if(!disabled_features.includes("game")) return corsResponse(Bun.file("src/pages/game/test.html"), { headers: { "Content-Type": "text/html" } }); 
+            if(!disabled_features.includes("game")) return corsResponse(Bun.file("src/pages/game/game.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });

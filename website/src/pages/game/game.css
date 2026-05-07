@@ -1,0 +1,18 @@
+/*
+ * author thebadlorax
+ * created on 06-05-2026-18h-17m
+ * github: https://github.com/thebadlorax
+ * copyright 2026
+*/
+
+html, body {
+    overflow: hidden;
+}
+body {
+    background-color: black;
+
+}
+
+.canvas {
+    image-rendering: pixelated;
+}
