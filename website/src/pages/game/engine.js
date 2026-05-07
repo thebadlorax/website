@@ -103,8 +103,6 @@ export class Engine {
     
         let wwidth = window.innerWidth; let wheight = window.innerHeight;
     
-        let mapdata = this.map.getMapData(0, 0);
-    
         let worldWidth  = this.map.getMapData(0, 0).data.cols * this.map.getMapData(0, 0).data.tsize;
         let worldHeight = this.map.getMapData(0, 0).data.rows * this.map.getMapData(0, 0).data.tsize;
     
@@ -112,8 +110,8 @@ export class Engine {
             this.map,
             0,
             0,
-            worldWidth / 2,
-            worldHeight / 2,
+            Math.floor(worldWidth / 2),
+            Math.floor(worldHeight / 2),
             this.loader.getImage("player")
         );
     
@@ -123,7 +121,7 @@ export class Engine {
         const canvas = this.ctx.canvas;
         canvas.width = wwidth;
         canvas.height = wheight;
-        this.camera = new Camera(mapdata, canvas.width, canvas.height);
+        this.camera = new Camera(this.map.getMapData(0, 0), canvas.width, canvas.height);
         this._resize();
     
         this.camera.follow(this.hero);
@@ -155,16 +153,14 @@ export class Engine {
         }; let export_button = this.debug.level_editor.selected_window.createUIElement(
             190, 190, 50, 50, "textbutton", {"text": "export", "fontSize": "20"}
         ); export_button.onclick = async () => {
-            let t = Engine.gzipCompressString(JSON.stringify(mapdata));
+            let t = await Engine.gzipCompressString(JSON.stringify(this.map.getMapData(0, 0)));
             downloadBlob(t, `${prompt("name your creation:") || "untitled"}.sav`, "text/plain");
         }; let import_button = this.debug.level_editor.selected_window.createUIElement(
             130, 190, 50, 50, "textbutton", {"text": "import", "fontSize": "20"}
         ); import_button.onclick = async () => {
             let f = await pickFile();
             let t = JSON.parse(await Engine.gzipDecompressString(await f.text()));
-            console.log(t)
-            this.map.importMapData(t);
-            mapdata = this.map.getMapData(0, 0)
+            this.map.setMapData(0, 0, t.data);
             alert("imported")
         }; 
 
@@ -197,8 +193,6 @@ export class Engine {
             }
             this.debug.level_editor.selected_tile = [tx, ty];
             this.debug.level_editor.selected_window.visible = true;
-            //this.debug.level_editor.selected_window.x = mx - Math.floor(this.debug.level_editor.selected_window.width*1.1);
-            //this.debug.level_editor.selected_window.y = my - Math.floor(this.debug.level_editor.selected_window.height/2);
             this.debug.level_editor.selected_window.x = Math.min(this.debug.level_editor.selected_tile[0]*64, window.innerWidth-this.debug.level_editor.selected_window.width-20)
             this.debug.level_editor.selected_window.y = Math.min(this.debug.level_editor.selected_tile[1]*64, window.innerHeight-this.debug.level_editor.selected_window.height-20)
             
@@ -276,7 +270,6 @@ export class Engine {
     };
 
     _drawGrid() {
-        let mapdata = this.map.getMapData(0, 0);
         const tsize = this.map.getMapData(0, 0).data.tsize;
     
         for (let r = 0; r < this.map.getMapData(0, 0).data.rows; r++) {

@@ -71,8 +71,6 @@ export class Map {
     }
 
     setMapData(x, y, val) {
-        console.log(val);
-        console.log(this.maps[`00`])
         this.maps[`${x}${y}`] = new MapData(val, this.meta);
     }
 }

@@ -231,11 +231,14 @@ export class ChatInstance {
     public text_cooldown: number = 1000;
     public owner: string = "";
 
+    private queue: Array<message> = new Array();
+
     constructor(db: Database, id: (string | null) = null, w: ChatWizard) { this.db = db; if(id != null) id = id; this.w = w;}
 
     async init() {
         if(!await this.db.exists("chats"))  await this.db.modify("chats", {});
         let chats = await this.db.fetch("chats")
+        setInterval(async () => {if(this.queue.length > 0) await this.writeQueueToDB()}, 3000);
         if(!chats) return;
         if(chats[this.id] != undefined) { // inherited chat
             this.display_name = chats[this.id].display_name;
@@ -267,10 +270,18 @@ export class ChatInstance {
     }
 
     async appendMessageToHistory(message: message) {
+        this.queue.push(message);
+    }
+
+    async writeQueueToDB() {
         let data;
         try { data = await this.db.fetch("chats"); }
         catch { return; }
-        data[this.id]["history"].push(message);
+        this.queue.forEach(m => {
+            data[this.id]["history"].push(m);
+        });
+        this.queue = new Array();
+        console.log("yo");
         await this.db.modify("chats", data);
     }
 
