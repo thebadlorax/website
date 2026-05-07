@@ -95,6 +95,7 @@ export class Window {
 
     handleClick(mx, my) {
         this.UIElements.forEach(e => {
+            if(!e.visible) return;
             if(Engine.rectanglesIntersect(mx, my, 10, 10, this.x+e.x,this.y+e.y, e.w, e.h)) {
                 e.onclick();
             }
@@ -138,13 +139,18 @@ export class Window {
                             0, // source y
                             e.data.tileSize, // source width
                             e.data.tileSize, // source height
-                            (this.x + e.x)+5,
-                            (this.y + e.y)+5,
-                            e.w-10, // target width
-                            e.h-10 // target height
+                            (this.x + e.x)+1,
+                            (this.y + e.y)+1,
+                            e.w-2, // target width
+                            e.h-2 // target height
                         );
                     } else {
-                        this.ctx.drawImage(e.data.image, (this.x+e.x)+5, (this.y+e.y)+5, e.w-10, e.h-10)
+                        this.ctx.drawImage(e.data.image, (this.x+e.x)+1, (this.y+e.y)+1, e.w-2, e.h-2)
+                    }
+
+                    if(e.data.overlayColor != null) {
+                        this.ctx.fillStyle = e.data.overlayColor;
+                        this.ctx.fillRect((this.x + e.x), (this.y + e.y), e.w, e.h);
                     }
                     
                     this.ctx.strokeStyle = e.data.strokeColor || "black";

@@ -281,7 +281,6 @@ export class ChatInstance {
             data[this.id]["history"].push(m);
         });
         this.queue = new Array();
-        console.log("yo");
         await this.db.modify("chats", data);
     }
 

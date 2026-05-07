@@ -7,7 +7,11 @@
 
 html, body {
     overflow: hidden;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
 }
+
 body {
     background-color: black;
 
@@ -15,4 +19,5 @@ body {
 
 .canvas {
     image-rendering: pixelated;
+    display: block;
 }

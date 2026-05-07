@@ -202,6 +202,11 @@ ws.addEventListener("open", () => {
 })
 
 document.getElementById("cooldown-input").addEventListener("change", () => {
+    if(parseInt(document.getElementById("cooldown-input").value) < 1000) {
+        alert("must be greater than 1000ms");
+        document.getElementById("cooldown-input").value = "1000";
+        return;
+    }
     ws.send(JSON.stringify({"type": "wizard", "method": "change_cooldown", "content": {"user_id": JSON.parse(window.localStorage.getItem("user")).account.id, "chat_id": id, "cooldown": document.getElementById("cooldown-input").value}}));
 })
 
