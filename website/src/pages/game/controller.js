@@ -13,7 +13,7 @@ export class Keyboard {
         RIGHT_ARROW: 39, D_KEY: 68,
         UP_ARROW: 38, W_KEY: 87,
         DOWN_ARROW: 40, S_KEY: 83,
-        ESCAPE: 27, G_KEY: 71
+        ESCAPE: 27, G_KEY: 71, SHIFT: 16
     };
     constructor() {};
 

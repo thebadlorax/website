@@ -82,10 +82,27 @@ export class WindowUIElement {
 }
 
 export class Window {
-    constructor(ctx, x, y, w, h) {
+    constructor(ctx, x, y, w, h, space="screen") {
         this.x = x; this.y = y; this.width = w; this.height = h;
         this.z = 0; this.ctx = ctx; this.visible = false; this.UIElements = [];
+        this.space = space;
     };
+
+    getRenderX(camera=null) {
+        if(this.space === "world" && camera) {
+            return this.x - camera.x;
+        }
+    
+        return this.x;
+    }
+    
+    getRenderY(camera=null) {
+        if(this.space === "world" && camera) {
+            return this.y - camera.y;
+        }
+    
+        return this.y;
+    }
 
     createUIElement(x, y, w, h, type, data=null) {
         let e = new WindowUIElement(this.ctx, x, y, w, h, type, data);
@@ -93,42 +110,53 @@ export class Window {
         return e;
     }
 
-    handleClick(mx, my) {
+    handleClick(mx, my, camera=null) {
+        const rx = this.getRenderX(camera);
+        const ry = this.getRenderY(camera);
         this.UIElements.forEach(e => {
             if(!e.visible) return;
-            if(Engine.rectanglesIntersect(mx, my, 10, 10, this.x+e.x,this.y+e.y, e.w, e.h)) {
+            if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
                 e.onclick();
             }
         })
     }
 
-    draw() {
+    draw(camera=null) {
         if(!this.visible) return;
+        const rx = this.getRenderX(camera);
+        const ry = this.getRenderY(camera);
         this.ctx.fillStyle = "white";
-        this.ctx.fillRect(this.x, this.y, this.width, this.height);
+        this.ctx.fillRect(rx, ry, this.width, this.height);
         this.ctx.strokeStyle = "black";
         this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(this.x, this.y, this.width, this.height);
+        this.ctx.strokeRect(rx, ry, this.width, this.height);
 
         this.UIElements.forEach(e => {
             if(!e.visible) return;
             switch(e.type) {
                 case "button": {
                     this.ctx.fillStyle = "gray";
-                    this.ctx.fillRect(this.x + e.x, this.y + e.x, e.w, e.h);
+                    this.ctx.fillRect(rx + e.x, ry + e.y, e.w, e.h);
                     this.ctx.strokeStyle = "black";
                     this.ctx.lineWidth = 1;
-                    this.ctx.strokeRect(this.x + e.x, this.y + e.y, e.w, e.h);
+                    this.ctx.strokeRect(rx + e.x, ry + e.y, e.w, e.h);
                     break;
                 }
                 case "textbutton": {
                     this.ctx.fillStyle = "black";
-                    //this.ctx.fillRect(this.x + e.x, this.y + e.x, e.w, e.h);
+                    //this.ctx.fillRect(rx + e.x, ry + e.x, e.w, e.h);
                     this.ctx.strokeStyle = e.data.strokeColor || "black";
                     this.ctx.lineWidth = 1;
-                    this.ctx.strokeRect(this.x + e.x, this.y + e.y, e.w, e.h);
-                    this.ctx.font = `${e.data.fontSize}px`; 
-                    this.ctx.fillText(e.data.text, (this.x+e.x)+(Math.floor(e.w/4)), (this.y+e.y)+(Math.floor(e.h/2)), e.w)
+                    this.ctx.strokeRect(rx + e.x, ry + e.y, e.w, e.h);
+                    this.ctx.font = "13px monospace";
+
+                    this.ctx.textAlign = "center";
+                    this.ctx.textBaseline = "middle";
+                    this.ctx.fillText(
+                        e.data.text,
+                        rx + e.x + (e.w / 2),
+                        ry + e.y + (e.h / 2)
+                    );
                     break;
                 }
                 case "image": {
@@ -139,23 +167,23 @@ export class Window {
                             0, // source y
                             e.data.tileSize, // source width
                             e.data.tileSize, // source height
-                            (this.x + e.x)+1,
-                            (this.y + e.y)+1,
+                            (rx + e.x)+1,
+                            (ry + e.y)+1,
                             e.w-2, // target width
                             e.h-2 // target height
                         );
                     } else {
-                        this.ctx.drawImage(e.data.image, (this.x+e.x)+1, (this.y+e.y)+1, e.w-2, e.h-2)
+                        this.ctx.drawImage(e.data.image, (rx+e.x)+1, (ry+e.y)+1, e.w-2, e.h-2)
                     }
 
                     if(e.data.overlayColor != null) {
                         this.ctx.fillStyle = e.data.overlayColor;
-                        this.ctx.fillRect((this.x + e.x), (this.y + e.y), e.w, e.h);
+                        this.ctx.fillRect((rx + e.x), (ry + e.y), e.w, e.h);
                     }
                     
                     this.ctx.strokeStyle = e.data.strokeColor || "black";
                     this.ctx.lineWidth = 2;
-                    this.ctx.strokeRect(this.x + e.x, this.y + e.y, e.w, e.h);
+                    this.ctx.strokeRect(rx + e.x, ry + e.y, e.w, e.h);
                     break;
                 }
             }
