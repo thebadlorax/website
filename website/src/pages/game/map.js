@@ -68,7 +68,6 @@ class MapData {
                     y = t.y + t.visual.offset.y;
                 }
             }
-            console.log(x, y);
             if(Engine.rectanglesIntersect(x, y, t.w, t.h, row, col, 1, 1)) l.push(t); 
         })
         return l;

@@ -51,7 +51,7 @@ export class Engine {
             .pipeThrough(new DecompressionStream("gzip"));
     
         return await new Response(stream).text();
-    }
+    };
 
     debug = {
         "show_grid": false,
@@ -70,12 +70,11 @@ export class Engine {
         this.keyboard = new Keyboard();
         this.map = new Map();
         this.map.importMapData(this.data.map);
-    }
+    };
 
     load() { return this.data.assets.map(b => this.loader.loadImage(b[0], b[1])) };
 
     run(context) {
-        this.renderer = new Renderer(context, this);
         this.ctx = context;
         this._previousElapsed = 0;
     
@@ -96,19 +95,27 @@ export class Engine {
         this._previousElapsed = elapsed;
 
         this.update(delta);
-        this.render();
+        this.renderer.render();
     }
 
     init() {
         this.keyboard.listenForEvents(
             Object.values(this.keyboard.KEYCODES));
-        this.tileAtlas = this.loader.getImage('tiles');
+
+        const starting_area_data = this.map.getMapData(`home`);
     
         let wwidth = window.innerWidth; let wheight = window.innerHeight;
     
-        let worldWidth  = this.map.getMapData(`home`).cols * this.map.getMapData(`home`).tsize;
-        let worldHeight = this.map.getMapData(`home`).rows * this.map.getMapData(`home`).tsize;
+        let worldWidth  = starting_area_data.cols * starting_area_data.tsize;
+        let worldHeight = starting_area_data.rows * starting_area_data.tsize;
     
+        const canvas = this.ctx.canvas;
+        canvas.width = wwidth;
+        canvas.height = wheight;
+        this.camera = new Camera(starting_area_data, canvas.width, canvas.height);
+        this.renderer = new Renderer(this.ctx, this.camera, this);
+        this._resize();
+
         this.hero = new Sprite(
             this.map,
             "home",
@@ -117,23 +124,30 @@ export class Engine {
             this.loader.getImage("player"),
             this
         );
+        this.hero.zindex = 1;
     
         this.hero.x = Math.min(worldWidth, Math.max(0, this.hero.x));
         this.hero.y = Math.min(worldHeight, Math.max(0, this.hero.y));
-    
-        const canvas = this.ctx.canvas;
-        canvas.width = wwidth;
-        canvas.height = wheight;
-        this.camera = new Camera(this.hero.map, canvas.width, canvas.height);
-        this._resize();
     
         this.camera.follow(this.hero);
 
         this.debug.level_editor.selected_window          = new Window(this.ctx, 250, 250, 370, 370, "world");
         this.debug.level_editor.layer_subwindow          = new Window(this.ctx, 250, 250, 200, 370, "world");
         this.debug.level_editor.info_subwindow           = new Window(this.ctx, 250, 250, 370, 70,  "world");
-        this.debug.level_editor.tile_settings_subwindow  = new Window(this.ctx, 250, 250, 200, 370,  "world");
-        let tilemap = this.loader.getImage("tiles");
+        this.debug.level_editor.tile_settings_subwindow  = new Window(this.ctx, 250, 250, 200, 370, "world");
+        this.renderer.windows.push(
+            this.debug.level_editor.selected_window, 
+            this.debug.level_editor.layer_subwindow, 
+            this.debug.level_editor.info_subwindow, 
+            this.debug.level_editor.tile_settings_subwindow
+        );
+        this.debug.level_editor.info_subwindow.onrender = () => {
+            this.debug.level_editor.ui.player_pos_text.data.text = `player pos: (${Math.floor(this.hero.x)}, ${Math.floor(this.hero.y)}) (grid: (${this.hero.map.getCol(this.hero.x)}, ${this.hero.map.getRow(this.hero.y)}))`
+            this.debug.level_editor.ui.player_worldpos_text.data.text = `mapID: ${this.hero.mapid}`;
+            let st = this.debug.level_editor.selected_tile || ["n/a, n/a"];
+            this.debug.level_editor.ui.selected_tile_text.data.text = `selected tile: (${st[0]}, ${st[1]})`;
+        };
+        let tilemap = this.renderer.tileAtlas;
         let tileCount = Math.floor(tilemap.width/64);
         let a = 0; let y_off = 10;
         let tile_buttons = []; let other_buttons = [];
@@ -156,7 +170,7 @@ export class Engine {
             80, 310, 50, 50, "textbutton", {"text": "map", "fontSize": "40"}
         );
         
-        let blocked_tiles_button = this.debug.level_editor.selected_window.createUIElement(
+        let objects_button = this.debug.level_editor.selected_window.createUIElement(
             140, 310, 50, 50, "textbutton", {"text": "objects", "fontSize": "20"}
         ); let wall_tile_button = this.debug.level_editor.selected_window.createUIElement(
             10, 10, 50, 50, "textbutton", {"text": "wall", "fontSize": "20"}
@@ -303,14 +317,14 @@ export class Engine {
             if(layer_button.visible) {
                 layer_button.visible = false;
                 map_button.visible = true;
-                blocked_tiles_button.visible = false;
+                objects_button.visible = false;
                 this.debug.level_editor.layer_subwindow.visible = false;
                 tile_buttons.forEach(t => t.visible = false)
                 map_button.data.strokeColor = "cyan";
                 createMap();
             } else {
                 layer_button.visible = true;
-                blocked_tiles_button.visible = true;
+                objects_button.visible = true;
                 map_button.visible = true;
                 map_button.data.strokeColor = "black";
                 map_buttons.forEach(t => t.visible = false)
@@ -324,21 +338,21 @@ export class Engine {
             this.debug.level_editor.layer_subwindow.visible = !this.debug.level_editor.layer_subwindow.visible;
             createLayerButtons();
 
-            blocked_tiles_button.data.strokeColor = "black";
+            objects_button.data.strokeColor = "black";
             tile_buttons.forEach(t => t.visible = true)
             other_buttons.forEach(t => t.visible = false)
-        }; blocked_tiles_button.onclick = () => {
+        }; objects_button.onclick = () => {
             if(layer_button.visible) {
                 layer_button.visible = false;
                 map_button.visible = false;
-                blocked_tiles_button.data.strokeColor = "cyan";
+                objects_button.data.strokeColor = "cyan";
                 this.debug.level_editor.layer_subwindow.visible = false;
                 tile_buttons.forEach(t => t.visible = false)
                 other_buttons.forEach(t => t.visible = true)
             } else {
                 layer_button.visible = true;
                 map_button.visible = true;
-                blocked_tiles_button.data.strokeColor = "black";
+                objects_button.data.strokeColor = "black";
                 tile_buttons.forEach(t => t.visible = true)
                 other_buttons.forEach(t => t.visible = false)
             }
@@ -355,6 +369,7 @@ export class Engine {
             let f = await pickFile();
             let t = JSON.parse(await Engine.gzipDecompressString(await f.text()));
             this.map.importMapData(t);
+            this.hero.worldMove(this.hero.mapid);
             alert("imported")
         }; 
 
@@ -379,9 +394,8 @@ export class Engine {
         const handle_tinfo_window = () => {
             let win = this.debug.level_editor.selected_window;
             let wx = win.x; let wy = win.y;
-            let m = this.hero.map;
 
-            const triggers = m.getTriggersOnTile(this.debug.level_editor.selected_tile[0], this.debug.level_editor.selected_tile[1]);
+            const triggers = this.hero.map.getTriggersOnTile(this.debug.level_editor.selected_tile[0], this.debug.level_editor.selected_tile[1]);
             const tinfo_win = this.debug.level_editor.tile_settings_subwindow;
             if(triggers.length > 0) {
                 let trigger = triggers[0];
@@ -390,7 +404,7 @@ export class Engine {
                     if(trigger.visual.offset != null) has_visual_offset = true;
                 }
                 tinfo_win.visible = true;
-                tinfo_win.x = wx+(m.tsize*6)
+                tinfo_win.x = wx+(this.hero.map.tsize*6)
                 tinfo_win.y = wy
                 tinfo_win.UIElements = [];
 
@@ -440,7 +454,7 @@ export class Engine {
             let tsize = m.tsize;
             let tx = Math.floor((mx + this.camera.x) / tsize);
             let ty = Math.floor((my + this.camera.y) / tsize);
-            if(tx >= m.rows || ty >= m.cols) {
+            if(tx >= m.cols || ty >= m.rows || tx < 0 || ty < 0) {
                 return;
             }
             let st = this.debug.level_editor.selected_tile;
@@ -555,201 +569,6 @@ export class Engine {
         this.hero.move(delta, dirx, diry, this.keyboard.isDown(this.keyboard.KEYCODES.SHIFT) ? 500 : 250);
         this.camera.update();
     };
-
-    _drawLayer(layer) {
-        var startCol = Math.floor(this.camera.x / this.hero.map.tsize);
-        var endCol = Math.min(
-            this.hero.map.cols,
-            startCol + Math.ceil(this.camera.width / this.hero.map.tsize) + 1
-        );
-        var startRow = Math.floor(this.camera.y / this.hero.map.tsize);
-        var endRow = Math.min(
-            this.hero.map.rows,
-            startRow + Math.ceil(this.camera.height / this.hero.map.tsize) + 1
-        );
-    
-        for (var c = startCol; c < endCol; c++) {
-            for (var r = startRow; r < endRow; r++) {
-                var tile = this.hero.map.getTile(layer, c, r);
-                var x = Math.floor(c * this.hero.map.tsize - this.camera.x);
-                var y = Math.floor(r * this.hero.map.tsize - this.camera.y);
-                
-                if (tile !== 0) { // 0 => empty tile
-                    this.ctx.drawImage(
-                        this.tileAtlas, // image
-                        (tile - 1) * this.hero.map.tsize, // source x
-                        0, // source y
-                        this.hero.map.tsize, // source width
-                        this.hero.map.tsize, // source height
-                        Math.floor(x),
-                        Math.floor(y),
-                        this.hero.map.tsize, // target width
-                        this.hero.map.tsize // target height
-                    );
-                }
-            }
-        }
-    };
-
-    _drawTriggers() {
-        const map = this.hero.map;
-    
-        if (!map.triggers) return;
-    
-        const tsize = map.tsize;
-    
-        for (const trigger of map.triggers) {
-
-            let offset = null;
-            let color_override = null;
-            if(trigger.visual != null) {
-                if(trigger.visual.color != null) color_override = trigger.visual.color
-                if(trigger.visual.offset != null) offset = trigger.visual.offset;
-            }
-
-            let worldX; let worldY;
-    
-            // world position
-            if(offset != null) {
-                worldX = (trigger.x+offset.x) * tsize;
-                worldY = (trigger.y+offset.y) * tsize;
-            } else {
-                worldX = trigger.x * tsize;
-                worldY = trigger.y * tsize;
-            }
-            
-    
-            // convert to screen space
-            const x = Math.round(worldX - this.camera.x);
-            const y = Math.round(worldY - this.camera.y);
-    
-            // size
-            const width = (trigger.w || 1) * tsize;
-            const height = (trigger.h || 1) * tsize;
-    
-            //
-            // choose color by trigger type
-            //
-            if(color_override != null) {
-                this.ctx.fillStyle = color_override.fill;
-                this.ctx.strokeStyle = color_override.stroke;
-            } else {
-                switch(trigger.type) {
-                    case "portal":
-                        this.ctx.fillStyle = "rgba(0, 100, 255, 0.35)";
-                        this.ctx.strokeStyle = "rgba(0, 150, 255, 0.9)";
-                        break;
-                    case "dialogue":
-                        this.ctx.fillStyle = "rgba(255, 255, 0, 0.35)";
-                        this.ctx.strokeStyle = "rgba(255, 255, 0, 0.9)";
-                        break;
-                    default:
-                        this.ctx.fillStyle = "rgba(255,255,255,0.2)";
-                        this.ctx.strokeStyle = "white";
-                        break;
-                }
-            }
-            
-    
-            // fill trigger area
-            this.ctx.fillRect(x, y, width, height);
-    
-            // border
-            this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(x, y, width, height);
-    
-            //
-            // label
-            //
-            this.ctx.fillStyle = "white";
-            this.ctx.font = "14px monospace";
-            this.ctx.textAlign = "start";
-            this.ctx.textBaseline = "alphabetic";
-    
-            this.ctx.fillText(
-                trigger.type,
-                x + 4,
-                y + 16
-            );
-        }
-    }
-
-    _drawGrid() {
-        const tsize = this.hero.map.tsize;
-    
-        for (let r = 0; r < this.hero.map.rows; r++) {
-            for (let c = 0; c < this.hero.map.cols; c++) {
-    
-                // world position of tile
-                let worldX = c * tsize;
-                let worldY = r * tsize;
-    
-                // convert to screen space
-                let x = Math.round(worldX - this.camera.x);
-                let y = Math.round(worldY - this.camera.y);
-    
-                // check if tile is solid (any layer)
-                let isSolid = this.hero.map.isSolidTileAtXY(
-                    worldX + tsize / 2,
-                    worldY + tsize / 2
-                );
-    
-                // draw fill
-                if (isSolid) {
-                    this.ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
-                    this.ctx.fillRect(x, y, tsize, tsize);
-                }
-
-                if(this.debug.level_editor.active) {
-                    let st = this.debug.level_editor.selected_tile;
-                    if(st != null) {
-                        if(st[0] == c && st[1] == r) {
-                            this.ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-                            this.ctx.fillRect(x, y, tsize, tsize);
-                        }
-                    }
-                }
-    
-                // draw grid border
-                this.ctx.strokeStyle = "rgba(255,255,255,0.2)";
-                this.ctx.strokeRect(x, y, tsize, tsize);
-            }
-        }
-    };
-
-    render() { 
-        this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height); 
-        const layers = Object.values(this.hero.map.data.layers);
-        this._drawLayer(1); 
-        this.ctx.drawImage(
-            this.hero.image,
-            Math.round(this.hero.screenX - this.hero.width / 2),
-            Math.round(this.hero.screenY - this.hero.height / 2)
-        );
-        this._drawLayer(2); 
-
-        for(let x = 2; x < layers.length; x++) {
-            this._drawLayer(x);
-        }
-        
-        if(this.debug.show_grid || this.debug.level_editor.active) {
-            this._drawTriggers();
-            this._drawGrid(); 
-        }
-
-        this.debug.level_editor.selected_window.draw(this.camera);
-        this.debug.level_editor.layer_subwindow.draw(this.camera);
-        this.debug.level_editor.ui.player_pos_text.data.text = `player pos: (${Math.floor(this.hero.x)}, ${Math.floor(this.hero.y)}) (grid: (${this.hero.map.getCol(this.hero.x)}, ${this.hero.map.getRow(this.hero.y)}))`
-        this.debug.level_editor.ui.player_worldpos_text.data.text = `mapID: ${this.hero.mapid}`;
-        let st = this.debug.level_editor.selected_tile || ["n/a, n/a"];
-        this.debug.level_editor.ui.selected_tile_text.data.text = `selected tile: (${st[0]}, ${st[1]})`;
-        this.debug.level_editor.info_subwindow.draw(this.camera)
-        this.debug.level_editor.tile_settings_subwindow.draw(this.camera);
-
-        if(this.debug.show_grid || this.debug.level_editor.active) {
-            this.hero.drawHitbox(this.ctx);
-        }
-    };
 }
 
 export class Sprite {
@@ -766,6 +585,9 @@ export class Sprite {
         this.data = {};
 
         this.image = img;
+
+        this.onrender = () => {};
+        this.engine.renderer.sprites.push(this);
     };
 
     worldMove(id) {
@@ -941,7 +763,7 @@ export class Trigger {
         this.visual = visual;
 
         this._inside = new WeakSet();
-    }
+    };
 
     intersects(x, y, w, h, tsize) {
         const tx = this.x * tsize;
@@ -961,7 +783,7 @@ export class Trigger {
             tw,
             th
         );
-    }
+    };
 
     update(sprite) {
         const hit = this.intersects(
@@ -987,7 +809,7 @@ export class Trigger {
         else if (hit && wasInside) {
             this.onStay(sprite);
         }
-    }
+    };
 
     onEnter(sprite) {
         switch (this.type) {
@@ -1003,12 +825,11 @@ export class Trigger {
                 break;
             }
         }
-    }
+    };
 
     onExit(sprite) {
-    }
+    };
 
     onStay(sprite) {
-        
-    }
+    };
 }
