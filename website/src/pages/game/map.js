@@ -5,12 +5,14 @@
  * copyright 2026
 */
 
-import { Trigger } from "./engine.js";
+import { Trigger, Engine } from "./engine.js";
 
 class MapData {
     data;
     constructor(data) { 
         this.data = data;
+
+        this.id = data.id;
 
         this.cols = data.cols;
         this.rows = data.rows;
@@ -56,6 +58,22 @@ class MapData {
         this.data.layers[layer]["data"][row * this.data.cols + col] = val; 
     }
 
+    getTriggersOnTile(row, col) {
+        let l = [];
+        this.triggers.forEach(t => { 
+            let x = t.x; let y = t.y;
+            if(t.visual != null) {
+                if(t.visual.offset != null) {
+                    x = t.x + t.visual.offset.x;
+                    y = t.y + t.visual.offset.y;
+                }
+            }
+            console.log(x, y);
+            if(Engine.rectanglesIntersect(x, y, t.w, t.h, row, col, 1, 1)) l.push(t); 
+        })
+        return l;
+    }
+
     createTrigger(x, y, w, h, type, data = {}, visual = null) {
         const trigger = new Trigger(x, y, w, h, type, data, visual);
     
@@ -98,52 +116,71 @@ class MapData {
 export class Map {
     data;
     maps = {};
-    meta;
     constructor() {};
 
     constructMapData() {
-        let d = {};
-        d.meta = this.meta;
+        let d = {
+        };
+        let a = []
 
         for(let x = 0; x < Object.keys(this.maps).length; x++) {
             let i = Object.keys(this.maps)[x];
             let m = this.maps[i]
-            d[i] = {
-                ...m.data,
-                triggers: m.triggers.map(t => ({
-                    x: t.x,
-                    y: t.y,
-                    w: t.w,
-                    h: t.h,
-                    type: t.type,
-                    data: t.data,
-                    visual: t.visual
-                }))
-            };
+            a.push(m.data);
         }
+
+        d.maps = a;
         return d;
     }
 
     importMapData(data) {
-        this.meta = data.meta;
         this.maps = {};
         this.data = data;
 
-        Object.keys(data)
-            .filter(k => k !== "meta")
-            .forEach(t => {
-                this.maps[t] = new MapData(data[t]);
-            });
+        data.maps.forEach(m => {
+            this.maps[m.id] = new MapData(m)
+        })
 
         this.constructMapData();
     }
 
-    getMapData(x, y) {
-        if(this.maps[`${x};${y}`] != undefined) return this.maps[`${x};${y}`];
+    getMapData(id) {
+        if(this.maps[`${id}`] != undefined) return this.maps[`${id}`];
         else return null;
     }
 
-    setMapData(x, y, val) {
-        this.maps[`${x};${y}`] = new MapData(val, this.meta);
+    setMapData(id, val) {
+        this.maps[`${id}`] = new MapData(val, this.meta);
+    }
+
+    createMapData(id, cols = 25, rows = 24, tsize = 64) {
+        const size = cols * rows;
+
+        const makeLayer = (layerId, name, visible = true, fill = 0) => ({
+            id: layerId,
+            visible,
+            name,
+            data: new Array(size).fill(fill)
+        });
+
+        const map = {
+            id,
+            cols,
+            rows,
+            tsize,
+
+            layers: [
+                makeLayer(0, "collisions", false, 0),
+                makeLayer(1, "background", true, 1),
+                makeLayer(2, "foreground", true, 0)
+            ],
+
+            triggers: [],
+            objects: []
+        };
+
+        this.maps[id] = new MapData(map);
+
+        return this.maps[id];
     }
 }

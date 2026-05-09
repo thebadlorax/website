@@ -75,9 +75,14 @@ export class Camera {
 };
 
 export class WindowUIElement {
-    constructor(ctx, x, y, w, h, type, data) {
+    constructor(ctx, x, y, w, h, type, data, window) {
         this.x = x; this.y = y; this.w = w; this.h = h; this.type = type;
         this.onclick = () => {}; this.visible = true; this.ctx = ctx; this.data = data;
+        this.window = window;
+    }
+
+    destroy() {
+        this.window.UIElements.splice(this.window.UIElements.indexOf(this), 1);
     }
 }
 
@@ -105,7 +110,7 @@ export class Window {
     }
 
     createUIElement(x, y, w, h, type, data=null) {
-        let e = new WindowUIElement(this.ctx, x, y, w, h, type, data);
+        let e = new WindowUIElement(this.ctx, x, y, w, h, type, data, this);
         this.UIElements.push(e);
         return e;
     }
@@ -186,7 +191,25 @@ export class Window {
                     this.ctx.strokeRect(rx + e.x, ry + e.y, e.w, e.h);
                     break;
                 }
+                case "text": {
+                    this.ctx.font = "13px monospace";
+                    this.ctx.fillStyle = "black";
+                    this.ctx.textAlign = "center";
+                    this.ctx.textBaseline = "middle";
+                    this.ctx.fillText(
+                        e.data.text,
+                        rx + e.x + (e.w / 2),
+                        ry + e.y + (e.h / 2)
+                    );
+                }
             }
         })
     };
+}
+
+export class Renderer {
+    constructor(ctx, engine) {
+        this.ctx = ctx;
+        this.engine = engine;
+    }
 }
