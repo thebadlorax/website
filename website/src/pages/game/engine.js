@@ -19,6 +19,23 @@ export class Engine {
         if (x1 + w1 <= x2 || x2 + w2 <= x1) return false;
         if (y1 + h1 <= y2 || y2 + h2 <= y1) return false;
         return true;
+    }; static getRectangleOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
+        const left   = Math.max(x1, x2);
+        const top    = Math.max(y1, y2);
+        const right  = Math.min(x1 + w1, x2 + w2);
+        const bottom = Math.min(y1 + h1, y2 + h2);
+
+        const width  = right - left;
+        const height = bottom - top;
+
+        if (width <= 0 || height <= 0) { return null; }
+    
+        return {
+            x: left,
+            y: top,
+            w: width,
+            h: height
+        };
     }
 
     static async gzipCompressString(str) {
@@ -551,7 +568,7 @@ export class Engine {
             this.debug.level_editor.tile_settings_subwindow.visible = false;
         });  
 
-        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.TAB, () => {
+        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.C_KEY, () => {
             if(this.combat.in_combat) this.combat.exitCombat();
             else this.combat.enterCombat();
             

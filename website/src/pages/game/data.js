@@ -270,24 +270,27 @@ export let test_data_request = {
     "cards": [
         {
             "id": 0,
-            "name": "example_pattern_card",
+            "name": "circle projectile",
             "description": "an example pattern card: 1 projectile in a circle",
             "type": "pattern",
             "rarity": "common",
             "imageid": "test_card_art",
             "data": {
                 "type": "projectile",
-                "amount": 1,
-                "path": {
-                    "type": "circle",
-                    "radius": 5,
-                    "time": 2
-                },
-                "width": 5,
-                "height": 5,
-                "lifespan": 10,
-                "damage": 5,
-                "color": "red"
+                "settings": {
+                    "amount": 1,
+                    "path": {
+                        "type": "circle",
+                        "settings": {
+                            "radius": 50,
+                            "speed": 5
+                        }
+                    },
+                    "size": 5,
+                    "lifespan": 10,
+                    "damage": 5,
+                    "color": "red"
+                }
             }
         },
         {
@@ -299,18 +302,21 @@ export let test_data_request = {
             "imageid": "homing_card_art",
             "data": {
                 "type": "projectile",
-                "amount": 1,
-                "path": {
-                    "type": "follow",
-                    "target": "player",
-                    "accuracy": 50,
-                    "speed": 5
+                "settings": {
+                    "amount": 1,
+                    "size": 5,
+                    "lifespan": 10,
+                    "damage": 5,
+                    "color": "red",
+                    "path": {
+                        "type": "follow",
+                        "settings": {
+                            "target": "player",
+                            "accuracy": 50,
+                            "speed": 5
+                        }
+                    }
                 },
-                "width": 5,
-                "height": 5,
-                "lifespan": 10,
-                "damage": 5,
-                "color": "red"
             }
         },
     ],

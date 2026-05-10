@@ -14,7 +14,7 @@ export class Keyboard {
         UP_ARROW: 38, W_KEY: 87,
         DOWN_ARROW: 40, S_KEY: 83,
         ESCAPE: 27, G_KEY: 71, SHIFT: 16,
-        TAB: 9
+        TAB: 9, C_KEY: 67
     };
     mouseX = 0; mouseY = 0;
     constructor() {
