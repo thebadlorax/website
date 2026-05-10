@@ -13,9 +13,15 @@ export class Keyboard {
         RIGHT_ARROW: 39, D_KEY: 68,
         UP_ARROW: 38, W_KEY: 87,
         DOWN_ARROW: 40, S_KEY: 83,
-        ESCAPE: 27, G_KEY: 71, SHIFT: 16
+        ESCAPE: 27, G_KEY: 71, SHIFT: 16,
+        TAB: 9
     };
-    constructor() {};
+    mouseX = 0; mouseY = 0;
+    constructor() {
+        document.addEventListener("mousemove", e => {
+            this.mouseX = e.clientX; this.mouseY = e.clientY;
+        })
+    };
 
     listenForEvents(keys) {
         window.addEventListener('keydown', this._onKeyDown.bind(this));

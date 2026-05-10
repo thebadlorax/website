@@ -11,6 +11,8 @@ import { Map } from "./map.js";
 import { downloadBlob, pickFile } from "./browser.js";
 
 import { clamp } from "../common.js";
+import { test_data_request } from "./data.js";
+import { Card, CardManager, CombatManager } from "./combat.js";
 
 export class Engine {
     static rectanglesIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
@@ -70,6 +72,9 @@ export class Engine {
         this.keyboard = new Keyboard();
         this.map = new Map();
         this.map.importMapData(this.data.map);
+        this.cards = new CardManager();
+        this.combat = new CombatManager(this.cards, this);
+        this.state = "main";
     };
 
     load() { return this.data.assets.map(b => this.loader.loadImage(b[0], b[1])) };
@@ -447,7 +452,11 @@ export class Engine {
             }
         }
 
-        window.addEventListener("click", (e) => {
+        window.addEventListener("mousedown", (e) => {
+            if(this.combat.in_combat) {
+                this.combat.onClick();
+                return;
+            };
             if(!this.debug.level_editor.active) return;
             let mx = e.clientX; let my = e.clientY;
             let m = this.hero.map;
@@ -521,7 +530,15 @@ export class Engine {
             handle_tinfo_window();
         })
 
+        window.addEventListener("mouseup", () => {
+            if(this.combat.in_combat) {
+                this.combat.onRelease();
+                return;
+            }
+        })
+
         this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.ESCAPE, () => {
+            if(this.combat.in_combat) return;
             if(this.debug.level_editor.first_open) {
                 alert("triggers don't activate while in level editor mode");
                 this.debug.level_editor.first_open = false;
@@ -533,6 +550,15 @@ export class Engine {
             this.debug.level_editor.info_subwindow.visible = false;
             this.debug.level_editor.tile_settings_subwindow.visible = false;
         });  
+
+        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.TAB, () => {
+            if(this.combat.in_combat) this.combat.exitCombat();
+            else this.combat.enterCombat();
+            
+        })
+
+        test_data_request.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
+        this.cards.addToDeck(0, 1);
     };
 
     _resize() {
@@ -549,6 +575,10 @@ export class Engine {
     };
 
     update(delta) {
+        if(this.combat.in_combat) {
+            this.combat.combatUpdate(delta);
+            return;
+        };
         var dirx = 0;
         var diry = 0;
         if (this.keyboard.isDown(this.keyboard.KEYCODES.LEFT_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.A_KEY)) { dirx += -1; }

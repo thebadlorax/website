@@ -127,6 +127,21 @@ export let test_data_request = {
                             }
                         }
                     }
+                ],
+                objects: [
+                    {
+                        "type": "npc",
+                        "x": 0,
+                        "y": 0,
+                        "data": {
+                            "name": "test npc",
+                            "dialogue": {
+                                "interact": [
+                                    ""
+                                ]
+                            }
+                        }
+                    }
                 ]
             },
             {
@@ -252,8 +267,57 @@ export let test_data_request = {
             }
         ]
     },
+    "cards": [
+        {
+            "id": 0,
+            "name": "example_pattern_card",
+            "description": "an example pattern card: 1 projectile in a circle",
+            "type": "pattern",
+            "rarity": "common",
+            "imageid": "test_card_art",
+            "data": {
+                "type": "projectile",
+                "amount": 1,
+                "path": {
+                    "type": "circle",
+                    "radius": 5,
+                    "time": 2
+                },
+                "width": 5,
+                "height": 5,
+                "lifespan": 10,
+                "damage": 5,
+                "color": "red"
+            }
+        },
+        {
+            "id": 1,
+            "name": "homing bullet",
+            "description": "super cool homing bullet thing",
+            "type": "pattern",
+            "rarity": "common",
+            "imageid": "homing_card_art",
+            "data": {
+                "type": "projectile",
+                "amount": 1,
+                "path": {
+                    "type": "follow",
+                    "target": "player",
+                    "accuracy": 50,
+                    "speed": 5
+                },
+                "width": 5,
+                "height": 5,
+                "lifespan": 10,
+                "damage": 5,
+                "color": "red"
+            }
+        },
+    ],
     "assets": [
         ["tiles", "../res/game/tiles.png"],
-        ["player", "../res/game/character.png"]
+        ["player", "../res/game/character.png"],
+        ["test_card_art", "../res/game/cards/test_card_art.png"],
+        ["homing_card_art", "../res/game/cards/homing.png"]
     ]
 }

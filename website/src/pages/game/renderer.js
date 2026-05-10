@@ -367,29 +367,34 @@ export class Renderer {
         const layers = Object.values(map.data.layers);
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height); 
 
-        for(let x = 0; x < layers.length; x++) {
-            this._drawLayer(x);
-            this.sprites.filter(s => s.zindex == x && s.mapid == this.engine.hero.mapid).forEach(s => {
-                s.onrender();
-                this.ctx.drawImage(
-                    s.image,
-                    Math.round(s.screenX - s.width / 2),
-                    Math.round(s.screenY - s.height / 2)
-                );
-            })
-        }
-
-        if(this.engine.debug.show_grid || this.engine.debug.level_editor.active) {
-            this._drawTriggers();
-            this._drawGrid(); 
-        }
-
-        this.windows.filter(w => w.visible).forEach(w => { w.onrender(); w.draw(this.camera); });
-
-        
-
-        if(this.engine.debug.show_grid || this.engine.debug.level_editor.active) {
-            this.engine.hero.drawHitbox(this.ctx);
+        if(this.engine.state == 'main') {
+            for(let x = 0; x < layers.length; x++) {
+                this._drawLayer(x);
+                this.sprites.filter(s => s.zindex == x && s.mapid == this.engine.hero.mapid).forEach(s => {
+                    s.onrender();
+                    this.ctx.drawImage(
+                        s.image,
+                        Math.round(s.screenX - s.width / 2),
+                        Math.round(s.screenY - s.height / 2)
+                    );
+                })
+            }
+    
+            if(this.engine.debug.show_grid || this.engine.debug.level_editor.active) {
+                this._drawTriggers();
+                this._drawGrid(); 
+            }
+    
+            this.windows.filter(w => w.visible).forEach(w => { w.onrender(); w.draw(this.camera); });
+    
+            
+    
+            if(this.engine.debug.show_grid || this.engine.debug.level_editor.active) {
+                this.engine.hero.drawHitbox(this.ctx);
+            }
+        } else if(this.engine.state == "combat") {
+            this.engine.combat.renderCards();
+            this.engine.combat.renderCombatBox();
         }
     };
 }
