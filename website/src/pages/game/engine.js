@@ -575,7 +575,7 @@ export class Engine {
         })
 
         test_data_request.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
-        this.cards.addToDeck(0, 1);
+        this.cards.addToDeck(0, 1, 2);
     };
 
     _resize() {

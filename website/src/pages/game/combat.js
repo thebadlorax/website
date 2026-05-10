@@ -33,6 +33,20 @@ export class Card {
         this.name = name; this.description = description; this.type = type;
         this.rarity = rarity; this.image = image; this.data = data; this.id = id;
     };
+
+    isTurn(turn) {
+        // 0 = dodging, 1 = placing
+        switch(this.type) {
+            case "pattern": {
+                if(turn == 1) return true
+                else return false
+            }
+            case "pactive": {
+                if(turn == 0) return true
+                else return false
+            }
+        }
+    }
 };
 
 export class VisualCard {
@@ -90,6 +104,10 @@ export class ProjectileManager {
     }
 }
 
+export class Scenario {
+    constructor() {}
+}
+
 export class CombatManager {
     constructor(cm, engine) {
         this.cardManager = cm;
@@ -97,7 +115,11 @@ export class CombatManager {
         this.projectiles = new ProjectileManager(this);
 
         this.in_combat = false;
-        this.turn = false; // false = dodging, true = placing
+        this.turn = 0; // 0 = dodging, 1 = placing
+        this.place_timer = 15;
+        this.second_timer = 0;
+        this.combat_active = false;
+        this.timescale = 1;
         this.card_rendering = {
             "dragged_card": null,
             "dragged_alr_card": null,
@@ -115,6 +137,10 @@ export class CombatManager {
 
         let skipped = 0;
 
+        let hide = this.combat_active;
+        if(hide) ctx.globalAlpha = 0.2;
+        else ctx.globalAlpha = 1;
+
         for(let x = 0; x < deck.length; x++) {
             const c = deck[x];
             if(this.card_rendering.cards.map(a => a.card).find(b => b == c) != undefined) {
@@ -122,8 +148,9 @@ export class CombatManager {
                 continue;
             };
             let cx, cy;
-            cx = 10+(card_size*(x-skipped))+((x-skipped)*10);
-            cy = 10;
+            let y_off = Math.floor((x-skipped)/2)
+            cx = 10+(card_size*(x-(y_off*2)-skipped))+((x-(y_off*2)-skipped)*10);
+            cy = 10+(y_off*158);
             let is_dragged = deck[x] == this.card_rendering.dragged_card;
             if(is_dragged) {
                 ctx.fillStyle = "rgba(0, 255, 255, 0.1)"
@@ -133,7 +160,10 @@ export class CombatManager {
                 continue;
             }
 
-            ctx.strokeStyle = "white";
+            let is_usable = c.isTurn(this.turn);
+
+            if(!is_usable) ctx.globalAlpha = 0.2;
+            ctx.strokeStyle = is_usable ? "cyan" : "grey";
             ctx.lineWidth = 2;
             ctx.strokeRect(
                 cx, 
@@ -146,7 +176,7 @@ export class CombatManager {
             );
 
             ctx.font = "13px monospace";
-            ctx.fillStyle = "white";
+            ctx.fillStyle = is_usable ? "cyan" : "grey";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(
@@ -154,7 +184,11 @@ export class CombatManager {
                 cx+Math.floor(card_size/2),
                 cy+card_size*1.1
             )
+
+            if(!hide) ctx.globalAlpha = 1;
         }
+
+        ctx.globalAlpha = 1;
     }
 
     renderDraggedCard() {
@@ -249,6 +283,34 @@ export class CombatManager {
         });
     }
 
+    drawUIText() {
+        const ctx = this.engine.ctx;
+        const cb = this.getCombatBox();
+
+        if(!this.combat_active) {
+            ctx.font = "40px monospace";
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(
+                `${this.place_timer}s`,
+                cb.x + Math.floor(cb.w/2),
+                65
+            );
+        }
+    }
+
+    render() {
+        this.renderCardsInHand();
+        this.renderCombatBox();
+        if(!this.combat_active) this.renderDraggedCard();
+        this.drawUIText();
+    }
+
+    renderCombat() {
+        this.projectiles.renderProjectiles();
+    }
+
     renderCombatBox() {
         const ctx = this.engine.ctx;
         let cb = this.getCombatBox();
@@ -256,7 +318,8 @@ export class CombatManager {
         ctx.lineWidth = "3";
         ctx.strokeRect(cb.x, cb.y, cb.w, cb.h);
 
-        this.drawPreviewOfTurn();
+        if(!this.combat_active) this.drawPreviewOfTurn();
+        else this.renderCombat();
     }
 
     onRelease() {
@@ -301,47 +364,67 @@ export class CombatManager {
         let skipped = 0;
         const box = this.getCombatBox();
 
-        for(let x1 = 0; x1 < deck.length; x1++) {
-            const c = deck[x1]
-            if(this.card_rendering.cards.map(a => a.card).find(b => b == c) != undefined) {
-                skipped += 1;
-                continue;
-            };
-            let cx, cy;
+        if(!this.combat_active) {
+            for(let x1 = 0; x1 < deck.length; x1++) {
+                const c = deck[x1]
+                if(this.card_rendering.cards.map(a => a.card).find(b => b == c) != undefined) {
+                    skipped += 1;
+                    continue;
+                };
+                let cx, cy;
+                
+                let y_off = Math.floor((x1-skipped)/2)
+                cx = 10+(card_size*(x1-(y_off*2)-skipped))+((x1-(y_off*2)-skipped)*10);
+                cy = 10+(y_off*158);
+                if(Engine.rectanglesIntersect(x, y, 10, 10, cx, cy, card_size, card_size)) {
+                    let is_usable = c.isTurn(this.turn);
+                    if(is_usable) {
+                        this.card_rendering.dragged_card = c;
+                        this.card_rendering.drag_point = [x - cx, y - cy];
+                        let p = this.projectiles.createProjectile(
+                            x - box.x,
+                            y - box.y,
+                            this.card_rendering.dragged_card.data
+                        );
+                        this.card_rendering.temporary_projectiles.push(p);
+                    }
+                }
+            }
+    
             
-            cx = 10+(card_size*(x1-skipped))+((x1-skipped)*10);
-            cy = 10;
-            if(Engine.rectanglesIntersect(x, y, 10, 10, cx, cy, card_size, card_size)) {
-                this.card_rendering.dragged_card = c;
-                this.card_rendering.drag_point = [x - cx, y - cy];
-                let p = this.projectiles.createProjectile(
-                    x - box.x,
-                    y - box.y,
-                    this.card_rendering.dragged_card.data
-                );
-                this.card_rendering.temporary_projectiles.push(p);
-            }
+            this.card_rendering.cards.forEach(c => {
+                if(Engine.rectanglesIntersect(
+                    x, y, 10, 10,
+                    box.x + c.x,
+                    box.y + c.y,
+                    c.size,
+                    c.size
+                )) {
+                    this.card_rendering.drag_point = [
+                        (x - box.x) - c.x,
+                        (y - box.y) - c.y
+                    ];
+                    this.card_rendering.dragged_alr_card = c;
+                }
+            })
         }
+    }
 
-        
-        this.card_rendering.cards.forEach(c => {
-            if(Engine.rectanglesIntersect(
-                x, y, 10, 10,
-                box.x + c.x,
-                box.y + c.y,
-                c.size,
-                c.size
-            )) {
-                this.card_rendering.drag_point = [
-                    (x - box.x) - c.x,
-                    (y - box.y) - c.y
-                ];
-                this.card_rendering.dragged_alr_card = c;
-            }
-        })
+    onSecond() {
+        if(this.place_timer > 0) {
+            this.place_timer -= 1;
+        } else {
+            this.combat_active = true;
+        }
     }
 
     combatUpdate(delta) {
+        delta *= this.timescale
+        this.second_timer += delta;
+        if(this.second_timer > 1) {
+            this.second_timer -= 1;
+            this.onSecond();
+        }
         const cb = this.getCombatBox();
         this.projectiles.updateProjectiles(delta);
         let mouseX = this.engine.keyboard.mouseX - cb.x;
@@ -410,17 +493,20 @@ export class ProjectilePath {
         this.projectile = projectile; this.type = type;
         this.center = center;
         this.settings = settings; this.data = {};
+        this.activeInPreview = this.settings.activeInPreview || false;
     }
 
     init() {
         switch(this.type) {
             case "circle": {
                 this.data.angle = 0;
+                this.activeInPreview = true;
             }
         }
     }
 
     getMovement(delta) {
+        if(!this.activeInPreview && !this.projectile.combat.combat_active) return;
         switch(this.type) {
             case "circle": {
                 let x = this.center.x + Math.cos(this.data.angle) * this.settings.radius;

@@ -393,9 +393,7 @@ export class Renderer {
                 this.engine.hero.drawHitbox(this.ctx);
             }
         } else if(this.engine.state == "combat") {
-            this.engine.combat.renderCardsInHand();
-            this.engine.combat.renderCombatBox();
-            this.engine.combat.renderDraggedCard();
+            this.engine.combat.render();
         }
     };
 }

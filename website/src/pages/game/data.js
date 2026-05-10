@@ -307,7 +307,7 @@ export let test_data_request = {
                     "size": 5,
                     "lifespan": 10,
                     "damage": 5,
-                    "color": "red",
+                    "color": "violet",
                     "path": {
                         "type": "follow",
                         "settings": {
@@ -319,11 +319,27 @@ export let test_data_request = {
                 },
             }
         },
+        {
+            "id": 2,
+            "name": "dash",
+            "description": "neat dash ability",
+            "type": "pactive",
+            "rarity": "common",
+            "imageid": "dash_card_art",
+            "data": {
+                "type": "addVelocity",
+                "settings": {
+                    "mouse": true,
+                    "force": 10
+                },
+            }
+        },
     ],
     "assets": [
         ["tiles", "../res/game/tiles.png"],
         ["player", "../res/game/character.png"],
         ["test_card_art", "../res/game/cards/test_card_art.png"],
-        ["homing_card_art", "../res/game/cards/homing.png"]
+        ["homing_card_art", "../res/game/cards/homing.png"],
+        ["dash_card_art", "../res/game/cards/dash.png"]
     ]
 }
