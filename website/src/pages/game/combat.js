@@ -102,6 +102,10 @@ export class ProjectileManager {
             p.render(ctx);
         })
     }
+
+    getHighestLifespan() {
+        return this.projectiles.map(p => p.settings.lifespan).sort().at(-1);
+    }
 }
 
 export class Scenario {
@@ -115,11 +119,12 @@ export class CombatManager {
         this.projectiles = new ProjectileManager(this);
 
         this.in_combat = false;
-        this.turn = 0; // 0 = dodging, 1 = placing
-        this.place_timer = 15;
+        this.turn = 1; // 0 = dodging, 1 = placing
+        this.round_timer = 5;
         this.second_timer = 0;
         this.combat_active = false;
         this.timescale = 1;
+        this.player = new CombatPlayer(null, null, this);
         this.card_rendering = {
             "dragged_card": null,
             "dragged_alr_card": null,
@@ -199,9 +204,10 @@ export class CombatManager {
         const c = this.card_rendering.dragged_card;
         let dcx = Math.floor(this.engine.keyboard.mouseX - this.card_rendering.drag_point[0]);
         let dcy = Math.floor(this.engine.keyboard.mouseY - this.card_rendering.drag_point[1]);
-        const cbx = (this.engine.camera.width - 500) / 2;
-        const cby = (this.engine.camera.height - 500) / 2;
-        const cbs = 500;
+        const cb = this.getCombatBox();
+        const cbx = cb.x
+        const cby = cb.y
+        const cbs = cb.w
 
         ctx.save();
         ctx.beginPath();
@@ -287,23 +293,22 @@ export class CombatManager {
         const ctx = this.engine.ctx;
         const cb = this.getCombatBox();
 
-        if(!this.combat_active) {
-            ctx.font = "40px monospace";
-            ctx.fillStyle = "white";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(
-                `${this.place_timer}s`,
-                cb.x + Math.floor(cb.w/2),
-                65
-            );
-        }
+        ctx.font = "40px monospace";
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+            `${this.round_timer}s`,
+            cb.x + Math.floor(cb.w/2),
+            65
+        );
     }
 
     render() {
         this.renderCardsInHand();
+        this.player.render(this.engine.ctx);
         this.renderCombatBox();
-        if(!this.combat_active) this.renderDraggedCard();
+        this.renderDraggedCard();
         this.drawUIText();
     }
 
@@ -410,11 +415,38 @@ export class CombatManager {
         }
     }
 
+    onRoundStart() {
+        this.card_rendering.temporary_projectiles = [];
+        this.card_rendering.dragged_card = null;
+        this.card_rendering.dragged_alr_card = null;
+        this.card_rendering.drag_point = null;
+        this.card_rendering.dragged_card_in_box = false;
+
+        this.round_timer = this.projectiles.getHighestLifespan()-1;
+
+        this.combat_active = true;
+    }
+
+    onRoundEnd() {
+        this.combat_active = false;
+        this.card_rendering.cards = [];
+        this.projectiles.projectiles.forEach(p => this.projectiles.destroyProjectile(p));
+        this.turn = this.turn == 0 ? 1 : 0;
+        this.round_timer = 20;
+        let cb = this.getCombatBox();
+        this.player.x = Math.floor(cb.w / 2)
+        this.player.y = Math.floor(cb.h / 2)
+    }
+
     onSecond() {
-        if(this.place_timer > 0) {
-            this.place_timer -= 1;
+        if(this.round_timer > 0) {
+            this.round_timer -= 1;
         } else {
-            this.combat_active = true;
+            if(!this.combat_active) {
+                this.onRoundStart();
+            } else {
+                this.onRoundEnd();
+            }
         }
     }
 
@@ -470,17 +502,62 @@ export class CombatManager {
                 dcy + 64
             );
         }
+
+        let dirx = 0, diry = 0;
+        if (this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.LEFT_ARROW) || this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.A_KEY)) { dirx += -1; }
+        if (this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.RIGHT_ARROW) || this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.D_KEY)) { dirx += 1; }
+        if (this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.UP_ARROW) || this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.W_KEY)) { diry += -1; }
+        if (this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.DOWN_ARROW) || this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.S_KEY)) { diry += 1; }
+
+        if(this.combat_active) this.player.move(delta, dirx, diry);
     }
 
     enterCombat() {
         this.engine.state = "combat";
         this.in_combat = true;
+        let cb = this.getCombatBox();
+        this.player.x = Math.floor(cb.w / 2)
+        this.player.y = Math.floor(cb.h / 2)
     }
 
     exitCombat() {
         this.engine.state = "main";
         this.in_combat = false;
     }
+}
+
+export class CombatPlayer {
+    constructor(x, y, combat) {
+        this.x = x; this.y = y; this.visible = false;
+        this.combat = combat; this.size = {"w": 20, "h": 20}
+    }
+
+    render(context) {
+        const cb = this.combat.getCombatBox();
+        context.fillStyle = "blue";
+        context.fillRect(this.x + cb.x, this.y + cb.y, this.size.w, this.size.h);
+    }
+
+    getCenter() {
+        return {"x": this.x+this.size.w, "y": this.y+this.size.h}
+    }
+
+    move(delta, dirx, diry, speed=250) {
+        const cb = this.combat.getCombatBox();
+        if (dirx !== 0 && diry !== 0) {
+            const len = Math.sqrt(dirx * dirx + diry * diry);
+            dirx /= len;
+            diry /= len;
+        }
+        this.x += dirx * speed * delta;
+        this.y += diry * speed * delta;
+    
+        var maxX = cb.w - this.size.w;
+        var maxY = cb.h - this.size.h;
+
+        this.x = Math.max(0, Math.min(this.x, maxX));
+        this.y = Math.max(0, Math.min(this.y, maxY));
+    };
 }
 
 export class ProjectilePath {
@@ -502,21 +579,81 @@ export class ProjectilePath {
                 this.data.angle = 0;
                 this.activeInPreview = true;
             }
+            case "follow": {
+                this.data.angleOffset = (Math.random() * 2 - 1) * this.settings.accuracy;
+            }
         }
     }
 
     getMovement(delta) {
         if(!this.activeInPreview && !this.projectile.combat.combat_active) return;
+
+        let d = null;
+    
         switch(this.type) {
+    
             case "circle": {
                 let x = this.center.x + Math.cos(this.data.angle) * this.settings.radius;
                 let y = this.center.y + Math.sin(this.data.angle) * this.settings.radius;
-                this.data.angle += this.settings.speed*delta;
-                return { "x": x, "y": y };
+    
+                this.data.angle += this.settings.speed * delta;
+    
+                d = {x, y}
+            }
+    
+            case "follow": {
+                switch(this.settings.target) {
+                    case "player": {
+                        const target = this.projectile.combat.player.getCenter();
+                    
+                        let px = this.projectile.x;
+                        let py = this.projectile.y;
+                        if(!this.data.velocity) {
+                            this.data.velocity = {
+                                x: 0,
+                                y: 0
+                            };
+                        }
+                    
+                        // Direction to player
+                        let dx = target.x - px;
+                        let dy = target.y - py;
+                    
+                        let distance = Math.hypot(dx, dy);
+                    
+                        if(distance > 0.001) {
+                            dx /= distance;
+                            dy /= distance;
+                        }
+                    
+                        let angle = Math.atan2(dy, dx);
+                        angle += this.data.angleOffset;
+                    
+                        let targetVX = Math.cos(angle) * (this.settings.speed*100);
+                        let targetVY = Math.sin(angle) * (this.settings.speed*100);
+                        let turnSpeed = this.settings.turnSpeed ?? 0.05;
+                    
+                        this.data.velocity.x += (targetVX - this.data.velocity.x) * turnSpeed;
+                        this.data.velocity.y += (targetVY - this.data.velocity.y) * turnSpeed;
+                    
+                        d = {
+                            x: px + this.data.velocity.x * delta,
+                            y: py + this.data.velocity.y * delta
+                        };
+                    }
+                }
             }
         }
+    
+        if(d != null && this.projectile.combat.combat_active) {
+            const cb = this.projectile.combat.getCombatBox();
+            var maxX = cb.w - this.projectile.settings.size;
+            var maxY = cb.h - this.projectile.settings.size;
 
-        return null;
+            d.x = Math.max(0, Math.min(d.x, maxX));
+            d.y = Math.max(0, Math.min(d.y, maxY));
+        };
+        return d;
     }
 }
 
@@ -539,7 +676,7 @@ export class Projectile {
         combat
     ) {
         this.x = x; this.y = y; this.settings = settings;
-        this.combat = combat; this.visible = false;
+        this.combat = combat; this.visible = false; this.spent_life = 0;
     }
     init(path) {
         this.path = new ProjectilePath(
@@ -558,6 +695,13 @@ export class Projectile {
 
     update(delta) {
         let movement = this.path.getMovement(delta);
+        if(this.combat.combat_active) {
+            this.spent_life += delta;
+            if(this.spent_life > (this.settings.lifespan-0.1)) {
+                this.combat.projectiles.destroyProjectile(this);
+                return;
+            }
+        }
         if(!movement) {
             this.x = this.path.center.x;
             this.y = this.path.center.y;
@@ -569,6 +713,9 @@ export class Projectile {
 
     render(ctx) {
         const cb = this.combat.getCombatBox();
+        let o = (1-this.spent_life/this.settings.lifespan) + 0.3;
+
+        ctx.globalAlpha = clamp(o, .5, 1);
     
         ctx.beginPath();
         ctx.arc(
@@ -580,5 +727,6 @@ export class Projectile {
         );
         ctx.fillStyle = this.settings.color;
         ctx.fill();
+        ctx.globalAlpha = 1;
     }
 }

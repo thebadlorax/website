@@ -287,7 +287,7 @@ export let test_data_request = {
                         }
                     },
                     "size": 5,
-                    "lifespan": 10,
+                    "lifespan": 15,
                     "damage": 5,
                     "color": "red"
                 }
@@ -304,7 +304,7 @@ export let test_data_request = {
                 "type": "projectile",
                 "settings": {
                     "amount": 1,
-                    "size": 5,
+                    "size": 10,
                     "lifespan": 10,
                     "damage": 5,
                     "color": "violet",
@@ -312,8 +312,9 @@ export let test_data_request = {
                         "type": "follow",
                         "settings": {
                             "target": "player",
-                            "accuracy": 50,
-                            "speed": 5
+                            "speed": 5,
+                            "turnSpeed": 0.03,
+                            "accuracy": 0.2
                         }
                     }
                 },
