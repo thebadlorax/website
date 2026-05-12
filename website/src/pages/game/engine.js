@@ -575,7 +575,7 @@ export class Engine {
         })
 
         test_data_request.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
-        this.cards.addToDeck(0, 1, 2);
+        this.cards.addToDeck(0, 1, 1, 1, 2);
     };
 
     _resize() {
@@ -659,6 +659,10 @@ export class Sprite {
             const len = Math.sqrt(dirx * dirx + diry * diry);
             dirx /= len;
             diry /= len;
+        }
+        if(this.force != null) {
+            speed += this.force*100;
+            this.force = null;
         }
         this.x += dirx * speed * delta;
         this._collide(dirx, 0);

@@ -46,7 +46,7 @@ class MapData {
         this.data.layers.push(layer);
 
         return layer;
-    }
+    };
 
     getTile(layer, col, row) { 
         if (col < 0 || col >= this.data.cols || row < 0 || row >= this.data.rows) { return 0; } 
@@ -56,7 +56,7 @@ class MapData {
     setTile(layer, col, row, val) {
         if (col < 0 || col >= this.data.cols || row < 0 || row >= this.data.rows) { return 0; } 
         this.data.layers[layer]["data"][row * this.data.cols + col] = val; 
-    }
+    };
 
     getTriggersOnTile(row, col) {
         let l = [];
@@ -71,7 +71,7 @@ class MapData {
             if(Engine.rectanglesIntersect(x, y, t.w, t.h, row, col, 1, 1)) l.push(t); 
         })
         return l;
-    }
+    };
 
     createTrigger(x, y, w, h, type, data = {}, visual = null) {
         const trigger = new Trigger(x, y, w, h, type, data, visual);
@@ -85,11 +85,11 @@ class MapData {
         this.data.triggers.push({
             x, y, w, h, type, data, visual
         });
-    }
+    };
 
     screenToGrid(x, y) {
         return [Math.floor(x / this.data.tsize), Math.floor(y / this.data.tsize)]
-    }
+    };
 
     isSolidTileAtXY(x, y) {
         var col = Math.floor(x / this.data.tsize);
@@ -98,15 +98,19 @@ class MapData {
         if(this.getTile(0, col, row) == 1) return true;
         else return false;
     };
+
     getCol(x) {
         return Math.floor(x / this.data.tsize);
     };
+
     getRow(y) {
         return Math.floor(y / this.data.tsize);
     };
+
     getX(col) {
         return col * this.data.tsize;
     };
+
     getY(row) {
         return row * this.data.tsize;
     };

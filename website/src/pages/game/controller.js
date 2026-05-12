@@ -9,12 +9,23 @@ export class Keyboard {
     _keys = {};
     _key_functions = {};
     KEYCODES = {
-        LEFT_ARROW: 37, A_KEY: 65,
-        RIGHT_ARROW: 39, D_KEY: 68,
-        UP_ARROW: 38, W_KEY: 87,
-        DOWN_ARROW: 40, S_KEY: 83,
-        ESCAPE: 27, G_KEY: 71, SHIFT: 16,
-        TAB: 9, C_KEY: 67
+        LEFT_ARROW: "ArrowLeft",
+        RIGHT_ARROW: "ArrowRight",
+        UP_ARROW: "ArrowUp",
+        DOWN_ARROW: "ArrowDown",
+        A_KEY: "KeyA",
+        D_KEY: "KeyD",
+        W_KEY: "KeyW",
+        S_KEY: "KeyS",
+
+        C_KEY: "KeyC",
+        G_KEY: "KeyG",
+
+        ESCAPE: "Escape",
+        SHIFT: "ShiftLeft",
+        TAB: "Tab",
+        SPACE: "Space",
+        META: "MetaLeft"
     };
     mouseX = 0; mouseY = 0;
     constructor() {
@@ -37,7 +48,7 @@ export class Keyboard {
     }
 
     _onKeyDown(event) {
-        var keyCode = event.keyCode;
+        var keyCode = event.code;
         if (keyCode in this._keys) {
             event.preventDefault();
             this._keys[keyCode] = true;
@@ -46,7 +57,7 @@ export class Keyboard {
     };
 
     _onKeyUp(event) {
-        var keyCode = event.keyCode;
+        var keyCode = event.code;
         if (keyCode in this._keys) {
             event.preventDefault();
             this._keys[keyCode] = false;

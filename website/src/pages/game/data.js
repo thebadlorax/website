@@ -286,7 +286,7 @@ export let test_data_request = {
                             "speed": 5
                         }
                     },
-                    "size": 5,
+                    "size": 15,
                     "lifespan": 15,
                     "damage": 5,
                     "color": "red"
@@ -314,7 +314,7 @@ export let test_data_request = {
                             "target": "player",
                             "speed": 5,
                             "turnSpeed": 0.03,
-                            "accuracy": 0.2
+                            "accuracy": 0.4
                         }
                     }
                 },
@@ -328,11 +328,14 @@ export let test_data_request = {
             "rarity": "common",
             "imageid": "dash_card_art",
             "data": {
-                "type": "addVelocity",
+                "type": "move",
                 "settings": {
                     "mouse": true,
-                    "force": 10
+                    "force": 100,
+                    "uses": 3,
+                    "cooldown": 1
                 },
+                
             }
         },
     ],
