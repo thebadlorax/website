@@ -253,10 +253,61 @@ export class CombatScenario {
     ) {
         this.combat = combat;
         this.opponent = data.opponent;
+        this.health = this.opponent.maxhealth;
         this.freq_grids = data.opponent.weights;
+        this.path = data.opponent.path;
+        this.speed = data.opponent.speed*10;
         this.cardManager = new CardManager();
         this.combat.engine.data.cards.forEach(c => this.cardManager.cards.push(Card.fromJSON(c, this.combat.engine.loader)));
         this.cardManager.addToDeck(...data.opponent.deck)
+        this.cardDraw = data.opponent.cardDraw
+
+        this.t = 0;
+        this.segmentLength = 0.1;
+
+        this.x = 0;
+        this.y = 0;
+        this.iframes = 0;
+        this.size = {"w": 20, "h": 20}
+    }
+
+    getPoint(t) {
+        const pts = this.path;
+        const n = pts.length;
+    
+        const i = Math.floor(t);
+        const localT = t - i;
+    
+        const p0 = pts[Math.max(i - 1, 0)];
+        const p1 = pts[Math.min(i, n - 1)];
+        const p2 = pts[Math.min(i + 1, n - 1)];
+        const p3 = pts[Math.min(i + 2, n - 1)];
+    
+        return Engine.catmullRom(p0, p1, p2, p3, localT);
+    }
+    
+    dodgingUpdate(delta) {
+        const pts = this.path;
+    
+        if (!pts || pts.length < 1) return;
+    
+        this.t += this.speed * delta * 0.01;
+    
+        const maxT = pts.length - 2;
+    
+        if (this.t >= maxT) {
+            this.t = 0;
+        }
+    
+        const p = this.getPoint(this.t);
+    
+        this.x = p.x;
+        this.y = p.y;
+
+        if(this.iframes > 0) {
+            this.iframes -= delta;
+        }
+        if(this.iframes < 0) this.iframes = 0;
     }
 
     getCardPlacements(max_cards=1) {
@@ -311,7 +362,44 @@ export class CombatScenario {
             p.visible = true;
         }
     }
-    
+
+    onDeath() {
+        this.combat.onWin();
+    }
+
+    render() {
+        if(!this.combat.combat_active || this.combat.turn == 0) return;
+        const cb = this.combat.getCombatBox();
+        const context = this.combat.engine.ctx;
+        context.fillStyle = `rgba(0, 0, 255, ${this.iframes == 0 ? "1" : "0.4"})`;
+        context.fillRect(this.x + cb.x, this.y + cb.y, this.size.w, this.size.h);
+    }
+
+    damage() {
+        this.health -= 1;
+        if(this.health <= 0) {
+            this.onDeath();
+            return;
+        }
+        this.iframes = 1;
+        let h = new Hologram(
+            this.x, this.y, 1.5, "red", true, 15, `-1`
+        );
+        h.on_update = () => {
+            h.y -= 1;
+        }
+        this.combat.holograms.push(h);
+    }
+
+    getCenter() {
+        return {"x": this.x+this.size.w, "y": this.y+this.size.h}
+    }
+
+    onProjectileCollision(proj) {
+        if(this.iframes == 0) {
+            this.damage();
+        }
+    }
 }
 
 export class CombatManager {
@@ -321,8 +409,8 @@ export class CombatManager {
         this.projectiles = new ProjectileManager(this);
 
         this.in_combat = false;
-        this.turn = 0; // 0 = dodging, 1 = placing
-        this.round_timer = 5;
+        this.turn = 1; // 0 = dodging, 1 = placing
+        this.round_timer = 15;
         this.second_timer = 0;
         this.combat_active = false;
         this.player = new CombatPlayer(null, null, this);
@@ -338,7 +426,7 @@ export class CombatManager {
                         const cols = Math.floor(cb.w / this.debug.grid_size);
                         const rows = Math.floor(cb.w / this.debug.grid_size);
                         this.debug.freq_grids.push({
-                            "id": parseInt(prompt("card id")),
+                            "id": parseInt(this.debug.editor ? prompt("card id") : 0),
                             "data": new Array(cols * rows).fill(0)
                         });
                     }
@@ -364,7 +452,11 @@ export class CombatManager {
                 {
                     "name": "!export",
                     "onClick": async () => {
-                        await navigator.clipboard.writeText(JSON.stringify(this.debug.freq_grids));
+                        if(this.debug.path_active) {
+                            await navigator.clipboard.writeText(JSON.stringify(this.debug.drawn_path));
+                        } else {
+                            await navigator.clipboard.writeText(JSON.stringify(this.debug.freq_grids));
+                        }
                         alert("copied");
                     }
                 }, 
@@ -372,8 +464,18 @@ export class CombatManager {
                     "name": "?import",
                     "onClick": async () => {
                         let d = await navigator.clipboard.readText();
-                        this.debug.freq_grids = JSON.parse(d);
+                        if(this.debug.path_active) {
+                            this.debug.drawn_path = JSON.parse(d);
+                        } else {
+                            this.debug.freq_grids = JSON.parse(d);
+                        }
                         alert("imported");
+                    }
+                },
+                {
+                    "name": "?mode",
+                    "onClick": async () => {
+                        this.debug.path_active = !this.debug.path_active
                     }
                 }
             ],
@@ -382,8 +484,11 @@ export class CombatManager {
             "selected_id": 0,
             "is_drawing": false,
             "selected_num": 0,
-            "brush_size": 1
+            "brush_size": 1,
+            "drawn_path": [],
+            "path_active": false
         }
+        setTimeout(() => { this.debug.buttons[0].onClick(); }, 500);
         this.card_rendering = {
             "dragged_card": null,
             "dragged_alr_card": null,
@@ -616,18 +721,31 @@ export class CombatManager {
 
         const h = 20;
         const padding = 10;
+        const w = (cb.w/2)-padding
+        const w2 = (cb.w/2)
+        const x2 = cb.x + w+padding;
 
         const hp_percent = this.player.health / this.player.maxhealth;
+        const opp_hp_percent = this.scenario.health / this.scenario.opponent.maxhealth;
 
         ctx.lineWidth = 3;
 
-        const r = 255 * (1 - hp_percent);
-        const g = 200 * hp_percent;
+        //let r = 255 * (1 - hp_percent);
+        //let g = 200 * hp_percent;
+        //ctx.fillStyle = `rgba(${r}, ${g}, 0, 1)`;
+        ctx.fillStyle = `rgba(0, 190, 0, 1)`;
+        ctx.fillRect(cb.x, ((cb.y-h)-padding), w * hp_percent, h)
 
-        ctx.fillStyle = `rgba(${r}, ${g}, 0, 1)`;
-        ctx.fillRect(cb.x, ((cb.y-h)-padding), cb.w * hp_percent, h)
+        /*r = 255 * (1 - opp_hp_percent);
+        g = 200 * opp_hp_percent;
+        ctx.fillStyle = `rgba(${r}, ${g}, 0, 1)`;*/
+        ctx.fillStyle = `rgba(255, 0, 0, 1)`;
+        ctx.fillRect(x2, ((cb.y-h)-padding), w2 * opp_hp_percent, h)
+
+
         ctx.strokeStyle = "rgba(255, 255, 255, 1)";
-        ctx.strokeRect(cb.x, ((cb.y-h)-padding), cb.w, h);
+        ctx.strokeRect(cb.x, ((cb.y-h)-padding), w, h);
+        ctx.strokeRect(x2, ((cb.y-h)-padding), w2, h);
 
         ctx.font = "13px monospace";
         ctx.strokeStyle = "white";
@@ -636,7 +754,13 @@ export class CombatManager {
         ctx.textBaseline = "middle";
         ctx.strokeText(
             `${this.player.health}/${this.player.maxhealth}`,
-            cb.x+(cb.w/2),
+            cb.x+(w/2),
+            cb.y-(h)
+        );
+
+        ctx.strokeText(
+            `${this.scenario.health}/${this.scenario.opponent.maxhealth}`,
+            x2+(w2/2),
             cb.y-(h)
         );
     }
@@ -671,6 +795,7 @@ export class CombatManager {
     }
 
     drawFrequencyGrid() {
+        if(this.debug.path_active) return;
         const cb = this.getCombatBox();
         const ctx = this.engine.ctx;
         const size = this.debug.grid_size;
@@ -705,6 +830,62 @@ export class CombatManager {
         }
     }
 
+    drawEditorPath(opacity, dots, color, path_override=null) {
+        if (!this.debug.path_active && path_override == null) return;
+    
+        const ctx = this.engine.ctx;
+        const cb = this.getCombatBox();
+    
+        let path = this.debug.drawn_path;
+        if(path_override != null) path = path_override;
+    
+        if (!path || path.length < 2) return;
+    
+        ctx.strokeStyle = color;
+        ctx.globalAlpha = opacity;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+    
+        let first = true;
+    
+        for (let i = 0; i < path.length - 1; i++) {
+    
+            const p0 = path[Math.max(i - 1, 0)];
+            const p1 = path[i];
+            const p2 = path[Math.min(i + 1, path.length - 1)];
+            const p3 = path[Math.min(i + 2, path.length - 1)];
+    
+            // smoothness amount
+            for (let t = 0; t <= 1; t += 0.02) {
+    
+                const p = Engine.catmullRom(p0, p1, p2, p3, t);
+    
+                const x = cb.x + p.x;
+                const y = cb.y + p.y;
+    
+                if (first) {
+                    ctx.moveTo(x, y);
+                    first = false;
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+        }
+    
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    
+        if(dots) {
+            for (const p of path) {
+                ctx.fillStyle = "white";
+                ctx.beginPath();
+                ctx.arc(cb.x + p.x, cb.y + p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+    }
+
     handleEditorClick() {
         const x = this.engine.keyboard.mouseX;
         const y = this.engine.keyboard.mouseY;
@@ -714,7 +895,7 @@ export class CombatManager {
         const size = 64;
 
         const count = this.debug.buttons.length;
-        
+
         for(let a = 0; a < count; a++) {
             const b = this.debug.buttons[a];
             const y1 = padding+((size+padding)*Math.floor(a/cols));
@@ -723,6 +904,18 @@ export class CombatManager {
             if(Engine.rectanglesIntersect(x, y, 10, 10, x1, y1, size, size)) b.onClick();
         }
         
+
+        if (this.debug.path_active) {
+            const cb = this.getCombatBox();
+
+            if(Engine.rectanglesIntersect(this.engine.keyboard.mouseX, this.engine.keyboard.mouseY, 10, 10, cb.x, cb.y, cb.w, cb.h)) {
+                const x = this.engine.keyboard.mouseX - cb.x;
+                const y = this.engine.keyboard.mouseY - cb.y;
+            
+                this.debug.drawn_path.push({ x, y });
+                return;
+            }
+        }
         this.debug.is_drawing = true;
     }
 
@@ -730,22 +923,30 @@ export class CombatManager {
         this.debug.is_drawing = false;
     }
 
+    onWin() {
+        this.onRoundEnd();
+        this.exitCombat();
+        alert("you won!")
+    }
+
     render() {
         if(!this.debug.editor) {
             this.renderCardsInHand();
             if(this.turn == 0) this.drawActiveSlots();
             this.player.render(this.engine.ctx);
+            this.scenario.render();
             this.renderCombatBox();
             this.renderDraggedCard();
             this.drawUIText();
+            if(this.turn == 1) this.drawEditorPath(0.1, false, "white", this.scenario.path);
+            this.drawHealthbar()
         } else {
             this.drawEditorButtons();
             this.drawFrequencyGrid();
+            this.drawEditorPath(1, true, "cyan");
             this.renderCombatBox();
             this.drawUIText();
         }
-
-        this.drawHealthbar()
         
     }
 
@@ -837,8 +1038,10 @@ export class CombatManager {
 
     onDeath() {
         this.onRoundEnd();
-        alert("you fucking died");
-        this.exitCombat();
+        setTimeout(() => {
+            this.exitCombat();
+            alert("you fucking died");
+        }, 250)
     }
 
     onRelease() {
@@ -976,7 +1179,7 @@ export class CombatManager {
         });
 
         if(this.turn == 0) {
-            this.scenario.cardManager.drawCard(10-this.scenario.cardManager.hand.length);
+            this.scenario.cardManager.drawCard(this.scenario.cardDraw-this.scenario.cardManager.hand.length);
             this.scenario.runPlacingTurn();
         }
 
@@ -988,7 +1191,7 @@ export class CombatManager {
     onRoundEnd() {
         this.combat_active = false;
         this.card_rendering.cards = [];
-        this.projectiles.projectiles.forEach(p => this.projectiles.destroyProjectile(p));
+        this.projectiles.projectiles.forEach(p => {this.projectiles.destroyProjectile(p);});
         for(let x = 0; x < this.card_rendering.actives.length; x++) {
             const a = this.card_rendering.actives[x];
             if(a == null) continue;
@@ -1029,6 +1232,7 @@ export class CombatManager {
             this.second_timer -= 1;
             this.onSecond();
         }
+        console.log(this.cardManager.getHand())
         const cb = this.getCombatBox();
         this.projectiles.updateProjectiles(delta);
         let mouseX = this.engine.keyboard.mouseX - cb.x;
@@ -1084,7 +1288,7 @@ export class CombatManager {
         if(this.combat_active) this.player.move(delta, dirx, diry);
 
         if(this.debug.editor) {
-            if (this.debug.is_drawing) {
+            if (this.debug.is_drawing && !this.debug.path_active) {
                 const mouseX = this.engine.keyboard.mouseX - cb.x;
                 const mouseY = this.engine.keyboard.mouseY - cb.y;
             
@@ -1120,7 +1324,11 @@ export class CombatManager {
             }
         }
 
-        this.player.update(delta);
+        if(this.combat_active) {
+            if(this.turn == 0) this.player.update(delta);
+            else this.scenario.dodgingUpdate(delta);
+        }
+        
 
         this.holograms.forEach(h => {
             h.update(delta);
@@ -1128,7 +1336,7 @@ export class CombatManager {
     }
 
     onTurnCompletion() {
-        this.cardManager.drawCard(10-this.cardManager.hand.length);
+        this.cardManager.drawCard(5-this.cardManager.hand.length);
     }
 
     enterCombat(scenario) {
@@ -1184,7 +1392,7 @@ export class CombatPlayer {
 
     render(context) {
         const cb = this.combat.getCombatBox();
-        if(!this.combat.combat_active) return;
+        if(!this.combat.combat_active || this.combat.turn == 1) return;
         context.fillStyle = `rgba(0, 0, 255, ${this.iframes == 0 ? "1" : "0.4"})`;
         context.fillRect(this.x + cb.x, this.y + cb.y, this.size.w, this.size.h);
     }
@@ -1275,7 +1483,10 @@ export class ProjectilePath {
             case "follow": {
                 switch(this.settings.target) {
                     case "player": {
-                        const target = this.projectile.combat.player.getCenter();
+                        let target = this.projectile.combat.player.getCenter();
+                        if(this.projectile.combat.turn == 1) {
+                            target = this.projectile.combat.scenario.getCenter();
+                        }
                     
                         let px = this.projectile.x;
                         let py = this.projectile.y;
@@ -1382,11 +1593,23 @@ export class Projectile {
         this.y = movement.y;
 
         const hb = this.getHitbox();
-        if(
-            Engine.rectanglesIntersect(hb.x, hb.y, hb.w, hb.h, 
-            this.combat.player.x, this.combat.player.y, this.combat.player.size.w, this.combat.player.size.h)
-        ) {
-            this.combat.player.onProjectileCollision(this);
+
+        if(this.combat.combat_active) {
+            if(this.combat.turn == 0) {
+                if(
+                    Engine.rectanglesIntersect(hb.x, hb.y, hb.w, hb.h, 
+                    this.combat.player.x, this.combat.player.y, this.combat.player.size.w, this.combat.player.size.h)
+                ) {
+                    this.combat.player.onProjectileCollision(this);
+                }
+            } else {
+                if(
+                    Engine.rectanglesIntersect(hb.x, hb.y, hb.w, hb.h, 
+                    this.combat.scenario.x, this.combat.scenario.y, this.combat.scenario.size.w, this.combat.scenario.size.h)
+                ) {
+                    this.combat.scenario.onProjectileCollision(this);
+                }
+            }
         }
     };
 
