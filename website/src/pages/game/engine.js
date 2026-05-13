@@ -570,7 +570,7 @@ export class Engine {
 
         this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.C_KEY, () => {
             if(this.combat.in_combat) this.combat.exitCombat();
-            else this.combat.enterCombat();
+            else this.combat.enterCombat(this.data.scenarios.find(s => s.id == "test"));
             
         })
 
