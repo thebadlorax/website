@@ -7,9 +7,13 @@
 
 import { Engine } from "./engine.js";
 import { getApiLink } from "../common.js";
-import { test_data_request } from "./data.js";
 
-const engine = new Engine(test_data_request);
+const user = JSON.parse(window.localStorage.getItem("user"));
+let d = await fetch(getApiLink("/game/data"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})})
+d = await d.json();
+
+
+const engine = new Engine(d);
 
 function start() {
     const canvas = document.getElementById("demo");

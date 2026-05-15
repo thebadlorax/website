@@ -215,6 +215,8 @@ export class Renderer {
 
         this.windows = [];
         this.sprites = [];
+
+        this.effects = [];
     };
 
     _drawLayer(layer) {
@@ -362,6 +364,25 @@ export class Renderer {
         }
     };
 
+    applyEffect(type, data) {
+        switch(type) {
+            case "fadeOutIn": {
+                const ms = data.ms;
+                const fadeInTime = Math.floor(ms/2);
+                const fadeOutTime = Math.floor(ms/2);
+
+                this.effects.push({
+                    "type": type,
+                    "startTime": Date.now(),
+                    "ms": data.ms,
+                    "blackTime": data.blackTime,
+                    "fadeInTime": fadeInTime,
+                    "fadeOutTime": fadeOutTime
+                });
+            }
+        }
+    }
+
     render() { 
         const map = this.engine.hero.map;
         const layers = Object.values(map.data.layers);
@@ -394,6 +415,37 @@ export class Renderer {
             }
         } else if(this.engine.state == "combat") {
             this.engine.combat.render();
-        }
+        };
+
+        this.effects.forEach((e, index) => {
+            switch(e.type) {
+                case "fadeOutIn": {
+                    const elapsed = Date.now() - e.startTime;
+        
+                    let alpha = 0;
+        
+                    if (elapsed < e.fadeOutTime) {
+                        alpha = elapsed / e.fadeOutTime;
+                    } else if (elapsed < e.fadeOutTime + e.blackTime) {
+                        alpha = 1;
+                    } else {
+                        const fadeBackElapsed = elapsed - (e.fadeOutTime + e.blackTime);
+                        alpha = 1 - (fadeBackElapsed / e.fadeInTime);
+                    }
+        
+                    this.ctx.save(); 
+                    this.ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+                    this.ctx.fillStyle = "black";
+                    this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+                    this.ctx.restore();
+
+                    if (elapsed >= e.ms) {
+                        this.effects.splice(index, 1);
+                        return; 
+                    }
+                    break;
+                }
+            }
+        });
     };
 }

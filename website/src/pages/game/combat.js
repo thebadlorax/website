@@ -8,8 +8,6 @@
 import { clamp } from "../common.js";
 import { Engine } from "./engine.js";
 
-let timescale = 1;
-
 export class Card {
     static fromJSON(data, loader) {
         return new Card(
@@ -137,7 +135,10 @@ export class CardManager {
     }
 
     discard(card) {
-        this.hand.splice(this.hand.indexOf(card), 1);
+        const index = this.hand.findIndex(c => c.uid === card.uid);
+        if(index === -1) return;
+    
+        this.hand.splice(index, 1);
     }
 
     drawCard(amt=1) {
@@ -260,7 +261,9 @@ export class CombatScenario {
         this.cardManager = new CardManager();
         this.combat.engine.data.cards.forEach(c => this.cardManager.cards.push(Card.fromJSON(c, this.combat.engine.loader)));
         this.cardManager.addToDeck(...data.opponent.deck)
-        this.cardDraw = data.opponent.cardDraw
+        this.cardDraw = data.opponent.cardDraw;
+
+        this.rewards = data.rewards;
 
         this.t = 0;
         this.segmentLength = 0.1;
@@ -371,8 +374,9 @@ export class CombatScenario {
         if(!this.combat.combat_active || this.combat.turn == 0) return;
         const cb = this.combat.getCombatBox();
         const context = this.combat.engine.ctx;
-        context.fillStyle = `rgba(0, 0, 255, ${this.iframes == 0 ? "1" : "0.4"})`;
-        context.fillRect(this.x + cb.x, this.y + cb.y, this.size.w, this.size.h);
+        context.fillStyle = `rgba(255, 0, 0, ${this.iframes == 0 ? "1" : "0.4"})`;
+        const center = this.getCenter();
+        context.fillRect(center.x + cb.x, center.y + cb.y, this.size.w, this.size.h);
     }
 
     damage() {
@@ -392,7 +396,7 @@ export class CombatScenario {
     }
 
     getCenter() {
-        return {"x": this.x+this.size.w, "y": this.y+this.size.h}
+        return {"x": this.x-this.size.w, "y": this.y-this.size.h}
     }
 
     onProjectileCollision(proj) {
@@ -409,7 +413,7 @@ export class CombatManager {
         this.projectiles = new ProjectileManager(this);
 
         this.in_combat = false;
-        this.turn = 1; // 0 = dodging, 1 = placing
+        this.turn = 0; // 0 = dodging, 1 = placing
         this.round_timer = 15;
         this.second_timer = 0;
         this.combat_active = false;
@@ -486,8 +490,16 @@ export class CombatManager {
             "selected_num": 0,
             "brush_size": 1,
             "drawn_path": [],
-            "path_active": false
+            "path_active": false,
+            "debug_kb_pressed": false
         }
+        this.combatSettings = {
+            "future_opacity": 0.4,
+        }
+        this.combatVariables = {
+            "timescale": 1
+        }
+        this.in_transition = false;
         setTimeout(() => { this.debug.buttons[0].onClick(); }, 500);
         this.card_rendering = {
             "dragged_card": null,
@@ -516,14 +528,24 @@ export class CombatManager {
         this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.TAB, () => { if(this.in_combat) handle_ability_press(1); })
         this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.SPACE, () => { if(this.in_combat) handle_ability_press(2); })
         this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.M_KEY, () => { if(this.in_combat) this.toggleEditor(); })
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.G_KEY, () => {
+            this.debug.debug_kb_pressed = true;
+        });
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.T_KEY, () => {
+            if(!this.debug.debug_kb_pressed) return;
+            this.turn = this.turn == 1 ? 0 : 1
+            this.debug.debug_kb_pressed = false;
+        })
     }
 
     toggleEditor() {
         this.debug.editor = !this.debug.editor;
         if(this.debug.editor) {
-            timescale = 0;
+            this.combatVariables.timescale = 0;
         } else {
-            timescale = 1;
+            this.combatVariables.timescale = 1;
         }
     }
 
@@ -540,7 +562,7 @@ export class CombatManager {
 
         for(let x = 0; x < deck.length; x++) {
             const c = deck[x];
-            if(this.card_rendering.cards.map(a => a.card).concat(this.card_rendering.actives.filter(a => a != null)).find(b => b === c) != undefined) {
+            if(this.card_rendering.cards.map(a => a.card).concat(this.card_rendering.actives.filter(a => a != null)).find(b => b.uid === c.uid) != undefined) {
                 skipped += 1;
                 continue;
             };
@@ -830,7 +852,7 @@ export class CombatManager {
         }
     }
 
-    drawEditorPath(opacity, dots, color, path_override=null) {
+    drawEditorPath(dots, color, path_override=null) {
         if (!this.debug.path_active && path_override == null) return;
     
         const ctx = this.engine.ctx;
@@ -842,7 +864,7 @@ export class CombatManager {
         if (!path || path.length < 2) return;
     
         ctx.strokeStyle = color;
-        ctx.globalAlpha = opacity;
+        ctx.globalAlpha = this.combatSettings.future_opacity;
         ctx.lineWidth = 2;
         ctx.beginPath();
     
@@ -938,12 +960,12 @@ export class CombatManager {
             this.renderCombatBox();
             this.renderDraggedCard();
             this.drawUIText();
-            if(this.turn == 1) this.drawEditorPath(0.1, false, "white", this.scenario.path);
+            if(this.turn == 1) this.drawEditorPath(false, "white", this.scenario.path);
             this.drawHealthbar()
         } else {
             this.drawEditorButtons();
             this.drawFrequencyGrid();
-            this.drawEditorPath(1, true, "cyan");
+            this.drawEditorPath(true, "cyan");
             this.renderCombatBox();
             this.drawUIText();
         }
@@ -973,11 +995,14 @@ export class CombatManager {
         for(let a = 0; a < 3; a++) {
             let is_in_use = this.card_rendering.actives[a] != null;
             if(this.combat_active && !is_in_use) continue;
-            if(this.card_rendering.actives[a] == null) {
-                if(this.card_rendering.dragged_card == null) {
-                    continue
+            if(!this.card_rendering.actives.every(a => a == null)) {
+                if(this.card_rendering.actives[a] == null) {
+                    if(this.card_rendering.dragged_card == null) {
+                        continue
+                    }
                 }
             }
+            
             ctx.strokeStyle = `rgba(255, 255, 255, ${this.combat_active ? "0.05" : "0.3"})`;
             ctx.lineWidth = 2;
             let x = boxes[a].x;
@@ -1226,13 +1251,12 @@ export class CombatManager {
     }
 
     combatUpdate(delta) {
-        delta *= timescale
+        delta *= this.combatVariables.timescale
         this.second_timer += delta;
         if(this.second_timer > 1) {
             this.second_timer -= 1;
             this.onSecond();
         }
-        console.log(this.cardManager.getHand())
         const cb = this.getCombatBox();
         this.projectiles.updateProjectiles(delta);
         let mouseX = this.engine.keyboard.mouseX - cb.x;
@@ -1257,6 +1281,7 @@ export class CombatManager {
     
             this.card_rendering.temporary_projectiles.forEach(p => {
                 if(in_box) p.visible = true;
+                else p.visible = false;
                 p.setPosition(dcx + 64, dcy + 64)
             });
         }
@@ -1527,7 +1552,7 @@ export class ProjectilePath {
             }
         }
     
-        if(d != null && this.projectile.combat.combat_active) {
+        if(d != null) {
             const cb = this.projectile.combat.getCombatBox();
             var maxX = cb.w - this.projectile.settings.size;
             var maxY = cb.h - this.projectile.settings.size;

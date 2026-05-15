@@ -11,8 +11,44 @@ import { Map } from "./map.js";
 import { downloadBlob, pickFile } from "./browser.js";
 
 import { clamp } from "../common.js";
-import { test_data_request } from "./data.js";
 import { Card, CardManager, CombatManager } from "./combat.js";
+
+export class InventoryItem {
+    constructor(data) {
+        this.data = data.data;
+        this.type = data.type;
+    }
+}
+
+export class Inventory {
+    constructor() {
+        this.items = [];
+    }
+
+    giveItem(item) { this.items.push(item); }
+
+    getAllCardIds() { 
+        const cards = this.items.filter(i => i.type == "card");
+        let card_ids = cards.map(c => c.data.id); 
+        return card_ids;
+    }
+
+    getUniqueCardIds() { return [...new Set(this.getAllCardIds())]; }
+
+    getCardCounts() {
+        let c = [];
+        const cards = this.getAllCardIds();
+        this.getUniqueCardIds().forEach(id => c.push({
+            "id": id,
+            "count": cards.map(c => c == id).length
+        }));
+        return c;
+    }
+
+    getCardCount(card_id) { return this.getCardCounts().find(c => c.id == card_id); }
+
+    getItems() { return this.items }
+}
 
 export class Engine {
     static rectanglesIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
@@ -110,6 +146,7 @@ export class Engine {
         this.cards = new CardManager();
         this.combat = new CombatManager(this.cards, this);
         this.state = "main";
+        this.inventory = new Inventory();
     };
 
     load() { return this.data.assets.map(b => this.loader.loadImage(b[0], b[1])) };
@@ -587,13 +624,22 @@ export class Engine {
         });  
 
         this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.C_KEY, () => {
-            if(this.combat.in_combat) this.combat.exitCombat();
-            else this.combat.enterCombat(this.data.scenarios.find(s => s.id == "test"));
-            
-        })
+            this.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100})
+            setTimeout(() => {
+                if(this.combat.in_combat) this.combat.exitCombat();
+                else this.combat.enterCombat(this.data.scenarios.find(s => s.id == "test"));
+            }, 650)
+        });
 
-        test_data_request.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
-        this.cards.addToDeck(0, 0, 1, 1, 2);
+        this.data.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
+
+        this.data.player_data.inventory.items.forEach(i => {
+            this.inventory.giveItem(i);
+        });
+
+        this.data.player_data.deck.forEach(c => {
+            this.cards.addToDeck(c);   
+        });
     };
 
     _resize() {

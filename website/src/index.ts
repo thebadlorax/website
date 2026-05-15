@@ -792,12 +792,6 @@ const server = Bun.serve({
             let fb = await db.fetch("feedback") || new Array();
             return corsResponse(JSON.stringify({"feedback": fb}), { status: 200 }); 
           }
-          case "/game/live":
-            const success2 = server.upgrade(req, {
-              data: { source: "/game/live" }, // Attach per-socket data
-            });
-            if(success2) return undefined;
-            return corsResponse("WebSocket upgrade failed", { status: 400 });
           case "/game/files":
             const glob2 = new Glob(`src/res/game/**/*`);
             var data = [];
@@ -809,6 +803,19 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify(data), {
               headers: { "Content-Type": "application/json" },
             });
+          case "/game/data": {
+            let data = Bun.file("src/res/game/data.json");
+            let user_json = await req.json();
+            let user = await auth.fetchAccount(user_json.name, user_json.pass);
+            if(!user) return corsResponse(null, { status: 401 });
+            let json = await data.json();
+            let player_data = await db.fetch("game") || {"player_data": {}};
+            
+            player_data = player_data.player_data;
+            player_data = player_data[user.account.id] || {};
+            json = {...json, ...{"player_data": player_data}};
+            return corsResponse(JSON.stringify(json), { status: 200 });
+          }
           case "/health":
             return corsResponse("OK"); 
           default: // dynamic route endpoints

@@ -21,6 +21,7 @@ export class Keyboard {
         C_KEY: "KeyC",
         G_KEY: "KeyG",
         M_KEY: "KeyM",
+        T_KEY: "KeyT",
 
         ESCAPE: "Escape",
         SHIFT: "ShiftLeft",
