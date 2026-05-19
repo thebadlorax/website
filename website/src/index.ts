@@ -811,8 +811,11 @@ const server = Bun.serve({
             let json = await data.json();
             let player_data = await db.fetch("game") || {"player_data": {}};
             
-            player_data = player_data.player_data;
-            player_data = player_data[user.account.id] || {};
+            player_data = player_data.player_data || {};
+            player_data = player_data[user.account.id] || {
+              "inventory": { "items": [{ "type": "card", "data": { "id": 0 } }] },
+              "deck": [0, 0, 1, 1, 2]
+            };
             json = {...json, ...{"player_data": player_data}};
             return corsResponse(JSON.stringify(json), { status: 200 });
           }

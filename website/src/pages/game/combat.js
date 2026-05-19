@@ -504,7 +504,7 @@ export class CombatManager {
         this.combatSettings = {
             "future_opacity": 0.4,
             "bg_text_opacity_prepare": 0.1,
-            "bg_text_opacity_play": 0.05,
+            "bg_text_opacity_play": 0.06,
             "hand_active_size": 1,
             "hand_nonactive_size": 0.2,
             "paused": false,
@@ -521,13 +521,15 @@ export class CombatManager {
                     "code": "Space",
                     "name": "space"
                 },
-            ]
-                
-            
+            ],
+            "drop_shadows": true
         }
         this.combatVariables = {
             "timescale": 1,
-            "bg_text_text": "prepare",
+            "bg_text_current": "prepare",
+            "bg_text_next": null,
+            "bg_text_transition": 0,
+            "bg_text_transition_speed": 3,
             "bg_text_opacity": this.combatSettings.bg_text_opacity_prepare,
             "bg_text_target_opacity": this.combatSettings.bg_text_opacity_prepare,
             "bg_text_opacity_speed": 2,
@@ -693,6 +695,8 @@ export class CombatManager {
 
             ctx.strokeStyle = is_dragged ? "rgba(0, 255, 255, 0.3)" : (is_usable ? "white" : "rgba(255, 255, 255, 0.3)");
 
+            this.drawDropShadow(30, 0.3, -card_size.w / 2, -card_size.h / 2, card_size.w*.9, card_size.h*.9, card_size.w*.2, card_size.h*.2)
+
             ctx.strokeRect(
                 -card_size.w / 2,
                 -card_size.h / 2,
@@ -784,6 +788,8 @@ export class CombatManager {
             card_size.w,
             card_size.h
         );
+
+        this.drawDropShadow(30, 0.3, dcx, dcy, card_size.w*.9, card_size.h*.9, card_size.w*.2, card_size.h*.2)
     
         ctx.restore();
 
@@ -809,8 +815,7 @@ export class CombatManager {
 
         if(!overlap) { this.card_rendering.dragged_card_in_box = false; return; };
 
-        if(overlap.w == card_size.w && overlap.h == card_size.h) { this.card_rendering.dragged_card_in_box = true; }
-        else { this.card_rendering.dragged_card_in_box = false; }
+        this.card_rendering.dragged_card_in_box = true;
     }
 
     drawPreviewOfTurn() {
@@ -1083,6 +1088,20 @@ export class CombatManager {
         alert("you won!")
     }
 
+    applyShadow(ctx, blur=20, color="rgba(0,0,0,0.5)", x=0, y=4) {
+        ctx.shadowBlur = blur;
+        ctx.shadowColor = color;
+        ctx.shadowOffsetX = x;
+        ctx.shadowOffsetY = y;
+    }
+
+    clearShadow(ctx) {
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = "transparent";
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+    }
+
     onDeath() {
         this.onRoundEnd();
         setTimeout(() => {
@@ -1091,7 +1110,14 @@ export class CombatManager {
         }, 250)
     }
 
-    drawBackgroundText(text, angle, alpha, size, color) {
+    setBackgroundText(text) {
+        if(this.combatVariables.bg_text_current == text) return;
+    
+        this.combatVariables.bg_text_next = text;
+        this.combatVariables.bg_text_transition = 0;
+    }
+
+    drawBackgroundText(text, angle, alpha, size, color, offsetX=0, offsetY=0) {
         const ctx = this.engine.ctx;
         
         ctx.font = `${size}px monospace`;
@@ -1118,8 +1144,8 @@ export class CombatManager {
             for(let x = -1; x < x_count; x++) {
                 ctx.save();
                 
-                let posX = x * xSpacing + currentOffsetX;
-                let posY = y * ySpacing + currentOffsetY;
+                let posX = x * xSpacing + currentOffsetX + offsetX;
+                let posY = y * ySpacing + currentOffsetY + offsetY;
                 
                 ctx.translate(posX, posY);
                 ctx.rotate(angle * Math.PI / 180);
@@ -1134,19 +1160,56 @@ export class CombatManager {
 
     render() {
         if(!this.debug.editor) {
-            this.drawBackgroundText(
-                this.combatVariables.bg_text_text, this.combatVariables.bg_text_angle, 
-                this.combatVariables.bg_text_opacity, 10, this.combatVariables.bg_text_color
-            )
+            const rawT = this.combatVariables.bg_text_transition;
+            const t = rawT * rawT * (3 - 2 * rawT);
+
+            if(this.combatVariables.bg_text_next != null) {
+
+                this.drawBackgroundText(
+                    this.combatVariables.bg_text_current,
+                    this.combatVariables.bg_text_angle - (t * 2),
+                    this.combatVariables.bg_text_opacity * (1 - t),
+                    14,
+                    this.combatVariables.bg_text_color,
+                    0,
+                    -20 * t
+                );
+
+                this.drawBackgroundText(
+                    this.combatVariables.bg_text_next,
+                    this.combatVariables.bg_text_angle + ((1 - t) * 2),
+                    this.combatVariables.bg_text_opacity * t,
+                    14,
+                    this.combatVariables.bg_text_color,
+                    0,
+                    20 * (1 - t)
+                );
+
+            } else {
+
+                this.drawBackgroundText(
+                    this.combatVariables.bg_text_current,
+                    this.combatVariables.bg_text_angle,
+                    this.combatVariables.bg_text_opacity,
+                    14,
+                    this.combatVariables.bg_text_color
+                );
+
+            }
+
             this.renderCombatBox();
             if(this.turn == 0) this.drawActiveSlots();
             else this.drawEditorPath(false, "white", this.scenario.path);
-            this.renderCardsInHand(this.combat_active);
+            
+            
             this.player.render(this.engine.ctx);
             this.scenario.render();
-            this.renderDraggedCard();
+            
             this.drawUIText();
             this.drawHealthbar()
+            this.renderCardsInHand(this.combat_active);
+            this.renderDraggedCard();
+            
         } else {
             this.renderCombatBox();
             this.drawEditorButtons();
@@ -1229,9 +1292,23 @@ export class CombatManager {
         })
     }
 
+    drawDropShadow(size, opacity, x, y, w, h, offsetX=0, offsetY=0) {
+        if(!this.combatSettings.drop_shadows) return;
+        const ctx = this.engine.ctx;
+        ctx.fillStyle = `rgba(0, 0, 0, ${opacity/4})`;
+        ctx.fillRect((x+offsetX)-size*1.5, (y+offsetY)-size*1.5, w+size*2, h+size*2);
+        ctx.fillStyle = `rgba(0, 0, 0, ${opacity/2})`;
+        ctx.fillRect((x+offsetX)-size, (y+offsetY)-size, w+size*1.5, h+size*1.5);
+        ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+        ctx.fillRect((x+offsetX)-(size/2), (y+offsetY)-(size/2), w+(size*.75), h+(size*.75));
+    }
+
     renderCombatBox() {
         const ctx = this.engine.ctx;
         let cb = this.getCombatBox();
+
+        this.drawDropShadow(80, 0.4, cb.x, cb.y, cb.w, cb.h);
+
         ctx.strokeStyle = "white";
         ctx.lineWidth = "3";
         ctx.strokeRect(cb.x, cb.y, cb.w, cb.h);
@@ -1248,17 +1325,28 @@ export class CombatManager {
 
     onRelease() {
         const box = this.getCombatBox();
+        const card_size = Card.getSize();
         if(this.turn == 1) {
             if(this.card_rendering.dragged_card_in_box) {
                 let x = Math.floor(this.engine.keyboard.mouseX - this.card_rendering.drag_point[0]);
                 let y = Math.floor(this.engine.keyboard.mouseY - this.card_rendering.drag_point[1]);
+
+                let xmax = box.x + box.w - card_size.w;
+                let ymax = box.y + (box.h - (card_size.h*1.15));
                 
+                x = clamp(x, box.x, xmax);
+                y = clamp(y, box.y, ymax);
+
                 let c = new VisualCard(
                     this.card_rendering.dragged_card,
                     x - box.x,
                     y - box.y
                 );
                 c.p = this.card_rendering.temporary_projectiles[0];
+                c.p.setPosition(
+                    x - box.x + (card_size.w / 2),
+                    y - box.y + (card_size.h / 2)
+                );
                 this.card_rendering.cards.push(c);
             } else {
                 this.card_rendering.temporary_projectiles.forEach(p => this.projectiles.destroyProjectile(p));
@@ -1396,10 +1484,10 @@ export class CombatManager {
 
         if(this.turn == 0) {
             this.scenario.runPlacingTurn();
-            this.combatVariables.bg_text_text = "dodge"
+            this.setBackgroundText("dodge");
             this.player.iframes = 1;
         } else {
-            this.combatVariables.bg_text_text = "watch"
+            this.setBackgroundText("watch");
         }
 
         this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_play;
@@ -1424,7 +1512,7 @@ export class CombatManager {
         this.turn = this.turn == 0 ? 1 : 0;
         this.round_timer = this.turn == 1 ? this.combatVariables.placing_time : this.combatVariables.placing_time/2;
         this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare;
-        this.combatVariables.bg_text_text = "prepare";
+        this.setBackgroundText("prepare");
         let cb = this.getCombatBox();
         this.player.x = Math.floor(cb.w / 2)
         this.player.y = Math.floor(cb.h / 2)
@@ -1565,6 +1653,19 @@ export class CombatManager {
         if(this.combat_active) {
             if(this.turn == 0) this.player.update(delta);
             else this.scenario.dodgingUpdate(delta);
+        };
+
+        if(this.combatVariables.bg_text_next != null) {
+            this.combatVariables.bg_text_transition +=
+                this.combatVariables.bg_text_transition_speed * delta;
+        
+            if(this.combatVariables.bg_text_transition >= 1) {
+                this.combatVariables.bg_text_current =
+                    this.combatVariables.bg_text_next;
+        
+                this.combatVariables.bg_text_next = null;
+                this.combatVariables.bg_text_transition = 0;
+            }
         }
         
 
@@ -1591,6 +1692,7 @@ export class CombatManager {
             this.scenario = new CombatScenario(scenario, this);
             this.engine.state = "combat";
             this.in_combat = true;
+            this.setBackgroundText("prepare");
             let cb = this.getCombatBox();
             this.player.reset();
             this.cardManager.resetHand();
