@@ -624,12 +624,13 @@ export class Engine {
         });  
 
         this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.C_KEY, () => {
-            this.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100})
-            setTimeout(() => {
-                if(this.combat.in_combat) this.combat.exitCombat();
-                else this.combat.enterCombat(this.data.scenarios.find(s => s.id == "test"));
-            }, 650)
+            if(this.combat.in_combat) this.combat.exitCombat();
+            else this.combat.enterCombat(this.data.scenarios.find(s => s.id == "test"));
         });
+
+        this.ctx.canvas.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+        })
 
         this.data.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
 
@@ -638,7 +639,7 @@ export class Engine {
         });
 
         this.data.player_data.deck.forEach(c => {
-            this.cards.addToDeck(c);   
+            this.cards.addToDeck(c);
         });
     };
 

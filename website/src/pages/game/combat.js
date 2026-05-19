@@ -9,6 +9,12 @@ import { clamp } from "../common.js";
 import { Engine } from "./engine.js";
 
 export class Card {
+    static getSize() {
+        return {
+            "w": 144,
+            "h": 216
+        }
+    }
     static fromJSON(data, loader) {
         return new Card(
             data.name,
@@ -144,10 +150,11 @@ export class CardManager {
     drawCard(amt=1) {
         let drawn = [];
         for(let x = 0; x < amt; x++) {
-            if(this.deck.length == 0) {
+            /*if(this.deck.length == 0) {
                 this.shuffle();
-            };
+            };*/
             let c = CardManager.getRandomItem(this.deck);
+            if(c == undefined) continue;
             drawn.push(c);
             this.deck.splice(this.deck.indexOf(c), 1)
         }
@@ -260,7 +267,8 @@ export class CombatScenario {
         this.speed = data.opponent.speed*10;
         this.cardManager = new CardManager();
         this.combat.engine.data.cards.forEach(c => this.cardManager.cards.push(Card.fromJSON(c, this.combat.engine.loader)));
-        this.cardManager.addToDeck(...data.opponent.deck)
+        data.opponent.deck.forEach(c => this.cardManager.addToDeck(c));
+        this.cardManager.shuffle();
         this.cardDraw = data.opponent.cardDraw;
 
         this.rewards = data.rewards;
@@ -271,7 +279,7 @@ export class CombatScenario {
         this.x = 0;
         this.y = 0;
         this.iframes = 0;
-        this.size = {"w": 20, "h": 20}
+        this.size = {"w": 20, "h": 20};
     }
 
     getPoint(t) {
@@ -495,9 +503,41 @@ export class CombatManager {
         }
         this.combatSettings = {
             "future_opacity": 0.4,
+            "bg_text_opacity_prepare": 0.1,
+            "bg_text_opacity_play": 0.05,
+            "hand_active_size": 1,
+            "hand_nonactive_size": 0.2,
+            "paused": false,
+            "active_keybinds": [
+                {
+                    "code": "ShiftLeft",
+                    "name": "shift"
+                },
+                {
+                    "code": "Tab",
+                    "name": "tab"
+                },
+                {
+                    "code": "Space",
+                    "name": "space"
+                },
+            ]
+                
+            
         }
         this.combatVariables = {
-            "timescale": 1
+            "timescale": 1,
+            "bg_text_text": "prepare",
+            "bg_text_opacity": this.combatSettings.bg_text_opacity_prepare,
+            "bg_text_target_opacity": this.combatSettings.bg_text_opacity_prepare,
+            "bg_text_opacity_speed": 2,
+            "bg_text_angle": 45,
+            "bg_text_color": "white",
+            "bg_text_offset": 0,
+            "bg_text_timescale": 3,
+            "hand_hover": 0,
+            "hand_hover_speed": 8,
+            "placing_time": 20
         }
         this.in_transition = false;
         setTimeout(() => { this.debug.buttons[0].onClick(); }, 500);
@@ -524,9 +564,9 @@ export class CombatManager {
             a.ability.activate(this.player);
         }
 
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.SHIFT, () => { if(this.in_combat) handle_ability_press(0); })
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.TAB, () => { if(this.in_combat) handle_ability_press(1); })
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.SPACE, () => { if(this.in_combat) handle_ability_press(2); })
+        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[0].code, () => { if(this.in_combat) handle_ability_press(0); })
+        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[1].code, () => { if(this.in_combat) handle_ability_press(1); })
+        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[2].code, () => { if(this.in_combat) handle_ability_press(2); })
         this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.M_KEY, () => { if(this.in_combat) this.toggleEditor(); })
 
         this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.G_KEY, () => {
@@ -537,6 +577,11 @@ export class CombatManager {
             if(!this.debug.debug_kb_pressed) return;
             this.turn = this.turn == 1 ? 0 : 1
             this.debug.debug_kb_pressed = false;
+        })
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.P_KEY, () => {
+            if(!this.debug.debug_kb_pressed) return;
+            this.combatVariables.timescale = this.combatVariables.timescale == 0 ? 1 : 0
         })
     }
 
@@ -549,75 +594,159 @@ export class CombatManager {
         }
     }
 
-    renderCardsInHand() {
+    getHandCardPosition(index, count) {
+        const card_size = Card.getSize();
+        const cb = this.getCombatBox();
+    
+        const y_off = -60;
+    
+        const center = (count - 1) / 2;
+    
+        const hover = this.combatVariables.hand_hover;
+
+        const spread =
+            (card_size.w * 0.65) +
+            ((card_size.w * 1.3) - (card_size.w * 0.65)) * hover;
+
+        const curve = 10 - (6 * hover);
+        const angleSpread = 0.12 - (0.07 * hover);
+        const lift = -30 * hover;
+        const offset = index - center;
+        const loweredY = 85 * (1 - hover);
+    
+        return {
+            x:
+                cb.x +
+                (cb.w / 2) +
+                (offset * spread),
+    
+            y:
+                (cb.y + cb.h + y_off - lift + loweredY) +
+                (Math.pow(offset, 2) * curve),
+    
+            rotation: offset * angleSpread
+        };
+    }
+
+    renderCardsInHand(box_clip=false) {
         const ctx = this.engine.renderer.ctx;
-        const deck = this.cardManager.getHand();
-        const card_size = 128;
+        const cb = this.getCombatBox();
+
+        let deck = this.cardManager.getHand();
+        const card_size = Card.getSize();
+        if(Engine.rectanglesIntersect(
+            this.engine.keyboard.mouseX, this.engine.keyboard.mouseY, 10, 10,
+        ));
+
+        deck = deck.filter(c =>
+            !this.card_rendering.cards
+                .map(a => a.card)
+                .concat(this.card_rendering.actives.filter(a => a != null))
+                .find(b => b.uid === c.uid)
+        );
 
         let skipped = 0;
 
-        let hide = this.combat_active;
-        if(hide) ctx.globalAlpha = 0.2;
-        else ctx.globalAlpha = 1;
-
-        for(let x = 0; x < deck.length; x++) {
-            const c = deck[x];
+        for(let i = 0; i < deck.length; i++) {
+            const c = deck[i];
             if(this.card_rendering.cards.map(a => a.card).concat(this.card_rendering.actives.filter(a => a != null)).find(b => b.uid === c.uid) != undefined) {
                 skipped += 1;
                 continue;
             };
-            let cx, cy;
-            let y_off = Math.floor((x-skipped)/2);
-            cx = 10+(card_size*(x-(y_off*2)-skipped))+((x-(y_off*2)-skipped)*10);
-            cy = 10+(y_off*158);
-            let is_dragged = false;
-            if(this.card_rendering.dragged_card != null) {
-                is_dragged = c.uid === this.card_rendering.dragged_card.uid;
-            }
-            if(is_dragged) {
-                ctx.fillStyle = "rgba(0, 255, 255, 0.1)"
-                ctx.fillRect(cx, cy, card_size, card_size);
-                ctx.strokeStyle = "rgba(0, 255, 255, 0.1)"
-                ctx.strokeRect(cx, cy, card_size, card_size);
-                continue;
+
+            let is_dragged = this.card_rendering.dragged_card == c;
+
+            const is_usable = c.isTurn(this.turn);
+
+            ctx.lineWidth = 5;
+
+            const pos = this.getHandCardPosition(i-skipped, deck.length-skipped);
+
+            ctx.save();
+
+            if(box_clip) {
+                ctx.beginPath();
+                ctx.rect(
+                    0,
+                    0,
+                    this.engine.camera.width,
+                    this.engine.camera.height
+                );
+                ctx.rect(
+                    cb.x-10,
+                    cb.y-10,
+                    cb.w+20,
+                    cb.h+20
+                );
+
+                ctx.clip("evenodd");
             }
 
-            let is_usable = c.isTurn(this.turn);
+            ctx.translate(pos.x, pos.y);
+            ctx.rotate(pos.rotation);
 
-            if(!is_usable) ctx.globalAlpha = 0.2;
-            ctx.strokeStyle = is_usable ? "cyan" : "grey";
-            ctx.lineWidth = 2;
+            const hover = this.combatVariables.hand_hover;
+
+            const scale = 0.7 + (0.3 * hover);
+
+            ctx.scale(scale, scale);
+
+            ctx.strokeStyle = is_dragged ? "rgba(0, 255, 255, 0.3)" : (is_usable ? "white" : "rgba(255, 255, 255, 0.3)");
+
             ctx.strokeRect(
-                cx, 
-                cy, 
-                card_size, card_size);
-            ctx.drawImage(
-                    c.image, 
-                    cx, 
-                    cy
-            );
-
-            ctx.font = "13px monospace";
-            ctx.fillStyle = is_usable ? "cyan" : "grey";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(
-                c.name,
-                cx+Math.floor(card_size/2),
-                cy+card_size*1.1
+                -card_size.w / 2,
+                -card_size.h / 2,
+                card_size.w,
+                card_size.h
             )
 
-            if(!hide) ctx.globalAlpha = 1;
-        }
+            if(!is_dragged) {
+                ctx.drawImage(
+                    c.image,
+                    -card_size.w / 2,
+                    -card_size.h / 2,
+                    card_size.w,
+                    card_size.h
+                );
 
-        ctx.globalAlpha = 1;
+                if(!is_usable) {
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.7)"
+                    ctx.fillRect(
+                        -card_size.w / 2,
+                        -card_size.h / 2,
+                        card_size.w,
+                        card_size.h
+                    );
+                }
+
+                ctx.font = "13px monospace";
+                ctx.fillStyle = is_usable ? "white" : "rgba(255, 255, 255, 0.3)";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(
+                    c.name,
+                    (-card_size.w / 2) + Math.floor(card_size.w / 2),
+                    (-card_size.h / 2) + card_size.h * 1.1
+                );
+            } else {
+                ctx.fillStyle = "rgba(0, 255, 255, 0.1)"
+                ctx.fillRect(
+                    -card_size.w / 2,
+                    -card_size.h / 2,
+                    card_size.w,
+                    card_size.h
+                )
+            }
+            
+            ctx.restore();
+        }
     }
 
     renderDraggedCard() {
         if(this.card_rendering.dragged_card == null) return;
     
         const ctx = this.engine.renderer.ctx;
-        const card_size = 128;
+        const card_size = Card.getSize();
         const c = this.card_rendering.dragged_card;
         let dcx = Math.floor(this.engine.keyboard.mouseX - this.card_rendering.drag_point[0]);
         let dcy = Math.floor(this.engine.keyboard.mouseY - this.card_rendering.drag_point[1]);
@@ -652,8 +781,8 @@ export class CombatManager {
             c.image,
             dcx,
             dcy,
-            card_size,
-            card_size
+            card_size.w,
+            card_size.h
         );
     
         ctx.restore();
@@ -663,8 +792,8 @@ export class CombatManager {
         ctx.strokeRect(
             dcx,
             dcy,
-            card_size,
-            card_size
+            card_size.w,
+            card_size.h
         );
         ctx.font = "13px monospace";
         ctx.fillStyle = "white";
@@ -672,21 +801,22 @@ export class CombatManager {
         ctx.textBaseline = "middle";
         ctx.fillText(
             c.name,
-            dcx + Math.floor(card_size / 2),
-            dcy + card_size * 1.1
+            dcx + Math.floor(card_size.w / 2),
+            dcy + card_size.h * 1.1
         );
 
-        let overlap = Engine.getRectangleOverlap(dcx, dcy, card_size, card_size, cbx, cby, cbs, cbs);
+        let overlap = Engine.getRectangleOverlap(dcx, dcy, card_size.w, card_size.h, cbx, cby, cbs, cbs);
 
         if(!overlap) { this.card_rendering.dragged_card_in_box = false; return; };
 
-        if(overlap.w == 128 && overlap.h == 128) { this.card_rendering.dragged_card_in_box = true; }
+        if(overlap.w == card_size.w && overlap.h == card_size.h) { this.card_rendering.dragged_card_in_box = true; }
         else { this.card_rendering.dragged_card_in_box = false; }
     }
 
     drawPreviewOfTurn() {
         const ctx = this.engine.ctx;
         this.projectiles.renderProjectiles();
+        const card_size = Card.getSize();
         this.card_rendering.cards.forEach(c => {
             ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
             ctx.lineWidth = 2;
@@ -694,8 +824,8 @@ export class CombatManager {
             ctx.strokeRect(
                 box.x + c.x,
                 box.y + c.y,
-                c.size,
-                c.size
+                card_size.w,
+                card_size.h
             );
 
             ctx.font = "13px monospace";
@@ -704,8 +834,8 @@ export class CombatManager {
             ctx.textBaseline = "middle";
             ctx.fillText(
                 c.card.name,
-                (box.x + c.x)+Math.floor(c.size/2),
-                (box.y + c.y)+c.size*1.1
+                (box.x + c.x)+Math.floor(card_size.w/2),
+                (box.y + c.y)+card_size.h*1.1
             );
         });
     }
@@ -923,7 +1053,9 @@ export class CombatManager {
             const y1 = padding+((size+padding)*Math.floor(a/cols));
             const x1 = padding+((size+padding)*a)-(((size+padding)*cols)*Math.floor(a/cols));
 
-            if(Engine.rectanglesIntersect(x, y, 10, 10, x1, y1, size, size)) b.onClick();
+            if(Engine.rectanglesIntersect(x, y, 10, 10, x1, y1, size, size)) {
+                b.onClick();
+            }
         }
         
 
@@ -951,22 +1083,75 @@ export class CombatManager {
         alert("you won!")
     }
 
+    onDeath() {
+        this.onRoundEnd();
+        setTimeout(() => {
+            this.exitCombat();
+            alert("you fucking died");
+        }, 250)
+    }
+
+    drawBackgroundText(text, angle, alpha, size, color) {
+        const ctx = this.engine.ctx;
+        
+        ctx.font = `${size}px monospace`;
+        const xSpacing = ctx.measureText(text).width + 10; 
+        const ySpacing = size + 10;
+    
+        ctx.fillStyle = color;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.globalAlpha = alpha;
+    
+        this.combatVariables.bg_text_offset += 0.002 * (this.combatVariables.timescale*this.combatVariables.bg_text_timescale);
+        if (this.combatVariables.bg_text_offset >= 1) {
+            this.combatVariables.bg_text_offset = 0;
+        }
+    
+        const currentOffsetX = this.combatVariables.bg_text_offset * xSpacing;
+        const currentOffsetY = this.combatVariables.bg_text_offset * ySpacing;
+    
+        let x_count = Math.ceil(this.engine.camera.width / xSpacing) + 2;
+        let y_count = Math.ceil(this.engine.camera.height / ySpacing) + 2;
+        
+        for(let y = -1; y < y_count; y++) {
+            for(let x = -1; x < x_count; x++) {
+                ctx.save();
+                
+                let posX = x * xSpacing + currentOffsetX;
+                let posY = y * ySpacing + currentOffsetY;
+                
+                ctx.translate(posX, posY);
+                ctx.rotate(angle * Math.PI / 180);
+                
+                ctx.fillText(text, 0, 0);
+                ctx.restore();
+            }
+        }
+    
+        ctx.globalAlpha = 1;
+    }
+
     render() {
         if(!this.debug.editor) {
-            this.renderCardsInHand();
+            this.drawBackgroundText(
+                this.combatVariables.bg_text_text, this.combatVariables.bg_text_angle, 
+                this.combatVariables.bg_text_opacity, 10, this.combatVariables.bg_text_color
+            )
+            this.renderCombatBox();
             if(this.turn == 0) this.drawActiveSlots();
+            else this.drawEditorPath(false, "white", this.scenario.path);
+            this.renderCardsInHand(this.combat_active);
             this.player.render(this.engine.ctx);
             this.scenario.render();
-            this.renderCombatBox();
             this.renderDraggedCard();
             this.drawUIText();
-            if(this.turn == 1) this.drawEditorPath(false, "white", this.scenario.path);
             this.drawHealthbar()
         } else {
+            this.renderCombatBox();
             this.drawEditorButtons();
             this.drawFrequencyGrid();
             this.drawEditorPath(true, "cyan");
-            this.renderCombatBox();
             this.drawUIText();
         }
         
@@ -976,12 +1161,12 @@ export class CombatManager {
         const pos = [];
         const cb = this.getCombatBox();
 
-        const w = 128;
+        const card_size = Card.getSize();
 
         for(let a = 0; a < 3; a++) {
-            let x = (138*a) + (cb.x + cb.w/4.5) - w/2;
-            let y = (cb.y+cb.h/2) - w/2;
-            pos[a] = {"x": x, "y": y, "w": w, "h": w, "i": a}
+            let x = -20+((card_size.w)*(a*1.1)) + (cb.x + cb.w/4.5) - card_size.w/2;
+            let y = (cb.y+cb.h/2) - card_size.h/2;
+            pos[a] = {"x": x, "y": y, "w": card_size.w, "h": card_size.h, "i": a}
         }
         return pos;
     }
@@ -989,17 +1174,14 @@ export class CombatManager {
     drawActiveSlots() {
         const ctx = this.engine.ctx;
 
-        const texts = ["shift", "tab", "space"]
         const boxes = this.getActiveSlots();
 
         for(let a = 0; a < 3; a++) {
             let is_in_use = this.card_rendering.actives[a] != null;
             if(this.combat_active && !is_in_use) continue;
-            if(!this.card_rendering.actives.every(a => a == null)) {
-                if(this.card_rendering.actives[a] == null) {
-                    if(this.card_rendering.dragged_card == null) {
-                        continue
-                    }
+            if(this.card_rendering.actives[a] == null) {
+                if(this.card_rendering.dragged_card == null) {
+                    continue
                 }
             }
             
@@ -1025,7 +1207,7 @@ export class CombatManager {
             ctx.textBaseline = "middle";
             
             ctx.fillText(
-                `${texts[a]}`,
+                `${this.combatSettings.active_keybinds[a].name}`,
                 x + w/2,
                 y - (h*0.1)
             );
@@ -1054,19 +1236,14 @@ export class CombatManager {
         ctx.lineWidth = "3";
         ctx.strokeRect(cb.x, cb.y, cb.w, cb.h);
 
+        ctx.fillStyle = "black";
+        ctx.fillRect(cb.x, cb.y, cb.w, cb.h);
+
         if(!this.combat_active) {
             this.drawPreviewOfTurn();
         }
         else this.renderCombat();
         
-    }
-
-    onDeath() {
-        this.onRoundEnd();
-        setTimeout(() => {
-            this.exitCombat();
-            alert("you fucking died");
-        }, 250)
     }
 
     onRelease() {
@@ -1123,7 +1300,7 @@ export class CombatManager {
 
     getCombatBox() {
         return {
-            x: clamp((this.engine.camera.width - 500) / 2, 286, this.engine.camera.width),
+            x: (this.engine.camera.width - 500) / 2,
             y: (this.engine.camera.height - 500) / 2,
             w: 500,
             h: 500
@@ -1138,33 +1315,47 @@ export class CombatManager {
             this.handleEditorClick();
         }
 
-        const hand = this.cardManager.getHand();
-        const card_size = 128;
+        let hand = this.cardManager.getHand();
+        const card_size = Card.getSize();
+
+        hand = hand.filter(c =>
+            !this.card_rendering.cards
+                .map(a => a.card)
+                .concat(this.card_rendering.actives.filter(a => a != null))
+                .find(b => b.uid === c.uid)
+        );
 
         let skipped = 0;
         const box = this.getCombatBox();
 
         if(!this.combat_active) {
-            for(let x1 = 0; x1 < hand.length; x1++) {
-                const c = hand[x1]
-                if(this.card_rendering.cards.map(a => a.card).concat(this.card_rendering.actives.filter(a => a != null)).find(b => b === c) != undefined) {
+            for(let x1 = hand.length - 1; x1 >= 0; x1--) {
+                const c = hand[x1];
+                if(this.card_rendering.cards.map(a => a.card).concat(this.card_rendering.actives.filter(a => a != null)).find(b => b.uid === c.uid) != undefined) {
                     skipped += 1;
                     continue;
                 };
-                let cx, cy;
+    
+                if(this.card_rendering.dragged_card == c) {
+                    continue;
+                }
+
+                const pos = this.getHandCardPosition(
+                    x1 - skipped,
+                    hand.length - skipped
+                );
                 
-                let y_off = Math.floor((x1-skipped)/2)
-                cx = 10+(card_size*(x1-(y_off*2)-skipped))+((x1-(y_off*2)-skipped)*10);
-                cy = 10+(y_off*158);
-                if(Engine.rectanglesIntersect(x, y, 10, 10, cx, cy, card_size, card_size)) {
+                const cx = pos.x - (card_size.w / 2);
+                const cy = pos.y - (card_size.h / 2);
+                if(Engine.rectanglesIntersect(x, y, 10, 10, cx, cy, card_size.w, card_size.h)) {
                     let is_usable = c.isTurn(this.turn);
                     if(is_usable) {
                         this.card_rendering.dragged_card = c;
                         this.card_rendering.drag_point = [x - cx, y - cy];
                         if(this.turn == 1) {
                             let p = this.projectiles.createProjectile(
-                                x - box.x,
-                                y - box.y,
+                                cx - box.x,
+                                cy - box.y,
                                 this.card_rendering.dragged_card.data
                             );
                             this.card_rendering.temporary_projectiles.push(p);
@@ -1179,8 +1370,8 @@ export class CombatManager {
                     x, y, 10, 10,
                     box.x + c.x,
                     box.y + c.y,
-                    c.size,
-                    c.size
+                    card_size.w,
+                    card_size.h
                 )) {
                     this.card_rendering.drag_point = [
                         (x - box.x) - c.x,
@@ -1204,9 +1395,14 @@ export class CombatManager {
         });
 
         if(this.turn == 0) {
-            this.scenario.cardManager.drawCard(this.scenario.cardDraw-this.scenario.cardManager.hand.length);
             this.scenario.runPlacingTurn();
+            this.combatVariables.bg_text_text = "dodge"
+            this.player.iframes = 1;
+        } else {
+            this.combatVariables.bg_text_text = "watch"
         }
+
+        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_play;
 
         this.round_timer = (this.projectiles.getHighestLifespan()-1) || 10;
 
@@ -1226,7 +1422,9 @@ export class CombatManager {
             }
         }
         this.turn = this.turn == 0 ? 1 : 0;
-        this.round_timer = 10;
+        this.round_timer = this.turn == 1 ? this.combatVariables.placing_time : this.combatVariables.placing_time/2;
+        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare;
+        this.combatVariables.bg_text_text = "prepare";
         let cb = this.getCombatBox();
         this.player.x = Math.floor(cb.w / 2)
         this.player.y = Math.floor(cb.h / 2)
@@ -1240,7 +1438,13 @@ export class CombatManager {
 
     onSecond() {
         if(this.round_timer > 0) {
-            this.round_timer -= 1;
+            if(this.card_rendering.cards.length == this.cardManager.getHand().filter(c => c.isTurn(this.turn)).length) {
+                if(this.round_timer > 4) {
+                    this.round_timer = 3;
+                }
+            } else {
+                this.round_timer -= 1;
+            }
         } else {
             if(!this.combat_active) {
                 this.onRoundStart();
@@ -1258,9 +1462,18 @@ export class CombatManager {
             this.onSecond();
         }
         const cb = this.getCombatBox();
+        const card_size = Card.getSize();
         this.projectiles.updateProjectiles(delta);
         let mouseX = this.engine.keyboard.mouseX - cb.x;
         let mouseY = this.engine.keyboard.mouseY - cb.y;
+        const handZoneY = cb.y + cb.h-(card_size.h*1.5);
+        const hoveringHand =
+            mouseY > handZoneY && !this.combat_active && this.card_rendering.dragged_card == null && this.card_rendering.dragged_alr_card == null;
+
+        this.combatVariables.hand_hover += (
+            (hoveringHand ? 1 : 0) -
+            this.combatVariables.hand_hover
+        ) * this.combatVariables.hand_hover_speed * delta;
         if(this.card_rendering.dragged_card != null) {
             let dcx = Math.floor(
                 mouseX -
@@ -1272,7 +1485,7 @@ export class CombatManager {
                 this.card_rendering.drag_point[1]
             );
 
-            let in_box = Engine.rectanglesIntersect(dcx+cb.x, dcy+cb.y, 128, 128, 
+            let in_box = Engine.rectanglesIntersect(dcx+cb.x, dcy+cb.y, card_size.w, card_size.h, 
                 cb.x,
                 cb.y,
                 cb.w,
@@ -1282,7 +1495,7 @@ export class CombatManager {
             this.card_rendering.temporary_projectiles.forEach(p => {
                 if(in_box) p.visible = true;
                 else p.visible = false;
-                p.setPosition(dcx + 64, dcy + 64)
+                p.setPosition(dcx + card_size.w/2, dcy + card_size.h/2)
             });
         }
 
@@ -1292,15 +1505,15 @@ export class CombatManager {
             let dcx = Math.floor(this.engine.keyboard.mouseX - cb.x - this.card_rendering.drag_point[0]);
             let dcy = Math.floor(this.engine.keyboard.mouseY - cb.y - this.card_rendering.drag_point[1]);
 
-            dcx = clamp(dcx, 0, cb.w - 128);
-            dcy = clamp(dcy, 0, cb.h - (128)*1.2);
+            dcx = clamp(dcx, 0, cb.w - card_size.w);
+            dcy = clamp(dcy, 0, cb.h - (card_size.h)*1.15);
 
             this.card_rendering.dragged_alr_card.x = dcx;
             this.card_rendering.dragged_alr_card.y = dcy;
 
             this.card_rendering.dragged_alr_card.p.setPosition(
-                dcx + 64,
-                dcy + 64
+                dcx + card_size.w/2,
+                dcy + card_size.h/2
             );
         }
 
@@ -1357,28 +1570,44 @@ export class CombatManager {
 
         this.holograms.forEach(h => {
             h.update(delta);
-        })
+        });
+
+        // smooth fade
+        this.combatVariables.bg_text_opacity +=
+        (
+            this.combatVariables.bg_text_target_opacity -
+            this.combatVariables.bg_text_opacity
+        ) * this.combatVariables.bg_text_opacity_speed * delta;
     }
 
     onTurnCompletion() {
-        this.cardManager.drawCard(5-this.cardManager.hand.length);
+        this.cardManager.drawCard(5);
+        this.scenario.cardManager.drawCard(5);
     }
 
     enterCombat(scenario) {
-        this.scenario = new CombatScenario(scenario, this)
-        this.engine.state = "combat";
-        this.in_combat = true;
-        let cb = this.getCombatBox();
-        this.player.reset();
-        this.cardManager.resetHand();
-        this.player.x = Math.floor(cb.w / 2)
-        this.player.y = Math.floor(cb.h / 2)
-        this.onTurnCompletion();
+        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
+        setTimeout(() => {
+            this.scenario = new CombatScenario(scenario, this);
+            this.engine.state = "combat";
+            this.in_combat = true;
+            let cb = this.getCombatBox();
+            this.player.reset();
+            this.cardManager.resetHand();
+            this.player.x = Math.floor(cb.w / 2)
+            this.player.y = Math.floor(cb.h / 2)
+            this.onTurnCompletion();
+            this.round_timer = this.turn == 1 ? this.combatVariables.placing_time : this.combatVariables.placing_time/2;
+        }, 650)
     }
 
     exitCombat() {
-        this.engine.state = "main";
-        this.in_combat = false;
+        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
+        setTimeout(() => {
+            this.engine.state = "main";
+            this.in_combat = false;
+        }, 650);
+        
     }
 }
 
@@ -1552,7 +1781,7 @@ export class ProjectilePath {
             }
         }
     
-        if(d != null) {
+        if(d != null && this.projectile.combat.combat_active) {
             const cb = this.projectile.combat.getCombatBox();
             var maxX = cb.w - this.projectile.settings.size;
             var maxY = cb.h - this.projectile.settings.size;
@@ -1584,6 +1813,7 @@ export class Projectile {
     ) {
         this.x = x; this.y = y; this.settings = settings;
         this.combat = combat; this.visible = false; this.spent_life = 0;
+        this.clamp_to_box = false;
     }
     init(path) {
         this.path = new ProjectilePath(
@@ -1643,6 +1873,18 @@ export class Projectile {
         let o = (1-this.spent_life/this.settings.lifespan) + 0.3;
 
         ctx.globalAlpha = clamp(o, .5, 1);
+
+        ctx.save()
+
+        ctx.beginPath();
+        ctx.rect(
+            cb.x,
+            cb.y,
+            cb.w,
+            cb.h
+        );
+
+        ctx.clip();
     
         ctx.beginPath();
         ctx.arc(
@@ -1654,6 +1896,7 @@ export class Projectile {
         );
         ctx.fillStyle = this.settings.color;
         ctx.fill();
+        ctx.restore();
         ctx.globalAlpha = 1;
     }
 

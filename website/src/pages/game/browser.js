@@ -16,7 +16,6 @@ export function downloadBlob(content, fileName, contentType) {
     document.body.appendChild(link);
     link.click();
     
-    // Release the URL and remove element to free memory
     URL.revokeObjectURL(url);
     document.body.removeChild(link);
 }

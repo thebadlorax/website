@@ -439,7 +439,7 @@ export class Renderer {
                     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
                     this.ctx.restore();
 
-                    if (elapsed >= e.ms) {
+                    if (elapsed >= e.ms+200) {
                         this.effects.splice(index, 1);
                         return; 
                     }
