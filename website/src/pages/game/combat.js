@@ -601,7 +601,8 @@ export class CombatManager {
             "fade_out_opacity_speed": 3,
             "has_won": false,
             "reward_cards": [],
-            "pellets": []
+            "pellets": [],
+            "victory_status": false
         }
         this.card_rendering = {
             "dragged_card": null,
@@ -1163,7 +1164,10 @@ export class CombatManager {
         rewards.forEach((reward, i) => {
 
             if(reward.type == "card") {
+                if(!this.combatVariables.victory_status) return;
                 const angle = (Math.PI * 2) * (i / rewards.length);
+
+                this.engine.inventory.giveItem(reward);
         
                 this.combatVariables.reward_cards.push({
                     reward,
@@ -1186,11 +1190,14 @@ export class CombatManager {
                     fadeSpeed: 2.5
                 });
             } else if(reward.type == "money") {
+                if(!this.combatVariables.victory_status) reward.data.amount /= 2;
                 this.spawnRewardPellets(
                     cb.w / 2,
                     cb.h / 2,
                     Math.floor(reward.data.amount/10)
                 );
+
+                this.engine.inventory.giveItem(reward);
             }
     
             
@@ -1286,7 +1293,7 @@ export class CombatManager {
         }
     }
 
-    getRewardCenter(card) {
+    getRewardCardCenter(card) {
         const cb = this.getCombatBox();
         return {
             x: cb.x + cb.w / 2 + card.renderX,
@@ -1359,7 +1366,7 @@ export class CombatManager {
             const dy = py - p.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
     
-            if (dist < 300) {
+            if (dist < 200) {
                 p.vx += (dx / dist) * 500 * delta;
                 p.vy += (dy / dist) * 500 * delta;
             }
@@ -1400,6 +1407,8 @@ export class CombatManager {
         this.setBackgroundText("victory");
         this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
 
+        this.combatVariables.victory_status = true;
+
         this.spawnRewards();
     }
 
@@ -1407,6 +1416,7 @@ export class CombatManager {
         this.combatVariables.has_won = true;
         this.setBackgroundText("defeat");
         this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
+        this.spawnRewards();
     }
 
     applyShadow(ctx, blur=20, color="rgba(0,0,0,0.5)", x=0, y=4) {
@@ -2071,10 +2081,10 @@ export class CombatManager {
     }
 
     exitCombat() {
-        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 100});
+        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
+        this.in_combat = false;
         setTimeout(() => {
             this.engine.state = "main";
-            this.in_combat = false;
         }, 650);
         
     }
