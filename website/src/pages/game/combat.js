@@ -1784,23 +1784,27 @@ export class CombatManager {
                     }
                 }
             }
+
+            if(this.card_rendering.dragged_card == null) {
+                this.card_rendering.cards.forEach(c => {
+                    if(Engine.rectanglesIntersect(
+                        x, y, 10, 10,
+                        box.x + c.x,
+                        box.y + c.y,
+                        card_size.w,
+                        card_size.h
+                    )) {
+                        this.card_rendering.drag_point = [
+                            (x - box.x) - c.x,
+                            (y - box.y) - c.y
+                        ];
+                        this.card_rendering.dragged_alr_card = c;
+                    }
+                })
+            }
     
             
-            this.card_rendering.cards.forEach(c => {
-                if(Engine.rectanglesIntersect(
-                    x, y, 10, 10,
-                    box.x + c.x,
-                    box.y + c.y,
-                    card_size.w,
-                    card_size.h
-                )) {
-                    this.card_rendering.drag_point = [
-                        (x - box.x) - c.x,
-                        (y - box.y) - c.y
-                    ];
-                    this.card_rendering.dragged_alr_card = c;
-                }
-            })
+            
         }
     }
 
