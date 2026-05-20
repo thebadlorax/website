@@ -80,7 +80,7 @@ export class CardAbility {
         if(this.uses <= 0) { return; }
         switch(this.type) {
             case "move": {
-                sprite.addForce(this.settings.force*100);
+                sprite.addForce({x: sprite.lastDirX*(this.settings.force*10), y: sprite.lastDirY*(this.settings.force*10)});
             }
             case "changeTime": {
 
@@ -293,10 +293,10 @@ export class CombatScenario {
         const i = Math.floor(t);
         const localT = t - i;
     
-        const p0 = pts[Math.max(i - 1, 0)];
-        const p1 = pts[Math.min(i, n - 1)];
-        const p2 = pts[Math.min(i + 1, n - 1)];
-        const p3 = pts[Math.min(i + 2, n - 1)];
+        const p0 = pts[(i - 1 + n) % n];
+        const p1 = pts[i % n];
+        const p2 = pts[(i + 1) % n];
+        const p3 = pts[(i + 2) % n];
     
         return Engine.catmullRom(p0, p1, p2, p3, localT);
     }
@@ -307,12 +307,6 @@ export class CombatScenario {
         if (!pts || pts.length < 1) return;
     
         this.t += this.speed * delta * 0.01;
-    
-        const maxT = pts.length - 2;
-    
-        if (this.t >= maxT) {
-            this.t = 0;
-        }
     
         const p = this.getPoint(this.t);
     
@@ -420,10 +414,67 @@ export class CombatScenario {
 
 export class CombatManager {
     constructor(cm, engine) {
+        this.setupVariables();
         this.cardManager = cm;
         this.engine = engine;
-        this.projectiles = new ProjectileManager(this);
+        
+        setTimeout(() => { this.debug.buttons[0].onClick(); }, 500);
+        const handle_ability_press = (index) => {
+            let a = this.card_rendering.actives[index];
+            if(!a) return;
+            if(!a.ability) return;
+            if(!this.combat_active) return;
+            if(this.turn == 1) return;
+            a.ability.activate(this.player);
+        }
 
+        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[0].code, () => { if(this.in_combat) handle_ability_press(0); })
+        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[1].code, () => { if(this.in_combat) handle_ability_press(1); })
+        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[2].code, () => { if(this.in_combat) handle_ability_press(2); })
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.M_KEY, () => { if(this.in_combat) this.toggleEditor(); })
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.G_KEY, () => {
+            this.debug.debug_kb_pressed = true;
+        });
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.T_KEY, () => {
+            if(!this.debug.debug_kb_pressed) return;
+            this.turn = this.turn == 1 ? 0 : 1
+            this.debug.debug_kb_pressed = false;
+        })
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.P_KEY, () => {
+            if(!this.debug.debug_kb_pressed) {
+                if(!this.combatSettings.performance) {
+                    this.combatSettings.drop_shadows = false;
+                    this.combatSettings.show_bg_text = false;
+                    this.combatSettings.performance = true;
+                } else {
+                    this.combatSettings.drop_shadows = true;
+                    this.combatSettings.show_bg_text = true;
+                    this.combatSettings.performance = false;
+                }
+                return;
+            };
+            this.combatVariables.timescale = this.combatVariables.timescale == 0 ? 1 : 0
+            this.debug.debug_kb_pressed = false;
+        })
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.O_KEY, () => {
+            if(!this.debug.debug_kb_pressed) return;
+            this.onWin();
+            this.debug.debug_kb_pressed = false;
+        })
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.V_KEY, () => {
+            if(!this.debug.debug_kb_pressed) return;
+            this.reset(this.debug.scen_data);
+            this.debug.debug_kb_pressed = false;
+        })
+    }
+
+    setupVariables() {
+        this.projectiles = new ProjectileManager(this);
         this.in_combat = false;
         this.turn = 0; // 0 = dodging, 1 = placing
         this.round_timer = 15;
@@ -525,7 +576,9 @@ export class CombatManager {
                     "name": "space"
                 },
             ],
-            "drop_shadows": true
+            "drop_shadows": true,
+            "show_bg_text": true,
+            "performance": false
         }
         this.combatVariables = {
             "timescale": 1,
@@ -547,8 +600,6 @@ export class CombatManager {
             "fade_out_opacity_speed": 3,
             "has_won": false
         }
-        this.in_transition = false;
-        setTimeout(() => { this.debug.buttons[0].onClick(); }, 500);
         this.card_rendering = {
             "dragged_card": null,
             "dragged_alr_card": null,
@@ -562,42 +613,7 @@ export class CombatManager {
                 null
             ]
         }
-
-        const handle_ability_press = (index) => {
-            let a = this.card_rendering.actives[index];
-            if(!a) return;
-            if(!a.ability) return;
-            if(!this.combat_active) return;
-            if(this.turn == 1) return;
-            a.ability.activate(this.player);
-        }
-
-        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[0].code, () => { if(this.in_combat) handle_ability_press(0); })
-        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[1].code, () => { if(this.in_combat) handle_ability_press(1); })
-        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[2].code, () => { if(this.in_combat) handle_ability_press(2); })
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.M_KEY, () => { if(this.in_combat) this.toggleEditor(); })
-
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.G_KEY, () => {
-            this.debug.debug_kb_pressed = true;
-        });
-
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.T_KEY, () => {
-            if(!this.debug.debug_kb_pressed) return;
-            this.turn = this.turn == 1 ? 0 : 1
-            this.debug.debug_kb_pressed = false;
-        })
-
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.P_KEY, () => {
-            if(!this.debug.debug_kb_pressed) return;
-            this.combatVariables.timescale = this.combatVariables.timescale == 0 ? 1 : 0
-            this.debug.debug_kb_pressed = false;
-        })
-
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.O_KEY, () => {
-            if(!this.debug.debug_kb_pressed) return;
-            this.onWin();
-            this.debug.debug_kb_pressed = false;
-        })
+        this.in_transition = false;
     }
 
     toggleEditor() {
@@ -776,6 +792,34 @@ export class CombatManager {
         const cbx = cb.x
         const cby = cb.y
         const cbs = cb.w
+
+        if(this.combatSettings.performance) {
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(
+                dcx,
+                dcy,
+                card_size.w,
+                card_size.h
+            );
+            ctx.font = "13px monospace";
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(
+                c.name,
+                dcx + Math.floor(card_size.w / 2),
+                dcy + card_size.h * 1.1
+            );
+
+            let overlap = Engine.getRectangleOverlap(dcx, dcy, card_size.w, card_size.h, cbx, cby, cbs, cbs);
+
+            if(!overlap) { this.card_rendering.dragged_card_in_box = false; return; };
+
+            this.card_rendering.dragged_card_in_box = true;
+
+            return;
+        }
 
         ctx.save();
         ctx.beginPath();
@@ -1031,14 +1075,14 @@ export class CombatManager {
     
         let first = true;
     
-        for (let i = 0; i < path.length - 1; i++) {
-    
-            const p0 = path[Math.max(i - 1, 0)];
+        for (let i = 0; i < path.length; i++) {
+            const n = path.length;
+
+            const p0 = path[(i - 1 + n) % n];
             const p1 = path[i];
-            const p2 = path[Math.min(i + 1, path.length - 1)];
-            const p3 = path[Math.min(i + 2, path.length - 1)];
+            const p2 = path[(i + 1) % n];
+            const p3 = path[(i + 2) % n];
     
-            // smoothness amount
             for (let t = 0; t <= 1; t += 0.02) {
     
                 const p = Engine.catmullRom(p0, p1, p2, p3, t);
@@ -1111,6 +1155,13 @@ export class CombatManager {
     onWin() {
         this.combatVariables.has_won = true;
         this.setBackgroundText("victory");
+        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
+    }
+
+    onDeath() {
+        this.combatVariables.has_won = true;
+        this.setBackgroundText("defeat");
+        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
     }
 
     applyShadow(ctx, blur=20, color="rgba(0,0,0,0.5)", x=0, y=4) {
@@ -1127,14 +1178,6 @@ export class CombatManager {
         ctx.shadowOffsetY = 0;
     }
 
-    onDeath() {
-        this.onRoundEnd();
-        setTimeout(() => {
-            this.exitCombat();
-            alert("you fucking died");
-        }, 250)
-    }
-
     setBackgroundText(text) {
         if(this.combatVariables.bg_text_current == text) return;
     
@@ -1143,6 +1186,7 @@ export class CombatManager {
     }
 
     drawBackgroundText(text, angle, alpha, size, color, offsetX=0, offsetY=0) {
+        if(!this.combatSettings.show_bg_text) return;
         const ctx = this.engine.ctx;
         
         ctx.font = `${size}px monospace`;
@@ -1729,20 +1773,27 @@ export class CombatManager {
         this.scenario.cardManager.drawCard(5);
     }
 
+    reset(scenario) {
+        this.setupVariables();
+        this.debug.scen_data = scenario;
+        this.scenario = new CombatScenario(scenario, this);
+        this.engine.state = "combat";
+        this.in_combat = true;
+        this.setBackgroundText("prepare");
+        let cb = this.getCombatBox();
+        this.player.reset();
+        this.cardManager.resetHand();
+        this.player.x = Math.floor(cb.w / 2)
+        this.player.y = Math.floor(cb.h / 2)
+        
+        this.onTurnCompletion();
+        this.round_timer = this.turn == 1 ? this.combatVariables.placing_time : this.combatVariables.placing_time/2;
+    }
+
     enterCombat(scenario) {
         this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
         setTimeout(() => {
-            this.scenario = new CombatScenario(scenario, this);
-            this.engine.state = "combat";
-            this.in_combat = true;
-            this.setBackgroundText("prepare");
-            let cb = this.getCombatBox();
-            this.player.reset();
-            this.cardManager.resetHand();
-            this.player.x = Math.floor(cb.w / 2)
-            this.player.y = Math.floor(cb.h / 2)
-            this.onTurnCompletion();
-            this.round_timer = this.turn == 1 ? this.combatVariables.placing_time : this.combatVariables.placing_time/2;
+            this.reset(scenario)
         }, 650)
     }
 
@@ -1758,7 +1809,12 @@ export class CombatManager {
 
 export class CombatPlayer {
     constructor(x, y, combat) {
-        this.x = x; this.y = y; this.visible = false;
+        this.x = x; this.y = y; 
+        this.velx = 0; this.vely = 0;
+        this.accx = 0; this.accy = 0;
+        this.maxspeed = 1000;
+        
+        this.visible = false;
         this.combat = combat; this.size = {"w": 20, "h": 20};
         this.iframes = 0; this.maxhealth = 5; this.health = this.maxhealth;
     }
@@ -1805,36 +1861,44 @@ export class CombatPlayer {
     }
 
     addForce(force) {
-        this.force = force;
+        this.velx += force.x; this.vely += force.y;
     };
 
-    move(delta, dirx, diry, speed=250) {
-        const cb = this.combat.getCombatBox();
-        if (dirx !== 0 && diry !== 0) {
-            const len = Math.sqrt(dirx * dirx + diry * diry);
+    move(dirx, diry, accel=2000) {
+        if (dirx !== 0 || diry !== 0) {
+            const len = Math.hypot(dirx, diry);
             dirx /= len;
             diry /= len;
-        }
-        let sp = speed;
-        if(this.force != null) {
-            sp += this.force;
-            this.force = null;
-        }
-        this.x += dirx * sp * delta;
-        this.y += diry * sp * delta;
     
-        var maxX = cb.w - this.size.w;
-        var maxY = cb.h - this.size.h;
-
+            this.lastDirX = dirx;
+            this.lastDirY = diry;
+        }
+    
+        this.accx += dirx * accel;
+        this.accy += diry * accel;
+    }
+    
+    update(delta) {
+        const cb = this.combat.getCombatBox();
+    
+        const maxX = cb.w - this.size.w;
+        const maxY = cb.h - this.size.h;
+    
+        this.velx += this.accx * delta;
+        this.vely += this.accy * delta;
+    
+        // friction
+        this.velx *= 0.85;
+        this.vely *= 0.85;
+    
+        this.x += this.velx * delta;
+        this.y += this.vely * delta;
+    
+        this.accx = 0;
+        this.accy = 0;
+    
         this.x = Math.max(0, Math.min(this.x, maxX));
         this.y = Math.max(0, Math.min(this.y, maxY));
-    };
-
-    update(delta) {
-        if(this.iframes > 0) {
-            this.iframes -= delta;
-        }
-        if(this.iframes < 0) this.iframes = 0;
     }
 }
 
@@ -1912,10 +1976,11 @@ export class ProjectilePath {
                     
                         let targetVX = Math.cos(angle) * (this.settings.speed*100);
                         let targetVY = Math.sin(angle) * (this.settings.speed*100);
-                        let turnSpeed = this.settings.turnSpeed ?? 0.05;
-                    
-                        this.data.velocity.x += (targetVX - this.data.velocity.x) * turnSpeed;
-                        this.data.velocity.y += (targetVY - this.data.velocity.y) * turnSpeed;
+                        const turnSpeed = this.settings.turnSpeed ?? 5;
+                        const alpha = 1 - Math.exp(-turnSpeed * delta);
+
+                        this.data.velocity.x += (targetVX - this.data.velocity.x) * alpha;
+                        this.data.velocity.y += (targetVY - this.data.velocity.y) * alpha;
                     
                         d = {
                             x: px + this.data.velocity.x * delta,

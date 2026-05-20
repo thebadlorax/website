@@ -314,10 +314,6 @@ sanitize_input(name_input)
 handle_password_input(new_pass_input)
 handle_password_input(pass_input)
 
-if(window.location.href.includes("?account")) {
-    openMenu(); history.replaceState(null, '', window.location.href.slice(0, window.location.href.indexOf("?account")))
-}
-
 const signInVisibilityHandler = () => {
     if(pass_input.value != "" && name_input.value != "") {
         create_account_button.style.display = "block";
@@ -352,3 +348,7 @@ const settings_am_div = document.getElementById("am-settings");
 try {
     updateManagementValues();
 } catch {}
+
+if(window.location.href.includes("?account")) {
+    openMenu(); history.replaceState(null, '', window.location.href.slice(0, window.location.href.indexOf("?account")))
+}

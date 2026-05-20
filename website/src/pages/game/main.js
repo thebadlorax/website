@@ -9,6 +9,10 @@ import { Engine } from "./engine.js";
 import { getApiLink } from "../common.js";
 
 const user = JSON.parse(window.localStorage.getItem("user"));
+if(!user) {
+    alert("this only works if you have an account :(");
+    window.location.href = "/?account";
+}
 let d = await fetch(getApiLink("/game/data"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})})
 d = await d.json();
 
