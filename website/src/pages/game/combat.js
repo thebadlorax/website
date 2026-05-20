@@ -176,6 +176,10 @@ export class ProjectileManager {
         if(!this.projectiles.includes(p)) return null;
         this.projectiles.splice(this.projectiles.indexOf(p), 1);
         return true;
+    };
+
+    clearProjectiles() {
+        this.projectiles = [];
     }
 
     createProjectile(x, y, data) {
@@ -423,7 +427,6 @@ export class CombatManager {
         this.in_combat = false;
         this.turn = 0; // 0 = dodging, 1 = placing
         this.round_timer = 15;
-        this.second_timer = 0;
         this.combat_active = false;
         this.player = new CombatPlayer(null, null, this);
         this.turn_counter = 0;
@@ -539,7 +542,10 @@ export class CombatManager {
             "bg_text_timescale": 3,
             "hand_hover": 0,
             "hand_hover_speed": 8,
-            "placing_time": 20
+            "placing_time": 20,
+            "fade_out_opacity": 0,
+            "fade_out_opacity_speed": 3,
+            "has_won": false
         }
         this.in_transition = false;
         setTimeout(() => { this.debug.buttons[0].onClick(); }, 500);
@@ -584,6 +590,13 @@ export class CombatManager {
         this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.P_KEY, () => {
             if(!this.debug.debug_kb_pressed) return;
             this.combatVariables.timescale = this.combatVariables.timescale == 0 ? 1 : 0
+            this.debug.debug_kb_pressed = false;
+        })
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.O_KEY, () => {
+            if(!this.debug.debug_kb_pressed) return;
+            this.onWin();
+            this.debug.debug_kb_pressed = false;
         })
     }
 
@@ -664,6 +677,7 @@ export class CombatManager {
 
             const pos = this.getHandCardPosition(i-skipped, deck.length-skipped);
 
+
             ctx.save();
 
             if(box_clip) {
@@ -691,6 +705,8 @@ export class CombatManager {
 
             const scale = 0.7 + (0.3 * hover);
 
+            ctx.globalAlpha = 1 - this.combatVariables.fade_out_opacity
+
             ctx.scale(scale, scale);
 
             ctx.strokeStyle = is_dragged ? "rgba(0, 255, 255, 0.3)" : (is_usable ? "white" : "rgba(255, 255, 255, 0.3)");
@@ -714,7 +730,7 @@ export class CombatManager {
                 );
 
                 if(!is_usable) {
-                    ctx.fillStyle = "rgba(0, 0, 0, 0.7)"
+                    ctx.fillStyle = `rgba(0, 0, 0, ${this.combatVariables.fade_out_opacity != 0 ? 1 - this.combatVariables.fade_out_opacity : 0.7})`
                     ctx.fillRect(
                         -card_size.w / 2,
                         -card_size.h / 2,
@@ -724,7 +740,7 @@ export class CombatManager {
                 }
 
                 ctx.font = "13px monospace";
-                ctx.fillStyle = is_usable ? "white" : "rgba(255, 255, 255, 0.3)";
+                ctx.fillStyle = is_usable ? "white" : `rgba(255, 255, 255, ${this.combatVariables.fade_out_opacity != 0 ? 1 - this.combatVariables.fade_out_opacity : 0.7})`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(
@@ -743,6 +759,8 @@ export class CombatManager {
             }
             
             ctx.restore();
+
+            ctx.globalAlpha = 1;
         }
     }
 
@@ -852,13 +870,15 @@ export class CombatManager {
         let x = cb.x + Math.floor(cb.w/2);
         let y = 65;
 
+        ctx.globalAlpha = 1 - this.combatVariables.fade_out_opacity
+
         ctx.font = "40px monospace";
         ctx.fillStyle = "white";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         if(!this.debug.editor) {
             ctx.fillText(
-                `${this.round_timer}s ${this.projectiles.getHighestLifespan() != null && this.combat_active == false ? `(next round: ${this.projectiles.getHighestLifespan()}s)` : ""}`,
+                `${this.round_timer.toFixed(0)}s ${this.projectiles.getHighestLifespan() != null && this.combat_active == false ? `(next round: ${this.projectiles.getHighestLifespan()}s)` : ""}`,
                 x,
                 y
             );
@@ -869,6 +889,8 @@ export class CombatManager {
                 y
             );
         }
+
+        ctx.globalAlpha = 1;
         
     }
 
@@ -884,6 +906,8 @@ export class CombatManager {
 
         const hp_percent = this.player.health / this.player.maxhealth;
         const opp_hp_percent = this.scenario.health / this.scenario.opponent.maxhealth;
+
+        ctx.globalAlpha = 1 - this.combatVariables.fade_out_opacity;
 
         ctx.lineWidth = 3;
 
@@ -920,6 +944,8 @@ export class CombatManager {
             x2+(w2/2),
             cb.y-(h)
         );
+
+        ctx.globalAlpha = 1;
     }
 
     drawEditorButtons() {
@@ -1083,9 +1109,8 @@ export class CombatManager {
     }
 
     onWin() {
-        this.onRoundEnd();
-        this.exitCombat();
-        alert("you won!")
+        this.combatVariables.has_won = true;
+        this.setBackgroundText("victory");
     }
 
     applyShadow(ctx, blur=20, color="rgba(0,0,0,0.5)", x=0, y=4) {
@@ -1209,6 +1234,7 @@ export class CombatManager {
             this.drawHealthbar()
             this.renderCardsInHand(this.combat_active);
             this.renderDraggedCard();
+            this.drawRewardScreen();
             
         } else {
             this.renderCombatBox();
@@ -1307,7 +1333,7 @@ export class CombatManager {
         const ctx = this.engine.ctx;
         let cb = this.getCombatBox();
 
-        this.drawDropShadow(80, 0.4, cb.x, cb.y, cb.w, cb.h);
+        this.drawDropShadow(80, 0.4, cb.x, cb.y, cb.w, cb.h, 10, 10);
 
         ctx.strokeStyle = "white";
         ctx.lineWidth = "3";
@@ -1320,7 +1346,13 @@ export class CombatManager {
             this.drawPreviewOfTurn();
         }
         else this.renderCombat();
-        
+    }
+
+    drawRewardScreen() {
+        const ctx = this.engine.ctx;
+        const cb = this.getCombatBox();
+        ctx.fillStyle = `rgba(0, 0, 0, ${this.combatVariables.fade_out_opacity})`
+        ctx.fillRect(cb.x, cb.y, cb.w, cb.h)
     }
 
     onRelease() {
@@ -1500,7 +1532,7 @@ export class CombatManager {
     onRoundEnd() {
         this.combat_active = false;
         this.card_rendering.cards = [];
-        this.projectiles.projectiles.forEach(p => {this.projectiles.destroyProjectile(p);});
+        this.projectiles.clearProjectiles()
         for(let x = 0; x < this.card_rendering.actives.length; x++) {
             const a = this.card_rendering.actives[x];
             if(a == null) continue;
@@ -1524,30 +1556,41 @@ export class CombatManager {
         
     }
 
-    onSecond() {
-        if(this.round_timer > 0) {
-            if(this.card_rendering.cards.length == this.cardManager.getHand().filter(c => c.isTurn(this.turn)).length) {
-                if(this.round_timer > 4) {
-                    this.round_timer = 3;
-                }
-            } else {
-                this.round_timer -= 1;
-            }
-        } else {
-            if(!this.combat_active) {
-                this.onRoundStart();
-            } else {
-                this.onRoundEnd();
-            }
-        }
-    }
-
     combatUpdate(delta) {
+        if(this.combatVariables.has_won) {
+
+            if(this.combatVariables.bg_text_next != null) {
+                this.combatVariables.bg_text_transition +=
+                    this.combatVariables.bg_text_transition_speed * delta;
+            
+                if(this.combatVariables.bg_text_transition >= 1) {
+                    this.combatVariables.bg_text_current =
+                        this.combatVariables.bg_text_next;
+            
+                    this.combatVariables.bg_text_next = null;
+                    this.combatVariables.bg_text_transition = 0;
+                }
+            }
+    
+            // smooth fade
+            this.combatVariables.bg_text_opacity +=
+            (
+                this.combatVariables.bg_text_target_opacity -
+                this.combatVariables.bg_text_opacity
+            ) * this.combatVariables.bg_text_opacity_speed * delta;
+
+            this.combatVariables.fade_out_opacity +=
+            (
+                1 -
+                this.combatVariables.fade_out_opacity
+            ) * this.combatVariables.fade_out_opacity_speed * delta;
+            return;
+        }
         delta *= this.combatVariables.timescale
-        this.second_timer += delta;
-        if(this.second_timer > 1) {
-            this.second_timer -= 1;
-            this.onSecond();
+        this.round_timer -= delta;
+        if(this.round_timer < 0) {
+            if(!this.combat_active) this.onRoundStart();
+            else this.onRoundEnd();
         }
         const cb = this.getCombatBox();
         const card_size = Card.getSize();
