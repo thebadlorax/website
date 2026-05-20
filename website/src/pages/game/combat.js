@@ -599,7 +599,9 @@ export class CombatManager {
             "placing_time": 20,
             "fade_out_opacity": 0,
             "fade_out_opacity_speed": 3,
-            "has_won": false
+            "has_won": false,
+            "reward_cards": [],
+            "pellets": []
         }
         this.card_rendering = {
             "dragged_card": null,
@@ -1153,10 +1155,252 @@ export class CombatManager {
         this.debug.is_drawing = false;
     }
 
+    spawnRewards() {
+        const cb = this.getCombatBox();
+    
+        const rewards = this.scenario.rewards || [];
+    
+        rewards.forEach((reward, i) => {
+
+            if(reward.type == "card") {
+                const angle = (Math.PI * 2) * (i / rewards.length);
+        
+                this.combatVariables.reward_cards.push({
+                    reward,
+        
+                    x: cb.w / 2,
+                    y: cb.h / 2,
+        
+                    angle,
+                    radius: 0,
+        
+                    angularVelocity: 8,
+                    radialVelocity: 220,
+        
+                    rotation: 0,
+                    life: 0,
+                    final_radius: Math.random()*200,
+
+                    state: "active",
+                    alpha: 1,
+                    fadeSpeed: 2.5
+                });
+            } else if(reward.type == "money") {
+                this.spawnRewardPellets(
+                    cb.w / 2,
+                    cb.h / 2,
+                    Math.floor(reward.data.amount/10)
+                );
+            }
+    
+            
+        });
+    }
+
+    updateRewards(delta) {
+        this.combatVariables.reward_cards.forEach(card => {
+
+            if (card.state === "fade") {
+                card.alpha -= card.fadeSpeed * delta;
+        
+                if (card.alpha <= 0) {
+                    card.alpha = 0;
+                    card.state = "dead";
+                }
+        
+                return;
+            }
+        
+            if (card.state !== "active") return;
+        
+            card.life += delta;
+            card.radius += card.radialVelocity * delta;
+            card.angle += card.angularVelocity * delta;
+        
+            if (card.radius > card.final_radius) {
+                card.angularVelocity *= 0.9;
+                card.radialVelocity *= 0.9;
+            }
+        
+            if (Math.abs(card.angularVelocity) < 0.05) {
+                card.angularVelocity = 0;
+            }
+        
+            card.rotation += card.angularVelocity * delta;
+        
+            card.renderX = Math.cos(card.angle) * card.radius;
+            card.renderY = Math.sin(card.angle) * card.radius;
+        });
+
+        this.combatVariables.reward_cards = this.combatVariables.reward_cards.filter(c => c.state !== "dead");
+
+        this.updatePellets(delta);
+    }
+
+    drawRewards() {
+        const ctx = this.engine.ctx;
+        const cb = this.getCombatBox();
+        const card_size = Card.getSize();
+
+        this.drawPellets();
+    
+        for (const r of this.combatVariables.reward_cards) {
+    
+            const cx = cb.x + cb.w / 2 + r.renderX;
+            const cy = cb.y + cb.h / 2 + r.renderY;
+    
+            const card = this.cardManager.getCardFromID(r.reward.data.id);
+    
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(r.rotation);
+            const scale = r.alpha;
+            ctx.scale(scale, scale);
+    
+            ctx.globalAlpha = r.alpha * Math.min(1, r.life * 3);
+    
+            ctx.drawImage(
+                card.image,
+                -card_size.w / 2,
+                -card_size.h / 2,
+                card_size.w,
+                card_size.h
+            );
+
+            ctx.strokeStyle = "white";
+            ctx.strokeRect(
+                -card_size.w / 2,
+                -card_size.h / 2,
+                card_size.w,
+                card_size.h
+            )
+
+            ctx.font = "13px monospace"; 
+            ctx.fillStyle = "white"; ctx.textAlign = "center"; 
+            ctx.textBaseline = "middle";
+            ctx.fillText( card.name, (-card_size.w / 2) + Math.floor(card_size.w / 2), (-card_size.h / 2) + card_size.h * 1.1 );
+
+            
+    
+            ctx.restore();
+        }
+    }
+
+    getRewardCenter(card) {
+        const cb = this.getCombatBox();
+        return {
+            x: cb.x + cb.w / 2 + card.renderX,
+            y: cb.y + cb.h / 2 + card.renderY
+        };
+    }
+
+    isHoveringRewardCard(card, mouseX, mouseY, cb, size) {
+        const cx = cb.x + cb.w / 2 + card.renderX;
+        const cy = cb.y + cb.h / 2 + card.renderY;
+    
+        const dx = mouseX - cx;
+        const dy = mouseY - cy;
+    
+        const cos = Math.cos(-card.rotation);
+        const sin = Math.sin(-card.rotation);
+    
+        const lx = dx * cos - dy * sin;
+        const ly = dx * sin + dy * cos;
+    
+        return (
+            lx >= -size.w / 2 &&
+            lx <= size.w / 2 &&
+            ly >= -size.h / 2 &&
+            ly <= size.h / 2
+        );
+    }
+
+    spawnRewardPellets(x, y, amount) {
+        const pellets = [];
+    
+        for (let i = 0; i < amount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 100 + Math.random() * 200;
+    
+            pellets.push({
+                x,
+                y,
+    
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+    
+                life: 0,
+                value: 1,
+                radius: 6,
+                collected: false
+            });
+        }
+    
+        this.combatVariables.pellets.push(...pellets);
+    }
+
+    updatePellets(delta) {
+        const cb = this.getCombatBox();
+        const px = this.engine.keyboard.mouseX - cb.x;
+        const py = this.engine.keyboard.mouseY - cb.y;
+    
+        for (const p of this.combatVariables.pellets) {
+            if (p.collected) continue;
+    
+            p.life += delta;
+    
+            p.vx *= 0.98;
+            p.vy *= 0.98;
+    
+            p.x += p.vx * delta;
+            p.y += p.vy * delta;
+    
+            const dx = px - p.x;
+            const dy = py - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+    
+            if (dist < 300) {
+                p.vx += (dx / dist) * 500 * delta;
+                p.vy += (dy / dist) * 500 * delta;
+            }
+    
+            // pickup range
+            if (dist < 20) {
+                p.collected = true;
+                this.player.money += p.value;
+            }
+        }
+    
+        // cleanup
+        this.combatVariables.pellets =
+            this.combatVariables.pellets.filter(p => !p.collected);
+    }
+
+    drawPellets() {
+        const ctx = this.engine.ctx;
+        const cb = this.getCombatBox();
+    
+        for (const p of this.combatVariables.pellets) {
+            ctx.fillStyle = "gold";
+    
+            ctx.beginPath();
+            ctx.arc(
+                cb.x + p.x,
+                cb.y + p.y,
+                p.radius,
+                0,
+                Math.PI * 2
+            );
+            ctx.fill();
+        }
+    }
+
     onWin() {
         this.combatVariables.has_won = true;
         this.setBackgroundText("victory");
         this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
+
+        this.spawnRewards();
     }
 
     onDeath() {
@@ -1398,6 +1642,8 @@ export class CombatManager {
         const cb = this.getCombatBox();
         ctx.fillStyle = `rgba(0, 0, 0, ${this.combatVariables.fade_out_opacity})`
         ctx.fillRect(cb.x, cb.y, cb.w, cb.h)
+
+        this.drawRewards();
     }
 
     onRelease() {
@@ -1408,11 +1654,11 @@ export class CombatManager {
                 let x = Math.floor(this.engine.keyboard.mouseX - this.card_rendering.drag_point[0]);
                 let y = Math.floor(this.engine.keyboard.mouseY - this.card_rendering.drag_point[1]);
 
-                let xmax = box.x + box.w - card_size.w;
-                let ymax = box.y + (box.h - (card_size.h*1.15));
+                let xmax = box.x + box.w - card_size.w*.7;
+                let ymax = box.y + (box.h - (card_size.h*1.15)*.7);
                 
-                x = clamp(x, box.x, xmax);
-                y = clamp(y, box.y, ymax);
+                x = clamp(x, box.x-card_size.w*.3, xmax);
+                y = clamp(y, box.y-card_size.h*.3, ymax);
 
                 let c = new VisualCard(
                     this.card_rendering.dragged_card,
@@ -1617,7 +1863,6 @@ export class CombatManager {
                 }
             }
     
-            // smooth fade
             this.combatVariables.bg_text_opacity +=
             (
                 this.combatVariables.bg_text_target_opacity -
@@ -1629,6 +1874,33 @@ export class CombatManager {
                 1 -
                 this.combatVariables.fade_out_opacity
             ) * this.combatVariables.fade_out_opacity_speed * delta;
+
+
+            const cb = this.getCombatBox();
+            const card_size = Card.getSize();
+            let mouseX = this.engine.keyboard.mouseX;
+            let mouseY = this.engine.keyboard.mouseY;
+            this.combatVariables.reward_cards.forEach(card => {
+                const hovered = this.isHoveringRewardCard(
+                    card,
+                    mouseX,
+                    mouseY,
+                    cb,
+                    card_size
+                );
+
+                if (hovered && card.state === "active") {
+                    card.state = "fade";
+                }
+
+            });
+            this.updateRewards(delta);
+
+            if(this.combatVariables.reward_cards.length == 0 && this.combatVariables.pellets.length == 0) {
+                this.exitCombat();
+            }
+
+            
             return;
         }
         delta *= this.combatVariables.timescale
@@ -1681,8 +1953,8 @@ export class CombatManager {
             let dcx = Math.floor(this.engine.keyboard.mouseX - cb.x - this.card_rendering.drag_point[0]);
             let dcy = Math.floor(this.engine.keyboard.mouseY - cb.y - this.card_rendering.drag_point[1]);
 
-            dcx = clamp(dcx, 0, cb.w - card_size.w);
-            dcy = clamp(dcy, 0, cb.h - (card_size.h)*1.15);
+            dcx = clamp(dcx, -card_size.w*.3, cb.w - card_size.w*.7);
+            dcy = clamp(dcy, -card_size.h*.3, cb.h - ((card_size.h)*1.15)*.7);
 
             this.card_rendering.dragged_alr_card.x = dcx;
             this.card_rendering.dragged_alr_card.y = dcy;
@@ -1767,8 +2039,6 @@ export class CombatManager {
             this.combatVariables.bg_text_target_opacity -
             this.combatVariables.bg_text_opacity
         ) * this.combatVariables.bg_text_opacity_speed * delta;
-
-        console.log(this.player.iframes)
     }
 
     onTurnCompletion() {
@@ -1801,7 +2071,7 @@ export class CombatManager {
     }
 
     exitCombat() {
-        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
+        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 100});
         setTimeout(() => {
             this.engine.state = "main";
             this.in_combat = false;
@@ -1883,6 +2153,14 @@ export class CombatPlayer {
     };
 
     move(delta, dirx, diry, accel=3000) {
+
+        if (dirx !== 0 || diry !== 0) {
+            const len = Math.hypot(dirx, diry);
+    
+            dirx /= len;
+            diry /= len;
+        }
+
         this.accx += dirx * accel;
         this.accy += diry * accel;
 
@@ -1895,11 +2173,11 @@ export class CombatPlayer {
 
         const speed = Math.hypot(this.velx, this.vely);
 
-        if (speed > 600) {
+        if (speed > 450) {
             this.afterimages.push({
                 x: this.x,
                 y: this.y,
-                life: 0.25 
+                life: .25
             });
         }
 

@@ -345,7 +345,33 @@
             "rewards": [
                 {
                     "type": "card",
-                    "cardid": 0
+                    "data": {
+                        "id": 0
+                    }
+                },
+                {
+                    "type": "card",
+                    "data": {
+                        "id": 1
+                    }
+                },
+                {
+                    "type": "card",
+                    "data": {
+                        "id": 1
+                    }
+                },
+                {
+                    "type": "card",
+                    "data": {
+                        "id": 2
+                    }
+                },
+                {
+                    "type": "money",
+                    "data": {
+                        "amount": 100
+                    }
                 }
             ]
         }
