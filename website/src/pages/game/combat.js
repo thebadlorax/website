@@ -80,6 +80,7 @@ export class CardAbility {
         if(this.uses <= 0) { return; }
         switch(this.type) {
             case "move": {
+                sprite.iframes += 0.3;
                 sprite.addForce({x: sprite.lastDirX*(this.settings.force*10), y: sprite.lastDirY*(this.settings.force*10)});
             }
             case "changeTime": {
@@ -1766,6 +1767,8 @@ export class CombatManager {
             this.combatVariables.bg_text_target_opacity -
             this.combatVariables.bg_text_opacity
         ) * this.combatVariables.bg_text_opacity_speed * delta;
+
+        console.log(this.player.iframes)
     }
 
     onTurnCompletion() {
@@ -1817,6 +1820,7 @@ export class CombatPlayer {
         this.visible = false;
         this.combat = combat; this.size = {"w": 20, "h": 20};
         this.iframes = 0; this.maxhealth = 5; this.health = this.maxhealth;
+        this.afterimages = [];
     }
 
     onProjectileCollision(proj) {
@@ -1848,6 +1852,20 @@ export class CombatPlayer {
     render(context) {
         const cb = this.combat.getCombatBox();
         if(!this.combat.combat_active || this.combat.turn == 1) return;
+
+        for (const img of this.afterimages) {
+            const alpha = img.life / 0.25;
+    
+            context.fillStyle = `rgba(0, 0, 255, ${alpha * 0.5})`;
+    
+            context.fillRect(
+                img.x + cb.x,
+                img.y + cb.y,
+                this.size.w,
+                this.size.h
+            );
+        }
+
         context.fillStyle = `rgba(0, 0, 255, ${this.iframes == 0 ? "1" : "0.4"})`;
         context.fillRect(this.x + cb.x, this.y + cb.y, this.size.w, this.size.h);
     }
@@ -1864,22 +1882,36 @@ export class CombatPlayer {
         this.velx += force.x; this.vely += force.y;
     };
 
-    move(dirx, diry, accel=2000) {
-        if (dirx !== 0 || diry !== 0) {
-            const len = Math.hypot(dirx, diry);
-            dirx /= len;
-            diry /= len;
-    
-            this.lastDirX = dirx;
-            this.lastDirY = diry;
-        }
-    
+    move(delta, dirx, diry, accel=3000) {
         this.accx += dirx * accel;
         this.accy += diry * accel;
+
+        this.lastDirX = dirx;
+        this.lastDirY = diry;
     }
     
     update(delta) {
         const cb = this.combat.getCombatBox();
+
+        const speed = Math.hypot(this.velx, this.vely);
+
+        if (speed > 600) {
+            this.afterimages.push({
+                x: this.x,
+                y: this.y,
+                life: 0.25 
+            });
+        }
+
+        for (let i = this.afterimages.length - 1; i >= 0; i--) {
+            const img = this.afterimages[i];
+
+            img.life -= delta;
+
+            if (img.life <= 0) {
+                this.afterimages.splice(i, 1);
+            }
+        }
     
         const maxX = cb.w - this.size.w;
         const maxY = cb.h - this.size.h;
@@ -1899,6 +1931,11 @@ export class CombatPlayer {
     
         this.x = Math.max(0, Math.min(this.x, maxX));
         this.y = Math.max(0, Math.min(this.y, maxY));
+
+        if(this.iframes > 0) {
+            this.iframes -= delta;
+        }
+        if(this.iframes < 0) this.iframes = 0;
     }
 }
 
