@@ -84,7 +84,7 @@ export class WindowUIElement {
     destroy() {
         this.window.UIElements.splice(this.window.UIElements.indexOf(this), 1);
     }
-}
+};
 
 export class Window {
     constructor(ctx, x, y, w, h, space="screen") {
@@ -211,7 +211,7 @@ export class Window {
 
         this.ctx.globalAlpha = 1;
     };
-}
+};
 
 export class Renderer {
     constructor(ctx, camera, engine) {
@@ -400,11 +400,7 @@ export class Renderer {
                 this._drawLayer(x);
                 this.sprites.filter(s => s.zindex == x && s.mapid == this.engine.hero.mapid).forEach(s => {
                     s.onrender();
-                    this.ctx.drawImage(
-                        s.image,
-                        Math.round(s.screenX - s.width / 2),
-                        Math.round(s.screenY - s.height / 2)
-                    );
+                    s.render();
                 })
             }
     
@@ -455,4 +451,52 @@ export class Renderer {
             }
         });
     };
+};
+
+export class AnimationManager {
+    constructor(image) {
+        this.image = image;
+        this.animations = [];
+    }
+
+    createAnimation(data) { this.animations.push(new Animation(data, this.image)); }
+
+    updateAnimations(delta) { this.animations.forEach(a => a.update(delta)); }
+
+    getAnimation(name) { return this.animations.find(a => a.name == name); }
+}
+
+export class Animation {
+    constructor(data, image) {
+        this.image = image;
+        this.name = data.name;
+        this.frames = data.frames;
+        this.start_index = data.start_index;
+        this.time = data.time;
+        this.currentFrame = 0;
+        this.frame_progress = 0;
+        this.size = 64;
+        this.active = true;
+    }
+
+    update(delta) {
+        if(!this.active) return;
+        this.frame_progress += delta;
+        if(this.frame_progress >= this.time) {
+            this.frame_progress = 0;
+            this.currentFrame += 1; if(this.currentFrame >= this.frames) {
+                this.currentFrame = 0;
+            }
+        }
+    }
+
+    getFrame() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const sx = this.currentFrame*this.size, sy = 0, sWidth = this.size, sHeight = this.size;
+        canvas.width = sWidth;
+        canvas.height = sHeight;
+        ctx.drawImage(this.image, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+        return canvas;
+    }
 }

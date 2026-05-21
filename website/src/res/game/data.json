@@ -383,6 +383,16 @@
         ["homing_card_art", "../res/game/cards/homing.png"],
         ["dash_card_art", "../res/game/cards/dash.png"]
     ],
+    "animations": {
+        "player": [
+            {
+                "name": "idle",
+                "frames": 3,
+                "time": 0.2,
+                "start_index": 0
+            }
+        ]
+    },
 
     "player_data": {
         "inventory": {

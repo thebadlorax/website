@@ -6,7 +6,7 @@
 */
 
 import { Keyboard } from "./controller.js";
-import { Loader, Camera, Window, Renderer } from "./renderer.js";
+import { Loader, Camera, Window, Renderer, AnimationManager } from "./renderer.js";
 import { Map } from "./map.js";
 import { downloadBlob, pickFile } from "./browser.js";
 
@@ -632,7 +632,8 @@ export class Engine {
             Math.floor(worldWidth / 2),
             Math.floor(worldHeight / 2),
             this.loader.getImage("player"),
-            this
+            this,
+            this.data.animations.player
         );
         this.hero.zindex = 1;
     
@@ -693,6 +694,10 @@ export class Engine {
                 t.update(this.hero);
             });
         }
+
+        this.renderer.sprites.forEach(s => {
+            s.anims.updateAnimations(delta);
+        })
        
     
         this.hero.move(delta, dirx, diry, this.keyboard.isDown(this.keyboard.KEYCODES.SHIFT) ? 500 : 250);
@@ -701,7 +706,7 @@ export class Engine {
 }
 
 export class Sprite {
-    constructor(map, id, x, y, img, eng) {
+    constructor(map, id, x, y, img, eng, animations=[]) {
         this.mapObj = map;
         this.mapid = id;
         this.map = this.mapObj.getMapData(this.mapid)
@@ -710,6 +715,11 @@ export class Sprite {
         this.width = this.map.tsize;
         this.height = this.map.tsize;
         this.engine = eng;
+
+        this.anims = new AnimationManager(img);
+        animations.forEach(a => {
+            this.anims.createAnimation(a);
+        })
 
         this.data = {};
 
@@ -800,6 +810,16 @@ export class Sprite {
             }
         }
     };
+
+    render() {
+        const img = this.anims.getAnimation("idle").getFrame();
+        this.engine.ctx.drawImage(
+            img,
+            Math.round(this.screenX - this.width / 2),
+            Math.round(this.screenY - this.height / 2)
+        );
+        
+    }
 
     isInsideWall() {
         const left = this.x - this.width / 2;
