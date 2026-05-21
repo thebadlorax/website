@@ -356,9 +356,10 @@ export class Renderer {
                 }
 
                 if(this.engine.debug.level_editor.active) {
-                    let st = this.engine.debug.level_editor.selected_tile;
-                    if(st != null) {
-                        if(st[0] == c && st[1] == r) {
+                    const sr = this.engine.debug.level_editor.multiselect.selection_rect;
+                    if(sr != null) {
+                        let inside_selection = Engine.rectanglesIntersect(c, r, 1, 1, sr.x, sr.y, sr.w+1, sr.h+1)
+                        if(inside_selection) {
                             this.ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
                             this.ctx.fillRect(x, y, tsize, tsize);
                         }

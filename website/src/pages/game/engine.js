@@ -130,7 +130,12 @@ export class Engine {
         "show_grid": false,
         "level_editor": {
             "active": false,
-            "selected_tile": null,
+            "multiselect": {
+                "active": false,
+                "start_tile": null,
+                "end_tile": null,
+                "selection_rect": null
+            },
             "selected_layer": 1,
             "ui": {},
             "first_open": true
@@ -147,6 +152,7 @@ export class Engine {
         this.combat = new CombatManager(this.cards, this);
         this.state = "main";
         this.inventory = new Inventory();
+        this.has_setup_handlers = false;
     };
 
     load() { return this.data.assets.map(b => this.loader.loadImage(b[0], b[1])) };
@@ -189,12 +195,20 @@ export class Engine {
         this.debug.level_editor.info_subwindow.onrender = () => {
             this.debug.level_editor.ui.player_pos_text.data.text = `player pos: (${Math.floor(this.hero.x)}, ${Math.floor(this.hero.y)}) (grid: (${this.hero.map.getCol(this.hero.x)}, ${this.hero.map.getRow(this.hero.y)}))`
             this.debug.level_editor.ui.player_worldpos_text.data.text = `mapID: ${this.hero.mapid}`;
-            let st = this.debug.level_editor.selected_tile || ["n/a, n/a"];
-            this.debug.level_editor.ui.selected_tile_text.data.text = `selected tile: (${st[0]}, ${st[1]})`;
         };
         let tilemap = this.renderer.tileAtlas;
         let tileCount = Math.floor(tilemap.width/64);
         let a = 0; let y_off = 10;
+        const get_rect_as_list = () => {
+            const rect = this.debug.level_editor.multiselect.selection_rect
+            let pos = [];
+            for(let y = rect.y; y <= rect.y + rect.h; y++) {
+                for(let x = rect.x; x <= rect.x + rect.w; x++) {
+                    pos.push({"x": x, "y": y})
+                }
+            }
+            return pos;
+        }
         let tile_buttons = []; let other_buttons = [];
         for(let x = 0; x <= tileCount; x++) {
             if(a >= 6) { a = 0; y_off += 60; }
@@ -202,8 +216,10 @@ export class Engine {
                 10+(a*60), y_off, 50, 50, "image", {"atlas": true, "image": tilemap, "tileSize": 64, "atlasIndex": x}
             );
             ele.onclick = () => {
-                let e = this.debug.level_editor.selected_tile;
-                this.hero.map.setTile(this.debug.level_editor.selected_layer, e[0], e[1], x)
+                const tiles = get_rect_as_list();
+                tiles.forEach(t => {
+                    this.hero.map.setTile(this.debug.level_editor.selected_layer, t.x, t.y, x)
+                })
             };
 
             tile_buttons.push(ele);
@@ -220,20 +236,24 @@ export class Engine {
         ); let wall_tile_button = this.debug.level_editor.selected_window.createUIElement(
             10, 10, 50, 50, "textbutton", {"text": "wall", "fontSize": "20"}
         ); wall_tile_button.visible = false; wall_tile_button.onclick = () => {
-            let e = this.debug.level_editor.selected_tile;
-            this.hero.map.setTile(0, e[0], e[1], 1)
+            const tiles = get_rect_as_list();
+            tiles.forEach(t => {
+                this.hero.map.setTile(0, t.x, t.y, 1)
+            })
+            
         }; let clear_wall_tile_button = this.debug.level_editor.selected_window.createUIElement(
             70, 10, 50, 50, "textbutton", {"text": "nowall", "fontSize": "20"}
         ); clear_wall_tile_button.visible = false; clear_wall_tile_button.onclick = () => {
-            let e = this.debug.level_editor.selected_tile;
-            this.hero.map.setTile(0, e[0], e[1], 0)
+            const tiles = get_rect_as_list();
+            tiles.forEach(t => {
+                this.hero.map.setTile(0, t.x, t.y, 0)
+            })
         }; let portal_button = this.debug.level_editor.selected_window.createUIElement(
             130, 10, 50, 50, "textbutton", {"text": "portal", "fontSize": "20"}
         ); portal_button.visible = false; portal_button.onclick = () => {
-            let e = this.debug.level_editor.selected_tile;
             let m = this.hero.map;
-            let width = parseInt(prompt("portal width (grid)")); if(!width && width != 0) return;
-            let height = parseInt(prompt("portal height (grid)")); if(!height && height != 0) return;
+            let width = this.debug.level_editor.multiselect.selection_rect.w+1;
+            let height = this.debug.level_editor.multiselect.selection_rect.h+1;
             let mapid = prompt("mapID (name of the map in the map tab)"); if(!mapid  && mapid != 0) return;
             if(!Object.keys(this.map.maps).includes(mapid)) {
                 alert("invalid mapID (check the map)");
@@ -247,12 +267,11 @@ export class Engine {
             if(outy > this.map.maps[mapid].cols) {
                 alert("i won't stop you but this y value will take the player outside the map")
             }
-            m.createTrigger(e[0], e[1], width, height, "portal", {
+            m.createTrigger(this.debug.level_editor.multiselect.selection_rect.x, this.debug.level_editor.multiselect.selection_rect.y, width, height, "portal", {
                 "mapid": mapid,
                 "outx": outx,
                 "outy": outy
             });
-            handle_tinfo_window();
         };
 
         other_buttons.push(clear_wall_tile_button, wall_tile_button, portal_button)
@@ -426,166 +445,146 @@ export class Engine {
             150, 10, 50, 50, "text", {
                 "text": "map pos: (x, x)"
             }
-        ); this.debug.level_editor.ui.selected_tile_text = this.debug.level_editor.info_subwindow.createUIElement(
-            150, 30, 50, 50, "text", {
-                "text": "selected tile: (x, x)"
-            }
         );
-
-        const handle_tinfo_window = () => {
-            let win = this.debug.level_editor.selected_window;
-            let wx = win.x; let wy = win.y;
-
-            const triggers = this.hero.map.getTriggersOnTile(this.debug.level_editor.selected_tile[0], this.debug.level_editor.selected_tile[1]);
-            const tinfo_win = this.debug.level_editor.tile_settings_subwindow;
-            if(triggers.length > 0) {
-                let trigger = triggers[0];
-                let has_visual_offset = false;
-                if(trigger.visual != null) {
-                    if(trigger.visual.offset != null) has_visual_offset = true;
-                }
-                tinfo_win.visible = true;
-                tinfo_win.x = wx+(this.hero.map.tsize*6)
-                tinfo_win.y = wy
-                tinfo_win.UIElements = [];
-
-                tinfo_win.createUIElement(
-                    70, 10, 50, 50, "text", {
-                        "text": `type: ${trigger.type}`
-                    }
-                ); tinfo_win.createUIElement(
-                    70, 30, 50, 50, "text", {
-                        "text": `grid position: (${trigger.x}, ${trigger.y})`
-                    }
-                ); if(has_visual_offset) {
-                    tinfo_win.createUIElement(
-                        70, 50, 50, 50, "text", {
-                            "text": `visual offset: (${trigger.visual.offset.x}, ${trigger.visual.offset.y})`
-                        }
-                    );
-                }
-                tinfo_win.createUIElement(
-                    70, has_visual_offset ? 70 : 50, 50, 50, "text", {
-                        "text": `width: ${trigger.w}, height: ${trigger.h}`
-                    }
-                );
-
-                switch(trigger.type) {
-                    case "portal": {
-                        tinfo_win.createUIElement(
-                            70, 110, 50, 50, "text", {
-                                "text": `mapID: ${trigger.data.mapid}`
-                            }
-                        ); tinfo_win.createUIElement(
-                            70, 130, 50, 50, "text", {
-                                "text": `destination (x, y): (${trigger.data.outx}, ${trigger.data.outy})`
-                            }
-                        );
-                    }
-                };
-            } else {
-                tinfo_win.visible = false;
-            }
-        }
     }
 
     setKeybinds() {
-        window.addEventListener("resize", () => {
-            this._resize();
-        });
+        if(!this.has_setup_handlers) {
+            window.addEventListener("resize", () => {
+                this._resize();
+            });
+    
+            window.addEventListener("mousedown", (e) => {
+                if(this.combat.in_combat) {
+                    this.combat.onClick();
+                    return;
+                };
 
-        window.addEventListener("mousedown", (e) => {
-            if(this.combat.in_combat) {
-                this.combat.onClick();
-                return;
-            };
-            if(!this.debug.level_editor.active) return;
-            let mx = e.clientX; let my = e.clientY;
-            let m = this.hero.map;
-            let tsize = m.tsize;
-            let tx = Math.floor((mx + this.camera.x) / tsize);
-            let ty = Math.floor((my + this.camera.y) / tsize);
-            if(tx >= m.cols || ty >= m.rows || tx < 0 || ty < 0) {
-                return;
-            }
-            let st = this.debug.level_editor.selected_tile;
-            if(this.debug.level_editor.selected_window.visible) {
-                const win = this.debug.level_editor.selected_window;
-                const rx = win.getRenderX(this.camera);
-                const ry = win.getRenderY(this.camera);
+                this.debug.level_editor.multiselect.active = false;
 
-                let intersects = Engine.rectanglesIntersect(
-                    mx, my, 10, 10,
-                    rx, ry,
-                    win.width,
-                    win.height
-                );
-                if(intersects) {
-                    if(!win.pass_clicks_through) {
+                let mx = e.clientX; let my = e.clientY;
+                let m = this.hero.map;
+                let tsize = m.tsize;
+                let tx = Math.floor((mx + this.camera.x) / tsize);
+                let ty = Math.floor((my + this.camera.y) / tsize);
+                if(tx >= m.cols || ty >= m.rows || tx < 0 || ty < 0) {
+                    return;
+                }
+                this.debug.level_editor.multiselect.active = true;
+                this.debug.level_editor.multiselect.start_tile = [tx, ty];
+            });
+    
+            window.addEventListener("mouseup", (e) => {
+                if(this.combat.in_combat) {
+                    this.combat.onRelease();
+                    return;
+                }
+                let mx = e.clientX; let my = e.clientY;
+                let m = this.hero.map;
+                let tsize = m.tsize;
+                let tx = Math.floor((mx + this.camera.x) / tsize);
+                let ty = Math.floor((my + this.camera.y) / tsize);
+
+                if(this.debug.level_editor.selected_window.visible) {
+                    const win = this.debug.level_editor.selected_window;
+                    const rx = win.getRenderX(this.camera);
+                    const ry = win.getRenderY(this.camera);
+    
+                    let intersects = Engine.rectanglesIntersect(
+                        mx, my, 10, 10,
+                        rx, ry,
+                        win.width,
+                        win.height
+                    );
+                    if(intersects) {
                         win.handleClick(mx, my, this.camera);
                         return;
                     }
-                }
-            }
-            if(this.debug.level_editor.layer_subwindow.visible) {
-                const layer_win = this.debug.level_editor.layer_subwindow;
-                const rx = layer_win.getRenderX(this.camera);
-                const ry = layer_win.getRenderY(this.camera);
-                let intersects2 = Engine.rectanglesIntersect(
-                    mx, my, 10, 10,
-                    rx, ry,
-                    layer_win.width,
-                    layer_win.height
-                );
-                if(intersects2) {
-                    if(!layer_win.pass_clicks_through) {
+                };
+                if(this.debug.level_editor.layer_subwindow.visible) {
+                    const layer_win = this.debug.level_editor.layer_subwindow;
+                    const rx = layer_win.getRenderX(this.camera);
+                    const ry = layer_win.getRenderY(this.camera);
+                    let intersects2 = Engine.rectanglesIntersect(
+                        mx, my, 10, 10,
+                        rx, ry,
+                        layer_win.width,
+                        layer_win.height
+                    );
+                    if(intersects2) {
                         layer_win.handleClick(mx, my, this.camera);
                         return;
                     }
-                }
-            }
-            if(st != null) {
-                if(st[0] == tx && st[1] == ty) {
-                    this.debug.level_editor.selected_tile = null;
-                    this.debug.level_editor.selected_window.visible = false;
-                    this.debug.level_editor.layer_subwindow.visible = false;
-                    this.debug.level_editor.info_subwindow.visible = false;
-                    this.debug.level_editor.tile_settings_subwindow.visible = false;
+                };
+
+                if(tx >= m.cols || ty >= m.rows || tx < 0 || ty < 0) {
                     return;
                 }
-            }
 
-            
-            console.log("yo");
-            let win = this.debug.level_editor.selected_window;
-            let layer_win = this.debug.level_editor.layer_subwindow;
-            this.debug.level_editor.selected_tile = [tx, ty];
-            win.visible = true;
-            let wx = clamp(m.getX(tx)+Math.floor(m.tsize/2), 210, (m.rows*m.tsize)-(win.width*1.2));
-            let wy = clamp((m.getY(ty)+Math.floor(m.tsize/2)), 110, (m.cols*m.tsize)-(win.height*1.2));
-            win.x = wx;
-            win.y = wy;
-            this.debug.level_editor.info_subwindow.visible = true;
-            this.debug.level_editor.info_subwindow.x = wx;
-            this.debug.level_editor.info_subwindow.y = wy - 100;
-            layer_win.visible = false;
-            layer_win.x = clamp(wx-(m.tsize*3.35), 0, (m.rows*m.tsize)-(win.width*1.2))
-            layer_win.y = clamp(wy, 110, (m.cols*m.tsize)-(win.height*1.2))
+                const sr = this.debug.level_editor.multiselect.selection_rect;
+                if(sr != null) {
+                    let inside_selection = Engine.rectanglesIntersect(tx, ty, 1, 1, sr.x, sr.y, sr.w+1, sr.h+1)
+                    if(inside_selection) {
+                        this.debug.level_editor.multiselect.selection_rect = null;
+                        this.debug.level_editor.selected_window.visible = false;
+                        this.debug.level_editor.layer_subwindow.visible = false;
+                        this.debug.level_editor.info_subwindow.visible = false;
+                        this.debug.level_editor.tile_settings_subwindow.visible = false;
+                        return;
+                    }
+                }
+                
+                if(!this.debug.level_editor.active) {
+                    this.debug.level_editor.multiselect.start_tile = null;
+                    return;
+                }
 
-            //const tile = m.getTile(this.debug.level_editor.selected_layer, tx, ty);
-        });
+                if(this.debug.level_editor.multiselect.active) {
+                    this.debug.level_editor.multiselect.end_tile = [tx, ty];
 
-        window.addEventListener("mouseup", () => {
-            if(this.combat.in_combat) {
-                this.combat.onRelease();
-                return;
-            }
-        });
+                    let win = this.debug.level_editor.selected_window;
+                    let layer_win = this.debug.level_editor.layer_subwindow;
+                    win.visible = true;
 
-        this.ctx.canvas.addEventListener("contextmenu", (e) => {
-            e.preventDefault();
-        });
+                    const x1 = this.debug.level_editor.multiselect.start_tile[0];
+                    const y1 = this.debug.level_editor.multiselect.start_tile[1];
+                    const x2 = tx;
+                    const y2 = ty;
 
+                    const selection_rect = {
+                        x: Math.min(x1, x2),
+                        y: Math.min(y1, y2),
+                        w: Math.abs(x2 - x1),
+                        h: Math.abs(y2 - y1),
+                    };
+
+                    this.debug.level_editor.multiselect.selection_rect = selection_rect;
+
+                    const middle_tile = {
+                        "x": selection_rect.x + Math.floor(selection_rect.w/2),
+                        "y": selection_rect.y + Math.floor(selection_rect.h/2),
+                    }
+
+                    let wx = clamp(m.getX(middle_tile.x)+Math.floor(m.tsize/2), 210, (m.rows*m.tsize)-(win.width*1.2));
+                    let wy = clamp((m.getY(middle_tile.y)+Math.floor(m.tsize/2)), 110, (m.cols*m.tsize)-(win.height*1.2));
+                    win.x = wx;
+                    win.y = wy;
+                    this.debug.level_editor.info_subwindow.visible = true;
+                    this.debug.level_editor.info_subwindow.x = wx;
+                    this.debug.level_editor.info_subwindow.y = wy - 100;
+                    layer_win.visible = false;
+                    layer_win.x = clamp(wx-(m.tsize*3.35), 0, (m.rows*m.tsize)-(win.width*1.2))
+                    layer_win.y = clamp(wy, 110, (m.cols*m.tsize)-(win.height*1.2))
+                }
+            });
+
+            this.ctx.canvas.addEventListener("contextmenu", (e) => {
+                e.preventDefault();
+            });
+
+            this.has_setup_handlers = true;
+        }
+       
         this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.ESCAPE, () => {
             if(this.combat.in_combat) return;
             if(this.debug.level_editor.first_open) {
@@ -593,7 +592,7 @@ export class Engine {
                 this.debug.level_editor.first_open = false;
             }
             this.debug.level_editor.active = !this.debug.level_editor.active;
-            this.debug.level_editor.selected_tile = null;
+            this.debug.level_editor.multiselect.selection_rect = null;
             this.debug.level_editor.selected_window.visible = false;
             this.debug.level_editor.layer_subwindow.visible = false;
             this.debug.level_editor.info_subwindow.visible = false;
@@ -739,7 +738,7 @@ export class Sprite {
 
         this.engine.camera.worldHeight =
             this.map.rows * this.map.tsize;
-        this.engine.debug.level_editor.selected_tile = null;
+        this.engine.debug.level_editor.multiselect.selection_rect = null;
         this.engine.debug.level_editor.selected_window.visible = false;
         this.engine.debug.level_editor.layer_subwindow.visible = false;
         this.engine.debug.level_editor.info_subwindow.visible = false;
