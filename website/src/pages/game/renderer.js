@@ -91,6 +91,7 @@ export class Window {
         this.x = x; this.y = y; this.width = w; this.height = h;
         this.z = 0; this.ctx = ctx; this.visible = false; this.UIElements = [];
         this.space = space; this.onrender = () => {}; this.zindex = 1;
+        this.opacity = 1; this.pass_clicks_through = false;
     };
 
     getRenderX(camera=null) {
@@ -116,6 +117,7 @@ export class Window {
     }
 
     handleClick(mx, my, camera=null) {
+        if(this.pass_clicks_through) return;
         const rx = this.getRenderX(camera);
         const ry = this.getRenderY(camera);
         this.UIElements.forEach(e => {
@@ -127,6 +129,7 @@ export class Window {
     }
 
     draw(camera=null) {
+        this.ctx.globalAlpha = this.opacity;
         const rx = this.getRenderX(camera);
         const ry = this.getRenderY(camera);
         this.ctx.fillStyle = "white";
@@ -134,6 +137,8 @@ export class Window {
         this.ctx.strokeStyle = "black";
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(rx, ry, this.width, this.height);
+
+        
 
         this.UIElements.forEach(e => {
             if(!e.visible) return;
@@ -202,7 +207,9 @@ export class Window {
                     );
                 }
             }
-        })
+        });
+
+        this.ctx.globalAlpha = 1;
     };
 }
 

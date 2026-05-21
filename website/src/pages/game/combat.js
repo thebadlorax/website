@@ -2089,6 +2089,7 @@ export class CombatManager {
         this.in_combat = false;
         setTimeout(() => {
             this.engine.state = "main";
+            this.engine.setKeybinds();
         }, 650);
         
     }

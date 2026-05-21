@@ -175,43 +175,11 @@ export class Engine {
         this.renderer.render();
     }
 
-    init() {
-        this.keyboard.listenForEvents(
-            Object.values(this.keyboard.KEYCODES));
-
-        const starting_area_data = this.map.getMapData(`home`);
-    
-        let wwidth = window.innerWidth; let wheight = window.innerHeight;
-    
-        let worldWidth  = starting_area_data.cols * starting_area_data.tsize;
-        let worldHeight = starting_area_data.rows * starting_area_data.tsize;
-    
-        const canvas = this.ctx.canvas;
-        canvas.width = wwidth;
-        canvas.height = wheight;
-        this.camera = new Camera(starting_area_data, canvas.width, canvas.height);
-        this.renderer = new Renderer(this.ctx, this.camera, this);
-        this._resize();
-
-        this.hero = new Sprite(
-            this.map,
-            "home",
-            Math.floor(worldWidth / 2),
-            Math.floor(worldHeight / 2),
-            this.loader.getImage("player"),
-            this
-        );
-        this.hero.zindex = 1;
-    
-        this.hero.x = Math.min(worldWidth, Math.max(0, this.hero.x));
-        this.hero.y = Math.min(worldHeight, Math.max(0, this.hero.y));
-    
-        this.camera.follow(this.hero);
-
-        this.debug.level_editor.selected_window          = new Window(this.ctx, 250, 250, 370, 370, "world");
-        this.debug.level_editor.layer_subwindow          = new Window(this.ctx, 250, 250, 200, 370, "world");
-        this.debug.level_editor.info_subwindow           = new Window(this.ctx, 250, 250, 370, 70,  "world");
-        this.debug.level_editor.tile_settings_subwindow  = new Window(this.ctx, 250, 250, 200, 370, "world");
+    setupLevelEditor() {
+        this.debug.level_editor.selected_window          = new Window(this.ctx, 0, 0, 370, 370, "world");
+        this.debug.level_editor.layer_subwindow          = new Window(this.ctx, 0, 0, 200, 370, "world");
+        this.debug.level_editor.info_subwindow           = new Window(this.ctx, 0, 0, 370, 70,  "world");
+        this.debug.level_editor.tile_settings_subwindow  = new Window(this.ctx, 0, 0, 200, 370, "world");
         this.renderer.windows.push(
             this.debug.level_editor.selected_window, 
             this.debug.level_editor.layer_subwindow, 
@@ -464,10 +432,6 @@ export class Engine {
             }
         );
 
-        window.addEventListener("resize", () => {
-            this._resize();
-        });
-
         const handle_tinfo_window = () => {
             let win = this.debug.level_editor.selected_window;
             let wx = win.x; let wy = win.y;
@@ -523,6 +487,12 @@ export class Engine {
                 tinfo_win.visible = false;
             }
         }
+    }
+
+    setKeybinds() {
+        window.addEventListener("resize", () => {
+            this._resize();
+        });
 
         window.addEventListener("mousedown", (e) => {
             if(this.combat.in_combat) {
@@ -551,8 +521,10 @@ export class Engine {
                     win.height
                 );
                 if(intersects) {
-                    win.handleClick(mx, my, this.camera);
-                    return;
+                    if(!win.pass_clicks_through) {
+                        win.handleClick(mx, my, this.camera);
+                        return;
+                    }
                 }
             }
             if(this.debug.level_editor.layer_subwindow.visible) {
@@ -566,8 +538,10 @@ export class Engine {
                     layer_win.height
                 );
                 if(intersects2) {
-                    layer_win.handleClick(mx, my, this.camera);
-                    return;
+                    if(!layer_win.pass_clicks_through) {
+                        layer_win.handleClick(mx, my, this.camera);
+                        return;
+                    }
                 }
             }
             if(st != null) {
@@ -582,7 +556,7 @@ export class Engine {
             }
 
             
-            
+            console.log("yo");
             let win = this.debug.level_editor.selected_window;
             let layer_win = this.debug.level_editor.layer_subwindow;
             this.debug.level_editor.selected_tile = [tx, ty];
@@ -599,15 +573,18 @@ export class Engine {
             layer_win.y = clamp(wy, 110, (m.cols*m.tsize)-(win.height*1.2))
 
             //const tile = m.getTile(this.debug.level_editor.selected_layer, tx, ty);
-            handle_tinfo_window();
-        })
+        });
 
         window.addEventListener("mouseup", () => {
             if(this.combat.in_combat) {
                 this.combat.onRelease();
                 return;
             }
-        })
+        });
+
+        this.ctx.canvas.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+        });
 
         this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.ESCAPE, () => {
             if(this.combat.in_combat) return;
@@ -627,10 +604,44 @@ export class Engine {
             if(this.combat.in_combat) this.combat.exitCombat();
             else this.combat.enterCombat(this.data.scenarios.find(s => s.id == "test"));
         });
+    }
 
-        this.ctx.canvas.addEventListener("contextmenu", (e) => {
-            e.preventDefault();
-        })
+    init() {
+        this.keyboard.listenForEvents(
+            Object.values(this.keyboard.KEYCODES));
+
+        const starting_area_data = this.map.getMapData(`home`);
+    
+        let wwidth = window.innerWidth; let wheight = window.innerHeight;
+    
+        let worldWidth  = starting_area_data.cols * starting_area_data.tsize;
+        let worldHeight = starting_area_data.rows * starting_area_data.tsize;
+    
+        const canvas = this.ctx.canvas;
+        canvas.width = wwidth;
+        canvas.height = wheight;
+        this.camera = new Camera(starting_area_data, canvas.width, canvas.height);
+        this.renderer = new Renderer(this.ctx, this.camera, this);
+        this._resize();
+
+        this.setupLevelEditor();
+
+        this.hero = new Sprite(
+            this.map,
+            "home",
+            Math.floor(worldWidth / 2),
+            Math.floor(worldHeight / 2),
+            this.loader.getImage("player"),
+            this
+        );
+        this.hero.zindex = 1;
+    
+        this.hero.x = Math.min(worldWidth, Math.max(0, this.hero.x));
+        this.hero.y = Math.min(worldHeight, Math.max(0, this.hero.y));
+    
+        this.camera.follow(this.hero);
+
+        this.setKeybinds()
 
         this.data.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
 
@@ -667,6 +678,12 @@ export class Engine {
         if (this.keyboard.isDown(this.keyboard.KEYCODES.RIGHT_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.D_KEY)) { dirx += 1; }
         if (this.keyboard.isDown(this.keyboard.KEYCODES.UP_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.W_KEY)) { diry += -1; }
         if (this.keyboard.isDown(this.keyboard.KEYCODES.DOWN_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.S_KEY)) { diry += 1; }
+
+        const space_down = this.keyboard.isDown(this.keyboard.KEYCODES.SPACE)
+        this.renderer.windows.forEach(w => {
+            w.opacity = space_down ? 0.2 : 1
+            w.pass_clicks_through = space_down
+        })
 
         this.debug.show_grid = this.keyboard.isDown(this.keyboard.KEYCODES.G_KEY);
 
