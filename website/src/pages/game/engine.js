@@ -492,13 +492,20 @@ export class Engine {
                 } else {
                     m.getObjects().filter(o => o instanceof NPC).forEach(o => {
                         if(o.x == tx && o.y == ty) {
-                            o.onClick(this);
+                            const dx = this.hero.x - (o.x * tsize);
+                            const dy = this.hero.y - (o.y * tsize);
+                            let dist = Math.hypot(dx, dy);
+
+                            if (dist < 200) {
+                                o.onClick(this);
+                            }
                         }
                     });
                 }
             });
 
             window.addEventListener("mousemove", (e) => {
+                document.body.style.cursor = "default"; 
                 if(this.settings.performance_mode) return;
                 let mx = e.clientX; let my = e.clientY;
                 let m = this.hero.map;
@@ -509,11 +516,15 @@ export class Engine {
                     return;
                 }
 
-                document.body.style.cursor = "default"; 
-
                 m.getObjects().filter(o => o instanceof NPC).forEach(o => {
                     if(o.x == tx && o.y == ty) {
-                        document.body.style.cursor = "pointer"; 
+                        const dx = this.hero.x - (o.x * tsize);
+                        const dy = this.hero.y - (o.y * tsize);
+                        let dist = Math.hypot(dx, dy);
+
+                        if (dist < 200) {
+                            document.body.style.cursor = "pointer";
+                        }
                     }
                 });
 

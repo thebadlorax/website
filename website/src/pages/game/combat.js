@@ -2045,8 +2045,8 @@ export class CombatManager {
         ) * this.combatVariables.bg_text_opacity_speed * delta;
 
 
+        document.body.style.cursor = "default";
         if(!this.engine.settings.performance_mode) {
-            document.body.style.cursor = "default";
             if(this.card_rendering.dragged_card != null) {
             document.body.style.cursor = "grabbing";
             } else {
