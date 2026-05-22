@@ -38,3 +38,11 @@ const checkIfDisabled = async () => {
     })
 }
 setInterval(async () => {await checkIfDisabled()}, 3000);
+
+let a = setInterval(() => {
+    console.log("DO NOT MESS AROUND IN HERE\nyou won't learn anything and my engine is too cool for you to understand")
+}, 30)
+setTimeout(() => {
+    clearInterval(a);
+    console.log("but if you wanna help me program pls i need a lackey")
+}, 1000)

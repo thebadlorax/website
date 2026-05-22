@@ -333,6 +333,16 @@ export class Renderer {
         }
     }
 
+    _drawObjectsOnLayer(layer) {
+        const m = this.engine.hero.map;
+        const objs = m.getObjects().filter(o => o.zindex == layer);
+        if(objs.length == 0) return;
+        objs.forEach(o => {
+            o.render(this.engine);
+            if(o.draw_dialogue) o.drawDialogueWindow(this.engine);
+        })
+    }
+
     _drawGrid() {
         const map = this.engine.hero.map;
         const tsize = map.tsize;
@@ -402,7 +412,8 @@ export class Renderer {
                 this.sprites.filter(s => s.zindex == x && s.mapid == this.engine.hero.mapid).forEach(s => {
                     s.onrender();
                     s.render();
-                })
+                });
+                this._drawObjectsOnLayer(x);
             }
     
             if(this.engine.debug.show_grid || this.engine.debug.level_editor.active) {

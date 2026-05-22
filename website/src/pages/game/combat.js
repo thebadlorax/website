@@ -445,18 +445,8 @@ export class CombatManager {
         })
 
         this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.P_KEY, () => {
-            if(!this.debug.debug_kb_pressed) {
-                if(!this.combatSettings.performance) {
-                    this.combatSettings.drop_shadows = false;
-                    this.combatSettings.show_bg_text = false;
-                    this.combatSettings.performance = true;
-                } else {
-                    this.combatSettings.drop_shadows = true;
-                    this.combatSettings.show_bg_text = true;
-                    this.combatSettings.performance = false;
-                }
-                return;
-            };
+            this.engine.settings.performance_mode = !this.engine.settings.performance_mode;
+            document.body.style.cursor = "default";
             this.combatVariables.timescale = this.combatVariables.timescale == 0 ? 1 : 0
             this.debug.debug_kb_pressed = false;
         })
@@ -1441,7 +1431,7 @@ export class CombatManager {
     }
 
     drawBackgroundText(text, angle, alpha, size, color, offsetX=0, offsetY=0) {
-        if(!this.combatSettings.show_bg_text) return;
+        if(this.engine.settings.performance_mode) return;
         const ctx = this.engine.ctx;
         
         ctx.font = `${size}px monospace`;
@@ -1618,7 +1608,7 @@ export class CombatManager {
     }
 
     drawDropShadow(size, opacity, x, y, w, h, offsetX=0, offsetY=0) {
-        if(!this.combatSettings.drop_shadows) return;
+        if(this.engine.settings.performance_mode) return;
         const ctx = this.engine.ctx;
         ctx.fillStyle = `rgba(0, 0, 0, ${opacity/4})`;
         ctx.fillRect((x+offsetX)-size*1.5, (y+offsetY)-size*1.5, w+size*2, h+size*2);
@@ -2053,6 +2043,50 @@ export class CombatManager {
             this.combatVariables.bg_text_target_opacity -
             this.combatVariables.bg_text_opacity
         ) * this.combatVariables.bg_text_opacity_speed * delta;
+
+
+        if(!this.engine.settings.performance_mode) {
+            document.body.style.cursor = "default";
+            if(this.card_rendering.dragged_card != null) {
+            document.body.style.cursor = "grabbing";
+            } else {
+                let hand = this.cardManager.getHand();
+                hand = hand.filter(c =>
+                    !this.card_rendering.cards
+                        .map(a => a.card)
+                        .concat(this.card_rendering.actives.filter(a => a != null))
+                        .find(b => b.uid === c.uid)
+                );
+                let skipped = 0;
+                for(let x1 = hand.length - 1; x1 >= 0; x1--) {
+                    const c = hand[x1];
+                    if(this.card_rendering.cards.map(a => a.card).concat(this.card_rendering.actives.filter(a => a != null)).find(b => b.uid === c.uid) != undefined) {
+                        skipped += 1;
+                        continue;
+                    };
+        
+                    if(this.card_rendering.dragged_card == c) {
+                        continue;
+                    }
+
+                    const pos = this.getHandCardPosition(
+                        x1 - skipped,
+                        hand.length - skipped
+                    );
+                    
+                    const cx = pos.x - (card_size.w / 2);
+                    const cy = pos.y - (card_size.h / 2);
+                    if(Engine.rectanglesIntersect(this.engine.keyboard.mouseX, this.engine.keyboard.mouseY, 10, 10, cx, cy, card_size.w, card_size.h)) {
+                        let is_usable = c.isTurn(this.turn);
+                        if(is_usable) {
+                            document.body.style.cursor = "grab";
+                        } else {
+                            document.body.style.cursor = "not-allowed";
+                        }
+                    }
+                }
+            }
+        }
     }
 
     onTurnCompletion() {
@@ -2138,18 +2172,21 @@ export class CombatPlayer {
         const cb = this.combat.getCombatBox();
         if(!this.combat.combat_active || this.combat.turn == 1) return;
 
-        for (const img of this.afterimages) {
-            const alpha = img.life / 0.25;
-    
-            context.fillStyle = `rgba(0, 0, 255, ${alpha * 0.5})`;
-    
-            context.fillRect(
-                img.x + cb.x,
-                img.y + cb.y,
-                this.size.w,
-                this.size.h
-            );
+        if(!this.combat.engine.settings.performance_mode) {
+            for (const img of this.afterimages) {
+                const alpha = img.life / 0.25;
+        
+                context.fillStyle = `rgba(0, 0, 255, ${alpha * 0.5})`;
+        
+                context.fillRect(
+                    img.x + cb.x,
+                    img.y + cb.y,
+                    this.size.w,
+                    this.size.h
+                );
+            }
         }
+        
 
         context.fillStyle = `rgba(0, 0, 255, ${this.iframes == 0 ? "1" : "0.4"})`;
         context.fillRect(this.x + cb.x, this.y + cb.y, this.size.w, this.size.h);
@@ -2186,25 +2223,28 @@ export class CombatPlayer {
     update(delta) {
         const cb = this.combat.getCombatBox();
 
-        const speed = Math.hypot(this.velx, this.vely);
+        if(!this.combat.engine.settings.performance_mode) {
+            const speed = Math.hypot(this.velx, this.vely);
 
-        if (speed > 450) {
-            this.afterimages.push({
-                x: this.x,
-                y: this.y,
-                life: .25
-            });
-        }
+            if (speed > 450) {
+                this.afterimages.push({
+                    x: this.x,
+                    y: this.y,
+                    life: .25
+                });
+            }
 
-        for (let i = this.afterimages.length - 1; i >= 0; i--) {
-            const img = this.afterimages[i];
+            for (let i = this.afterimages.length - 1; i >= 0; i--) {
+                const img = this.afterimages[i];
 
-            img.life -= delta;
+                img.life -= delta;
 
-            if (img.life <= 0) {
-                this.afterimages.splice(i, 1);
+                if (img.life <= 0) {
+                    this.afterimages.splice(i, 1);
+                }
             }
         }
+        
     
         const maxX = cb.w - this.size.w;
         const maxY = cb.h - this.size.h;

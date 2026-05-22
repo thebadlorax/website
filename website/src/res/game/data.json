@@ -111,7 +111,7 @@
                         "data": {
                             "mapid": "meowl_world",
                             "outx": 13,
-                            "outy": 24
+                            "outy": 23
                         },
                         "visual": {
                             "offset": {
@@ -124,15 +124,37 @@
                 "objects": [
                     {
                         "type": "npc",
-                        "x": 0,
-                        "y": 0,
+                        "x": 14,
+                        "y": 12,
                         "data": {
                             "name": "test npc",
+                            "sprite": "test_npc",
                             "dialogue": {
                                 "interact": [
-                                    ""
+                                    {
+                                        "text": "y r u staring at me cuh"
+                                    },
+                                    {
+                                        "text": "im gonna beat you up slime"
+                                    },
+                                    {
+                                        "extra": {
+                                            "type": "scenario",
+                                            "data": {
+                                                "id": "test"
+                                            }
+                                        }
+                                    }
                                 ]
-                            }
+                            },
+                            "animations": [
+                                {
+                                    "name": "idle",
+                                    "frames": 6,
+                                    "time": 0.2,
+                                    "start_index": 0
+                                }
+                            ]
                         }
                     }
                 ]
@@ -381,7 +403,8 @@
         ["player", "../res/game/character.png"],
         ["test_card_art", "../res/game/cards/test_card_art.png"],
         ["homing_card_art", "../res/game/cards/homing.png"],
-        ["dash_card_art", "../res/game/cards/dash.png"]
+        ["dash_card_art", "../res/game/cards/dash.png"],
+        ["test_npc", "../res/game/test_npc.png"]
     ],
     "animations": {
         "player": [
@@ -391,22 +414,6 @@
                 "time": 0.2,
                 "start_index": 0
             }
-        ]
-    },
-
-    "player_data": {
-        "inventory": {
-            "items": [
-                {
-                    "type": "card",
-                    "data": {
-                        "id": 0
-                    }
-                }
-            ]
-        },
-        "deck": [
-            0, 0, 1, 1, 2
         ]
     }
 }

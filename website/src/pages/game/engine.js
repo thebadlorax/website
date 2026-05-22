@@ -90,6 +90,10 @@ export class Engine {
                 (-p0.y + 3*p1.y - 3*p2.y + p3.y) * t3
             )
         };
+    }; static isPointInRadius(px, py, cx, cy, radius) {
+        const dx = px - cx;
+        const dy = py - cy;
+        return (dx * dx + dy * dy) <= (radius * radius);
     }
 
     static async gzipCompressString(str) {
@@ -151,8 +155,13 @@ export class Engine {
         this.cards = new CardManager();
         this.combat = new CombatManager(this.cards, this);
         this.state = "main";
+        this.other_state = null;
+        this.other_state_data = null;
         this.inventory = new Inventory();
         this.has_setup_handlers = false;
+        this.settings = this.data.player_data.settings || {
+            "performance_mode": false
+        }
     };
 
     load() { return this.data.assets.map(b => this.loader.loadImage(b[0], b[1])) };
@@ -460,7 +469,12 @@ export class Engine {
                     return;
                 };
 
-                this.debug.level_editor.multiselect.active = false;
+                switch(this.other_state) {
+                    case "dialogue": {
+                        this.other_state_data.getDialogue().progress(this);
+                        return;
+                    }
+                }
 
                 let mx = e.clientX; let my = e.clientY;
                 let m = this.hero.map;
@@ -470,9 +484,41 @@ export class Engine {
                 if(tx >= m.cols || ty >= m.rows || tx < 0 || ty < 0) {
                     return;
                 }
-                this.debug.level_editor.multiselect.active = true;
-                this.debug.level_editor.multiselect.start_tile = [tx, ty];
+
+                if(this.debug.level_editor.active) {
+                    this.debug.level_editor.multiselect.active = false;
+                    this.debug.level_editor.multiselect.active = true;
+                    this.debug.level_editor.multiselect.start_tile = [tx, ty];
+                } else {
+                    m.getObjects().filter(o => o instanceof NPC).forEach(o => {
+                        if(o.x == tx && o.y == ty) {
+                            o.onClick(this);
+                        }
+                    });
+                }
             });
+
+            window.addEventListener("mousemove", (e) => {
+                if(this.settings.performance_mode) return;
+                let mx = e.clientX; let my = e.clientY;
+                let m = this.hero.map;
+                let tsize = m.tsize;
+                let tx = Math.floor((mx + this.camera.x) / tsize);
+                let ty = Math.floor((my + this.camera.y) / tsize);
+                if(tx >= m.cols || ty >= m.rows || tx < 0 || ty < 0) {
+                    return;
+                }
+
+                document.body.style.cursor = "default"; 
+
+                m.getObjects().filter(o => o instanceof NPC).forEach(o => {
+                    if(o.x == tx && o.y == ty) {
+                        document.body.style.cursor = "pointer"; 
+                    }
+                });
+
+                if(this.other_state == "dialogue") document.body.style.cursor = "wait"; 
+            })
     
             window.addEventListener("mouseup", (e) => {
                 if(this.combat.in_combat) {
@@ -599,9 +645,8 @@ export class Engine {
             this.debug.level_editor.tile_settings_subwindow.visible = false;
         });  
 
-        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.C_KEY, () => {
-            if(this.combat.in_combat) this.combat.exitCombat();
-            else this.combat.enterCombat(this.data.scenarios.find(s => s.id == "test"));
+        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.P_KEY, () => {
+            this.settings.performance_mode = !this.settings.performance_mode
         });
     }
 
@@ -694,9 +739,9 @@ export class Engine {
             });
         }
 
-        this.renderer.sprites.forEach(s => {
-            s.anims.updateAnimations(delta);
-        })
+        this.renderer.sprites.forEach(s =>  s.anims.updateAnimations(delta))
+
+        this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) })
        
     
         this.hero.move(delta, dirx, diry, this.keyboard.isDown(this.keyboard.KEYCODES.SHIFT) ? 500 : 250);
@@ -714,6 +759,8 @@ export class Sprite {
         this.width = this.map.tsize;
         this.height = this.map.tsize;
         this.engine = eng;
+
+        this.block_movement = false;
 
         this.anims = new AnimationManager(img);
         animations.forEach(a => {
@@ -745,7 +792,17 @@ export class Sprite {
 
     };
 
+    handlePortal(mapid, outx, outy) {
+        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 100});
+        setTimeout(() => {
+            if(this.mapid != mapid) this.worldMove(mapid);
+            this.x = this.map.getX(outx) + this.map.tsize / 2;
+            this.y = this.map.getY(outy) + this.map.tsize / 2;
+        }, 300)
+    }
+
     move(delta, dirx, diry, speed=250) {
+        if(this.block_movement) return;
         if (dirx !== 0 && diry !== 0) {
             const len = Math.sqrt(dirx * dirx + diry * diry);
             dirx /= len;
@@ -763,10 +820,10 @@ export class Sprite {
             this.unstuck();
         }
     
-        var maxX = this.map.cols * this.map.tsize;
+        /*var maxX = this.map.cols * this.map.tsize;
         var maxY = this.map.rows * this.map.tsize;
-        //this.x = Math.max(0, Math.min(this.x, maxX));
-        //this.y = Math.max(0, Math.min(this.y, maxY));
+        this.x = Math.max(0, Math.min(this.x, maxX));
+        this.y = Math.max(0, Math.min(this.y, maxY));*/
     };
 
     _collide(dirx, diry) {
@@ -966,14 +1023,7 @@ export class Trigger {
     onEnter(sprite) {
         switch (this.type) {
             case "portal": {
-                if(sprite.mapid != this.data.mapid) sprite.worldMove(this.data.mapid)
-                sprite.x =
-                    sprite.map.getX(this.data.outx) +
-                    sprite.map.tsize / 2;
-                
-                sprite.y =
-                    sprite.map.getY(this.data.outy) +
-                    sprite.map.tsize / 2;
+                sprite.handlePortal(this.data.mapid, this.data.outx, this.data.outy)
                 break;
             }
         }
@@ -984,4 +1034,138 @@ export class Trigger {
 
     onStay(sprite) {
     };
+}
+
+export class Dialogue {
+    constructor(data, name) {
+        this.data = data; this.lines = data.length;
+        this.name = name;
+        this.current_line = 0;
+    }
+
+    progress(engine) { 
+        if(this.current_line == this.lines) {
+            engine.other_state_data.closeDialogueWindow(engine);
+            return;
+        }
+        this.current_line += 1; 
+        const l = this.getLine();
+        if(!l) return;
+        if(!l.extra) return;
+        const data = l.extra.data;
+        switch(l.extra.type) {
+            case "scenario": {
+                engine.combat.enterCombat(engine.data.scenarios.find(s => s.id == data.id));
+                this.progress(engine)
+                return;
+            }
+            default: return;
+        }
+    }
+
+    getLine() { return this.data[this.current_line]; }
+}
+
+export class NPC {
+    constructor(data, x, y, z) {
+        this.x = x; this.y = y; this.data = data;
+        this.sprite = null;
+        this.name = data.name; this.dialogues = data.dialogue;
+        this.zindex = z; this.anims = null;
+        this.tsize = null;
+
+        this.draw_dialogue = false;
+        this.active_dialogue = "interact";
+
+        // format dialogues
+        let temp = [];
+        Object.keys(this.dialogues).forEach(d => temp.push(new Dialogue(this.dialogues[d], d)));
+        this.dialogues = temp;
+    }
+
+    getWorldPos(engine) {
+        return {
+            "x": (this.x*engine.hero.map.tsize) - engine.camera.x,
+            "y": (this.y*engine.hero.map.tsize) - engine.camera.y,
+            "tsize": engine.hero.map.tsize
+        }
+    }
+
+    render(engine) {
+        if(this.sprite == null) {
+            this.sprite = engine.loader.getImage(this.data.sprite);
+            this.anims = new AnimationManager(this.sprite);
+            this.data.animations.forEach(a => this.anims.createAnimation(a));
+            this.tsize
+        }
+        const wp = this.getWorldPos(engine);
+        engine.ctx.drawImage(
+            this.anims.getAnimation("idle").getFrame(),
+            wp.x,
+            wp.y
+        )
+    }
+
+    openDialogueWindow(engine) {
+        engine.other_state = "dialogue";
+        engine.other_state_data = this;
+        this.draw_dialogue = true;
+        engine.hero.block_movement = true;
+    }
+
+    closeDialogueWindow(engine) {
+        engine.other_state = null;
+        engine.other_state_data = null;
+        this.draw_dialogue = false;
+        if(engine.renderer.effects.length != 0) {
+            setTimeout(() => {engine.hero.block_movement = false}, 1000)
+        } else {
+            engine.hero.block_movement = false
+        }
+    }
+
+    onClick(engine) {
+        this.openDialogueWindow(engine);
+    }
+
+    getDialogueWindowPos(engine) {
+        const wp = this.getWorldPos(engine);
+        return {
+            "x": wp.x-150,
+            "y": wp.y-wp.tsize*2,
+            "w": 400,
+            "h": 100
+        }
+    }
+
+    getDialogue() { return this.dialogues.find(d => d.name == this.active_dialogue); }
+
+    drawDialogueWindow(engine) {
+        const ctx = engine.ctx;
+        const dialogue = this.getDialogue();
+        if(!dialogue) return;
+
+        const pos = this.getDialogueWindowPos(engine);
+
+        const line = dialogue.getLine();
+        if(!line) {
+            this.closeDialogueWindow(engine);
+            return;
+        }
+        
+        ctx.fillStyle = "white";
+        ctx.fillRect(pos.x, pos.y, pos.w, pos.h)
+        ctx.strokeStyle = "black";
+        ctx.strokeRect(pos.x, pos.y, pos.w, pos.h)
+
+        ctx.fillStyle = "black";
+        ctx.font = "21px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(
+            line.text,
+            pos.x-(25/2)+pos.w/2,
+            pos.y+pos.h/2
+        );
+    }
 }

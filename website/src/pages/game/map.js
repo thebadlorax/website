@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { Trigger, Engine } from "./engine.js";
+import { Trigger, Engine, NPC } from "./engine.js";
 
 class MapData {
     data;
@@ -19,13 +19,22 @@ class MapData {
         this.tsize = data.tsize;
 
         this.triggers = [];
+        this.objects = [];
         (data.triggers || []).forEach(t => {
             this.triggers.push(new Trigger(
                 t.x, t.y, t.w, t.h, t.type, t.data || {}, t.visual || null
             ));
         });
 
-        this.objects = data.objects || [];
+        (data.objects || []).forEach(o => {
+            switch(o.type) {
+                case "npc": {
+                    this.objects.push(new NPC(o.data, o.x, o.y, o.z || 1))
+                }
+            }
+        });
+
+        
     };
 
     createLayer(name, visible = true, fill = 0) {
@@ -73,6 +82,10 @@ class MapData {
         return l;
     };
 
+    getObjects() {
+        return this.objects;
+    }
+
     createTrigger(x, y, w, h, type, data = {}, visual = null) {
         const trigger = new Trigger(x, y, w, h, type, data, visual);
     
@@ -96,7 +109,10 @@ class MapData {
         var row = Math.floor(y / this.data.tsize);
 
         if(this.getTile(0, col, row) == 1) return true;
-        else return false;
+        else {
+            if(this.getObjects().filter(o => o instanceof NPC).find(o => o.x == col && o.y == row) != undefined) return true;
+            return false;
+        }
     };
 
     getCol(x) {
@@ -122,13 +138,12 @@ export class Map {
     constructor() {};
 
     constructMapData() {
-        let d = {
-        };
-        let a = []
+        let d = {};
+        let a = [];
 
         for(let x = 0; x < Object.keys(this.maps).length; x++) {
             let i = Object.keys(this.maps)[x];
-            let m = this.maps[i]
+            let m = this.maps[i];
             a.push(m.data);
         }
 
