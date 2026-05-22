@@ -166,6 +166,10 @@ export class Engine {
 
     load() { return this.data.assets.map(b => this.loader.loadImage(b[0], b[1])) };
 
+    setupHTML() {
+        document.getElementById("loading-text").style.display = "none";
+    }
+
     run(context) {
         this.ctx = context;
         this._previousElapsed = 0;
@@ -173,6 +177,7 @@ export class Engine {
         var p = this.load();
         Promise.all(p).then(() => {
             this.init();
+            this.setupHTML();
             window.requestAnimationFrame(this.tick);
         });
     }
@@ -503,33 +508,6 @@ export class Engine {
                     });
                 }
             });
-
-            window.addEventListener("mousemove", (e) => {
-                document.body.style.cursor = "default"; 
-                if(this.settings.performance_mode) return;
-                let mx = e.clientX; let my = e.clientY;
-                let m = this.hero.map;
-                let tsize = m.tsize;
-                let tx = Math.floor((mx + this.camera.x) / tsize);
-                let ty = Math.floor((my + this.camera.y) / tsize);
-                if(tx >= m.cols || ty >= m.rows || tx < 0 || ty < 0) {
-                    return;
-                }
-
-                m.getObjects().filter(o => o instanceof NPC).forEach(o => {
-                    if(o.x == tx && o.y == ty) {
-                        const dx = this.hero.x - (o.x * tsize);
-                        const dy = this.hero.y - (o.y * tsize);
-                        let dist = Math.hypot(dx, dy);
-
-                        if (dist < 200) {
-                            document.body.style.cursor = "pointer";
-                        }
-                    }
-                });
-
-                if(this.other_state == "dialogue") document.body.style.cursor = "pointer"; 
-            })
     
             window.addEventListener("mouseup", (e) => {
                 if(this.combat.in_combat) {
@@ -757,6 +735,31 @@ export class Engine {
     
         this.hero.move(delta, dirx, diry, this.keyboard.isDown(this.keyboard.KEYCODES.SHIFT) ? 500 : 250);
         this.camera.update();
+
+        document.body.style.cursor = "default"; 
+        if(!this.settings.performance_mode) {
+            let mx = this.keyboard.mouseX; let my = this.keyboard.mouseY;
+            let m = this.hero.map;
+            let tsize = m.tsize;
+            let tx = Math.floor((mx + this.camera.x) / tsize);
+            let ty = Math.floor((my + this.camera.y) / tsize);
+            if(tx >= m.cols || ty >= m.rows || tx < 0 || ty < 0) {
+                return;
+            }
+    
+            m.getObjects().filter(o => o instanceof NPC).forEach(o => {
+                if(o.x == tx && o.y == ty) {
+                    const dx = this.hero.x - (o.x * tsize);
+                    const dy = this.hero.y - (o.y * tsize);
+                    let dist = Math.hypot(dx, dy);
+    
+                    if (dist < 200) {
+                        document.body.style.cursor = "pointer";
+                    }
+                }
+            });
+        }
+        if(this.other_state == "dialogue") document.body.style.cursor = "pointer"; 
     };
 }
 
