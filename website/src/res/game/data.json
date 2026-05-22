@@ -130,12 +130,34 @@
                             "name": "test npc",
                             "sprite": "test_npc",
                             "dialogue": {
-                                "interact": [
+                                "interact0": [
                                     {
-                                        "text": "y r u staring at me cuh"
+                                        "text": "y r u staring at me cuh",
+                                        "extra": {
+                                            "type": "anim",
+                                            "data": {
+                                                "name": "attack"
+                                            }
+                                        }
                                     },
                                     {
                                         "text": "im gonna beat you up slime"
+                                    },
+                                    {
+                                        "extra": {
+                                            "type": "scenario",
+                                            "data": {
+                                                "id": "test"
+                                            }
+                                        }
+                                    }
+                                ],
+                                "interact1": [
+                                    {
+                                        "text": "bro i already played u"
+                                    },
+                                    {
+                                        "text": "ig we can go again"
                                     },
                                     {
                                         "extra": {
@@ -153,6 +175,12 @@
                                     "frames": 6,
                                     "time": 0.2,
                                     "start_index": 0
+                                },
+                                {
+                                    "name": "attack",
+                                    "frames": 2,
+                                    "time": 0.1,
+                                    "start_index": 6
                                 }
                             ]
                         }

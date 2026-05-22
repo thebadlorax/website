@@ -508,7 +508,7 @@ export class Animation {
         const sx = this.currentFrame*this.size, sy = 0, sWidth = this.size, sHeight = this.size;
         canvas.width = sWidth;
         canvas.height = sHeight;
-        ctx.drawImage(this.image, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+        ctx.drawImage(this.image, sx+(this.size*this.start_index), sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
         return canvas;
     }
 }

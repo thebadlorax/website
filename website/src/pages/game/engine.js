@@ -471,7 +471,7 @@ export class Engine {
 
                 switch(this.other_state) {
                     case "dialogue": {
-                        this.other_state_data.getDialogue().progress(this);
+                        this.other_state_data.getDialogue().progress(this, this.other_state_data);
                         return;
                     }
                 }
@@ -517,7 +517,7 @@ export class Engine {
                     }
                 });
 
-                if(this.other_state == "dialogue") document.body.style.cursor = "wait"; 
+                if(this.other_state == "dialogue") document.body.style.cursor = "pointer"; 
             })
     
             window.addEventListener("mouseup", (e) => {
@@ -1040,11 +1040,12 @@ export class Dialogue {
     constructor(data, name) {
         this.data = data; this.lines = data.length;
         this.name = name;
-        this.current_line = 0;
+        this.current_line = -1;
     }
 
-    progress(engine) { 
+    progress(engine, owner) { 
         if(this.current_line == this.lines) {
+            this.current_line = 0;
             engine.other_state_data.closeDialogueWindow(engine);
             return;
         }
@@ -1056,7 +1057,11 @@ export class Dialogue {
         switch(l.extra.type) {
             case "scenario": {
                 engine.combat.enterCombat(engine.data.scenarios.find(s => s.id == data.id));
-                this.progress(engine)
+                this.progress(engine, owner)
+                return;
+            }
+            case "anim": {
+                owner.active_anim = data.name;
                 return;
             }
             default: return;
@@ -1074,8 +1079,14 @@ export class NPC {
         this.zindex = z; this.anims = null;
         this.tsize = null;
 
+        this.active_anim = "idle"
+
+        this.flags = {
+            "speak_counter": 0
+        }
+
         this.draw_dialogue = false;
-        this.active_dialogue = "interact";
+        this.active_dialogue = `interact${this.flags.speak_counter}`;
 
         // format dialogues
         let temp = [];
@@ -1096,11 +1107,11 @@ export class NPC {
             this.sprite = engine.loader.getImage(this.data.sprite);
             this.anims = new AnimationManager(this.sprite);
             this.data.animations.forEach(a => this.anims.createAnimation(a));
-            this.tsize
         }
         const wp = this.getWorldPos(engine);
+        const f = this.anims.getAnimation(this.active_anim);
         engine.ctx.drawImage(
-            this.anims.getAnimation("idle").getFrame(),
+            f.getFrame(),
             wp.x,
             wp.y
         )
@@ -1113,6 +1124,10 @@ export class NPC {
         engine.hero.block_movement = true;
     }
 
+    dialogueExists(name) {
+        return this.dialogues.find(d => d.name == name) != undefined;
+    }
+
     closeDialogueWindow(engine) {
         engine.other_state = null;
         engine.other_state_data = null;
@@ -1122,9 +1137,13 @@ export class NPC {
         } else {
             engine.hero.block_movement = false
         }
+        this.flags.speak_counter += 1;
+        let nname = `interact${this.flags.speak_counter}`;
+        if(this.dialogueExists(nname)) this.active_dialogue = nname;
     }
 
     onClick(engine) {
+        this.getDialogue().progress(engine, this);
         this.openDialogueWindow(engine);
     }
 
@@ -1149,12 +1168,14 @@ export class NPC {
 
         const line = dialogue.getLine();
         if(!line) {
+            dialogue.current_line = 0;
             this.closeDialogueWindow(engine);
             return;
         }
         
         ctx.fillStyle = "white";
         ctx.fillRect(pos.x, pos.y, pos.w, pos.h)
+        ctx.lineWidth = 2;
         ctx.strokeStyle = "black";
         ctx.strokeRect(pos.x, pos.y, pos.w, pos.h)
 
