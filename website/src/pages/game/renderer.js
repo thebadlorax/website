@@ -404,12 +404,12 @@ export class Renderer {
     }
 
     openMenu(menu) {
-        this.engine.state = "menu";
+        this.engine.other_state = "menu";
         this.active_menu = menu;
     }
 
     closeMenu() {
-        this.engine.state = "main";
+        this.engine.other_state = null;
         this.active_menu = null;
     }
 
@@ -418,13 +418,7 @@ export class Renderer {
         const layers = Object.values(map.data.layers);
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height); 
 
-        if(this.engine.state == 'main' || this.engine.state == 'menu') {
-            if(this.engine.state == "menu") {
-                if(this.active_menu.settings.hide_game) {
-                    this.active_menu.render();
-                    return;
-                }
-            }
+        if(this.engine.state == 'main') {
             for(let x = 0; x < layers.length; x++) {
                 this._drawLayer(x);
                 this.sprites.filter(s => s.zindex == x && s.mapid == this.engine.hero.mapid).forEach(s => {
@@ -444,10 +438,6 @@ export class Renderer {
             if(this.engine.debug.show_grid || this.engine.debug.level_editor.active) {
                 this.engine.hero.drawHitbox(this.ctx);
             };
-
-            if(this.engine.state == "menu") {
-                this.active_menu.render();
-            }
         } else if(this.engine.state == "combat") {
             this.engine.combat.render();
         } else if(this.engine.state == "cutscene") {
@@ -462,6 +452,10 @@ export class Renderer {
                 }
             }
         }; 
+
+        if(this.engine.other_state == "menu") {
+            this.active_menu.render()
+        };
 
         this.effects.forEach((e, index) => {
             switch(e.type) {
@@ -643,7 +637,7 @@ export class MenuUIElement {
                 break;
             }
             case "text": {
-                this.ctx.font = "13px monospace";
+                this.ctx.font = `${this.data.fontSize || "13"}px monospace`;
                 this.ctx.fillStyle = "black";
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
@@ -752,7 +746,7 @@ export class MenuRegistry {
 
     setup() {
         const em = this.MENUS.escape_menu;
-        em.createUIElement((em.settings.width/2)-50, 0, 100, 100, "text", {"text":"menu"});
+        em.createUIElement((em.settings.width/2)-50, 0, 100, 100, "text", {"text":"menu","fontSize":"25"});
         let pmb = em.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"performance mode"})
         pmb.data.bg_color = "red"
         pmb.onclick = () => {

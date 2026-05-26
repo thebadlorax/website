@@ -469,14 +469,14 @@ export class Engine {
             });
     
             window.addEventListener("mousedown", (e) => {
+                if(this.other_state == "menu") {
+                    this.renderer.active_menu.onclick();
+                    return;
+                }
                 if(this.combat.in_combat) {
                     this.combat.onClick();
                     return;
                 };
-                if(this.state == "menu") {
-                    this.renderer.active_menu.onclick();
-                    return;
-                }
 
                 switch(this.other_state) {
                     case "dialogue": {
@@ -638,13 +638,8 @@ export class Engine {
             this.debug.level_editor.tile_settings_subwindow.visible = false;
         });  
 
-        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.P_KEY, () => {
-            this.settings.performance_mode = !this.settings.performance_mode
-        });
-
         this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.ESCAPE, () => {
-            if(this.combat.in_combat) return;
-            if(this.state == "menu") {
+            if(this.other_state == "menu") {
                 this.renderer.closeMenu();
             } else {
                 this.renderer.openMenu(this.renderer.menus.escape_menu);
@@ -715,12 +710,7 @@ export class Engine {
     };
 
     update(delta) {
-        if(this.combat.in_combat) {
-            this.combat.combatUpdate(delta);
-            return;
-        };
-        if(this.state == "cutscene") return;
-        if(this.state == "menu") {
+        if(this.other_state == "menu") {
             this.camera.update();
             this.renderer.sprites.forEach(s =>  s.anims.updateAnimations(delta));
             this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) });
@@ -738,6 +728,11 @@ export class Engine {
             }
             return;
         }
+        if(this.combat.in_combat) {
+            this.combat.combatUpdate(delta);
+            return;
+        };
+        if(this.state == "cutscene") return;
         var dirx = 0;
         var diry = 0;
         if (this.keyboard.isDown(this.keyboard.KEYCODES.LEFT_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.A_KEY)) { dirx += -1; }

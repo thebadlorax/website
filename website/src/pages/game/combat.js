@@ -444,13 +444,6 @@ export class CombatManager {
             this.debug.debug_kb_pressed = false;
         })
 
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.P_KEY, () => {
-            this.engine.settings.performance_mode = !this.engine.settings.performance_mode;
-            document.body.style.cursor = "default";
-            this.combatVariables.timescale = this.combatVariables.timescale == 0 ? 1 : 0
-            this.debug.debug_kb_pressed = false;
-        })
-
         this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.O_KEY, () => {
             if(!this.debug.debug_kb_pressed) return;
             this.onWin();
