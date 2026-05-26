@@ -511,6 +511,9 @@ export class Engine {
             });
     
             window.addEventListener("mouseup", (e) => {
+                if(this.other_state == "menu") {
+                    return;
+                }
                 if(this.combat.in_combat) {
                     this.combat.onRelease();
                     return;
@@ -713,7 +716,7 @@ export class Engine {
             this.renderer.sprites.forEach(s =>  s.anims.updateAnimations(delta));
             this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) });
             document.body.style.cursor = "default"; 
-            if(!this.settings.performance_mode) {
+            if(!this.settings.settings.performance_mode) {
                 let mx = this.keyboard.mouseX; let my = this.keyboard.mouseY;
                 const m = this.renderer.active_menu
                 const rx = m.getRenderX(); const ry = m.getRenderY();
@@ -761,7 +764,7 @@ export class Engine {
         this.camera.update();
 
         document.body.style.cursor = "default"; 
-        if(!this.settings.performance_mode) {
+        if(!this.settings.settings.performance_mode) {
             let mx = this.keyboard.mouseX; let my = this.keyboard.mouseY;
             let m = this.hero.map;
             let tsize = m.tsize;

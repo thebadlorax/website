@@ -1425,7 +1425,7 @@ export class CombatManager {
     }
 
     drawBackgroundText(text, angle, alpha, size, color, offsetX=0, offsetY=0) {
-        if(this.engine.settings.performance_mode) return;
+        if(this.engine.settings.settings.performance_mode) return;
         const ctx = this.engine.ctx;
         
         ctx.font = `${size}px monospace`;
@@ -1602,7 +1602,7 @@ export class CombatManager {
     }
 
     drawDropShadow(size, opacity, x, y, w, h, offsetX=0, offsetY=0) {
-        if(this.engine.settings.performance_mode) return;
+        if(this.engine.settings.settings.performance_mode) return;
         const ctx = this.engine.ctx;
         ctx.fillStyle = `rgba(0, 0, 0, ${opacity/4})`;
         ctx.fillRect((x+offsetX)-size*1.5, (y+offsetY)-size*1.5, w+size*2, h+size*2);
@@ -2046,7 +2046,7 @@ export class CombatManager {
 
 
         document.body.style.cursor = "default";
-        if(!this.engine.settings.performance_mode) {
+        if(!this.engine.settings.settings.performance_mode) {
             if(this.card_rendering.dragged_card != null) {
             document.body.style.cursor = "grabbing";
             } else {
@@ -2175,7 +2175,7 @@ export class CombatPlayer {
         const cb = this.combat.getCombatBox();
         if(!this.combat.combat_active || this.combat.turn == 1) return;
 
-        if(!this.combat.engine.settings.performance_mode) {
+        if(!this.combat.engine.settings.settings.performance_mode) {
             for (const img of this.afterimages) {
                 const alpha = img.life / 0.25;
         
@@ -2226,7 +2226,7 @@ export class CombatPlayer {
     update(delta) {
         const cb = this.combat.getCombatBox();
 
-        if(!this.combat.engine.settings.performance_mode) {
+        if(!this.combat.engine.settings.settings.performance_mode) {
             const speed = Math.hypot(this.velx, this.vely);
 
             if (speed > 450) {
