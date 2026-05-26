@@ -6,6 +6,7 @@ website/node_modules
 website/database.json
 website/database.json.bk.gz
 website/logs/
+website/database.json.old.bk.gz
 website/logs
 .vscode
 .DS_Store
