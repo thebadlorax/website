@@ -724,6 +724,18 @@ export class Engine {
             this.camera.update();
             this.renderer.sprites.forEach(s =>  s.anims.updateAnimations(delta));
             this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) });
+            document.body.style.cursor = "default"; 
+            if(!this.settings.performance_mode) {
+                let mx = this.keyboard.mouseX; let my = this.keyboard.mouseY;
+                const m = this.renderer.active_menu
+                const rx = m.getRenderX(); const ry = m.getRenderY();
+                m.UIElements.forEach(e => {
+                    if(!e.visible || e.onclick == null) return;
+                    if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
+                        document.body.style.cursor = "pointer"; 
+                    }
+                })
+            }
             return;
         }
         var dirx = 0;

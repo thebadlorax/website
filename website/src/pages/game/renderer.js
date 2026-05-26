@@ -575,7 +575,7 @@ export class Cutscene {
 export class MenuUIElement {
     constructor(ctx, x, y, w, h, type, data, menu) {
         this.x = x; this.y = y; this.w = w; this.h = h; this.type = type;
-        this.onclick = () => {}; this.visible = true; this.ctx = ctx; this.data = data;
+        this.onclick = null; this.visible = true; this.ctx = ctx; this.data = data;
         this.menu = menu;
     }
 
@@ -734,7 +734,7 @@ export class Menu {
         const mx = this.renderer.engine.keyboard.mouseX;
         const my = this.renderer.engine.keyboard.mouseY;
         this.UIElements.forEach(e => {
-            if(!e.visible) return;
+            if(!e.visible || e.onclick == null) return;
             if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
                 e.onclick();
             }
@@ -758,6 +758,9 @@ export class MenuRegistry {
         pmb.onclick = () => {
             em.renderer.engine.settings.performance_mode = !em.renderer.engine.settings.performance_mode;
             pmb.data.bg_color = em.renderer.engine.settings.performance_mode ? "green" : "red"
+            if(em.renderer.engine.settings.performance_mode) {
+                alert("this turns off laggy effects like the background text in combat or cursor effects")
+            }
         }
         let eb = em.createUIElement(25, 175, em.settings.width-50, 50, "textbutton", {"text":"exit"})
         eb.onclick = () => {
