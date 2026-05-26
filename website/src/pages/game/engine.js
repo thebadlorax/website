@@ -164,7 +164,7 @@ export class Engine {
         }
     };
 
-    load() { return this.data.assets.map(b => this.loader.loadImage(b[0], b[1])) };
+    load() { return this.data.assets.filter(b => b[1].includes(".png") || b[1].includes(".jpg")).map(b => this.loader.loadImage(b[0], b[1])) };
 
     setupHTML() {
         document.getElementById("loading-text").style.display = "none";
@@ -473,6 +473,10 @@ export class Engine {
                     this.combat.onClick();
                     return;
                 };
+                if(this.state == "menu") {
+                    this.renderer.active_menu.onclick();
+                    return;
+                }
 
                 switch(this.other_state) {
                     case "dialogue": {
@@ -620,7 +624,7 @@ export class Engine {
             this.has_setup_handlers = true;
         }
        
-        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.ESCAPE, () => {
+        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.M_KEY, () => {
             if(this.combat.in_combat) return;
             if(this.debug.level_editor.first_open) {
                 alert("triggers don't activate while in level editor mode");
@@ -637,6 +641,15 @@ export class Engine {
         this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.P_KEY, () => {
             this.settings.performance_mode = !this.settings.performance_mode
         });
+
+        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.ESCAPE, () => {
+            if(this.combat.in_combat) return;
+            if(this.state == "menu") {
+                this.renderer.closeMenu();
+            } else {
+                this.renderer.openMenu(this.renderer.menus.escape_menu);
+            }
+        })
     }
 
     init() {
@@ -706,6 +719,13 @@ export class Engine {
             this.combat.combatUpdate(delta);
             return;
         };
+        if(this.state == "cutscene") return;
+        if(this.state == "menu") {
+            this.camera.update();
+            this.renderer.sprites.forEach(s =>  s.anims.updateAnimations(delta));
+            this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) });
+            return;
+        }
         var dirx = 0;
         var diry = 0;
         if (this.keyboard.isDown(this.keyboard.KEYCODES.LEFT_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.A_KEY)) { dirx += -1; }
@@ -729,7 +749,6 @@ export class Engine {
         }
 
         this.renderer.sprites.forEach(s =>  s.anims.updateAnimations(delta))
-
         this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) })
        
     
@@ -1055,9 +1074,11 @@ export class Dialogue {
         this.data = data; this.lines = data.length;
         this.name = name;
         this.current_line = -1;
+        this.block_progress = false;
     }
 
     progress(engine, owner) { 
+        if(this.block_progress) return;
         if(this.current_line == this.lines) {
             this.current_line = 0;
             engine.other_state_data.closeDialogueWindow(engine);
@@ -1071,7 +1092,7 @@ export class Dialogue {
         switch(l.extra.type) {
             case "scenario": {
                 engine.combat.enterCombat(engine.data.scenarios.find(s => s.id == data.id));
-                this.progress(engine, owner)
+                this.block_progress = true;
                 return;
             }
             case "anim": {
@@ -1198,7 +1219,7 @@ export class NPC {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(
-            line.text,
+            line.text || "",
             pos.x-(25/2)+pos.w/2,
             pos.y+pos.h/2
         );

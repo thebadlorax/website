@@ -132,13 +132,12 @@ export class Window {
         this.ctx.globalAlpha = this.opacity;
         const rx = this.getRenderX(camera);
         const ry = this.getRenderY(camera);
+
         this.ctx.fillStyle = "white";
         this.ctx.fillRect(rx, ry, this.width, this.height);
         this.ctx.strokeStyle = "black";
         this.ctx.lineWidth = 2;
         this.ctx.strokeRect(rx, ry, this.width, this.height);
-
-        
 
         this.UIElements.forEach(e => {
             if(!e.visible) return;
@@ -224,6 +223,9 @@ export class Renderer {
         this.sprites = [];
 
         this.effects = [];
+        this.active_cutscene = null;
+        this.menus = new MenuRegistry(this).MENUS;
+        this.active_menu = null;
     };
 
     _drawLayer(layer) {
@@ -401,12 +403,28 @@ export class Renderer {
         }
     }
 
+    openMenu(menu) {
+        this.engine.state = "menu";
+        this.active_menu = menu;
+    }
+
+    closeMenu() {
+        this.engine.state = "main";
+        this.active_menu = null;
+    }
+
     render() { 
         const map = this.engine.hero.map;
         const layers = Object.values(map.data.layers);
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height); 
 
-        if(this.engine.state == 'main') {
+        if(this.engine.state == 'main' || this.engine.state == 'menu') {
+            if(this.engine.state == "menu") {
+                if(this.active_menu.settings.hide_game) {
+                    this.active_menu.render();
+                    return;
+                }
+            }
             for(let x = 0; x < layers.length; x++) {
                 this._drawLayer(x);
                 this.sprites.filter(s => s.zindex == x && s.mapid == this.engine.hero.mapid).forEach(s => {
@@ -423,14 +441,27 @@ export class Renderer {
     
             this.windows.filter(w => w.visible).forEach(w => { w.onrender(); w.draw(this.camera); });
     
-            
-    
             if(this.engine.debug.show_grid || this.engine.debug.level_editor.active) {
                 this.engine.hero.drawHitbox(this.ctx);
+            };
+
+            if(this.engine.state == "menu") {
+                this.active_menu.render();
             }
         } else if(this.engine.state == "combat") {
             this.engine.combat.render();
-        };
+        } else if(this.engine.state == "cutscene") {
+            if(this.active_cutscene != null) {
+                this.ctx.drawImage(this.active_cutscene, 0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+                if(this.active_cutscene.ended) {
+                    this.active_cutscene = null;
+                    this.applyEffect("fadeOutIn", {"ms": 300, "blackTime": 100});
+                    setTimeout(() => {
+                        this.engine.state = "main";
+                    }, 150);
+                }
+            }
+        }; 
 
         this.effects.forEach((e, index) => {
             switch(e.type) {
@@ -510,5 +541,227 @@ export class Animation {
         canvas.height = sHeight;
         ctx.drawImage(this.image, sx+(this.size*this.start_index), sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
         return canvas;
+    }
+}
+
+export class Cutscene {
+    constructor(url, engine) {
+        this.url = url;
+        this.video = document.createElement("video");
+        this.video.src = url;
+        this.engine = engine;
+        this.setupElement();
+    }
+
+    setupElement() {
+        this.video.controls = false;
+        this.video.autoplay = false;
+        this.video.muted = true;
+        this.video.width = this.engine.camera.width;
+        this.video.height = this.engine.camera.height
+    };
+
+    play() {
+        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 100});
+        setTimeout(() => {
+            this.engine.state = "cutscene";
+            this.engine.renderer.active_cutscene = this.video;
+            this.video.play();
+        }, 350)
+        
+    }
+}
+
+export class MenuUIElement {
+    constructor(ctx, x, y, w, h, type, data, menu) {
+        this.x = x; this.y = y; this.w = w; this.h = h; this.type = type;
+        this.onclick = () => {}; this.visible = true; this.ctx = ctx; this.data = data;
+        this.menu = menu;
+    }
+
+    destroy() {
+        this.window.UIElements.splice(this.window.UIElements.indexOf(this), 1);
+    }
+
+    render() {
+        const rx = this.menu.getRenderX();
+        const ry = this.menu.getRenderY();
+        switch(this.type) {
+            case "button": {
+                this.ctx.fillStyle = "gray";
+                this.ctx.fillRect(rx + this.x, ry + this.y, this.w, this.h);
+                this.ctx.strokeStyle = "black";
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(rx + this.x, ry + this.y, this.w, this.h);
+                break;
+            }
+            case "textbutton": {
+                if(this.data.bg_color != null) {
+                    this.ctx.fillStyle = this.data.bg_color;
+                    this.ctx.fillRect(rx + this.x, ry + this.y, this.w, this.h);
+                }
+                this.ctx.fillStyle = "black";
+                this.ctx.strokeStyle = this.data.strokeColor || "black";
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(rx + this.x, ry + this.y, this.w, this.h);
+                this.ctx.font = "13px monospace";
+
+                this.ctx.textAlign = "center";
+                this.ctx.textBaseline = "middle";
+                this.ctx.fillText(
+                    this.data.text,
+                    rx + this.x + (this.w / 2),
+                    ry + this.y + (this.h / 2)
+                );
+                break;
+            }
+            case "image": {
+                if(this.data.atlas == true) {
+                    this.ctx.drawImage(
+                        this.data.image, // image
+                        (this.data.atlasIndex - 1) * this.data.tileSize, // source x
+                        0, // source y
+                        this.data.tileSize, // source width
+                        this.data.tileSize, // source height
+                        (rx + this.x)+1,
+                        (ry + this.y)+1,
+                        this.w-2, // target width
+                        this.h-2 // target height
+                    );
+                } else {
+                    this.ctx.drawImage(this.data.image, (rx+this.x)+1, (ry+this.y)+1, this.w-2, this.h-2)
+                }
+
+                if(this.data.overlayColor != null) {
+                    this.ctx.fillStyle = this.data.overlayColor;
+                    this.ctx.fillRect((rx + this.x), (ry + this.y), this.w, this.h);
+                }
+                
+                this.ctx.strokeStyle = this.data.strokeColor || "black";
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(rx + this.x, ry + this.y, this.w, this.h);
+                break;
+            }
+            case "text": {
+                this.ctx.font = "13px monospace";
+                this.ctx.fillStyle = "black";
+                this.ctx.textAlign = "center";
+                this.ctx.textBaseline = "middle";
+                this.ctx.fillText(
+                    this.data.text,
+                    rx + this.x + (this.w / 2),
+                    ry + this.y + (this.h / 2)
+                );
+            }
+        }
+    }
+};
+
+export class Menu {
+    constructor(renderer) {
+        this.renderer = renderer;
+
+        this.UIElements = [];
+        this.submenus = [];
+
+        this.settings = {
+            "color": {
+                "bg": "white",
+                "border": "black",
+                "border_weight": 2,
+                "game": "rgba(0, 0, 0, 0.6)"
+            },
+            "x": 10,
+            "y": this.renderer.camera.height*0.025,
+            "space": "screen",
+            "width": 400,
+            "height": this.renderer.camera.height*0.95,
+            "hide_game": false,
+            "rotation": 0 // degrees
+        }
+    }
+
+    getRenderX() {
+        if(this.settings.space === "world") {
+            return this.settings.x - this.renderer.camera.x;
+        }
+        return this.settings.x;
+    }
+    getRenderY() {
+        if(this.settings.space === "world") {
+            return this.settings.y - this.renderer.camera.y;
+        }
+        return this.settings.y;
+    }
+
+    createUIElement(x, y, w, h, type, data=null) {
+        let e = new MenuUIElement(this.renderer.ctx, x, y, w, h, type, data, this);
+        this.UIElements.push(e);
+        return e;
+    }
+
+    render() {
+        const ctx = this.renderer.ctx;
+        const rx = this.getRenderX();
+        const ry = this.getRenderY();
+
+        ctx.fillStyle = this.settings.color.game;
+        ctx.fillRect(0, 0, this.renderer.camera.width, this.renderer.camera.height);
+
+        ctx.save();
+
+        ctx.rotate(this.settings.rotation * Math.PI / 180);
+        ctx.fillStyle = this.settings.color.bg;
+        ctx.fillRect(rx, ry, this.settings.width, this.settings.height);
+        ctx.strokeStyle = this.settings.color.border;
+        ctx.lineWidth = this.settings.color.border_weight;
+        ctx.strokeRect(rx, ry, this.settings.width, this.settings.height);
+
+        this.submenus.forEach(m => {
+            m.render();
+        })
+
+        this.UIElements.forEach(e => {
+            e.render();
+        });
+
+        ctx.restore();
+    }
+
+    onclick() {
+        const rx = this.getRenderX();
+        const ry = this.getRenderY();
+        const mx = this.renderer.engine.keyboard.mouseX;
+        const my = this.renderer.engine.keyboard.mouseY;
+        this.UIElements.forEach(e => {
+            if(!e.visible) return;
+            if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
+                e.onclick();
+            }
+        })
+    }
+}
+
+export class MenuRegistry {
+    constructor(renderer) {
+        this.MENUS = {
+            "escape_menu": new Menu(renderer)
+        }
+        this.setup();
+    }
+
+    setup() {
+        const em = this.MENUS.escape_menu;
+        em.createUIElement((em.settings.width/2)-50, 0, 100, 100, "text", {"text":"menu"});
+        let pmb = em.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"performance mode"})
+        pmb.data.bg_color = "red"
+        pmb.onclick = () => {
+            em.renderer.engine.settings.performance_mode = !em.renderer.engine.settings.performance_mode;
+            pmb.data.bg_color = em.renderer.engine.settings.performance_mode ? "green" : "red"
+        }
+        let eb = em.createUIElement(25, 175, em.settings.width-50, 50, "textbutton", {"text":"exit"})
+        eb.onclick = () => {
+            alert("no main menu yet bruh")
+        }
     }
 }

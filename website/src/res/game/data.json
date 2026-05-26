@@ -141,9 +141,7 @@
                                         }
                                     },
                                     {
-                                        "text": "im gonna beat you up slime"
-                                    },
-                                    {
+                                        "text": "im gonna beat you up slime",
                                         "extra": {
                                             "type": "scenario",
                                             "data": {
@@ -157,9 +155,7 @@
                                         "text": "bro i already played u"
                                     },
                                     {
-                                        "text": "ig we can go again"
-                                    },
-                                    {
+                                        "text": "ig we can go again",
                                         "extra": {
                                             "type": "scenario",
                                             "data": {

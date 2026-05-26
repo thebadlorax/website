@@ -592,7 +592,8 @@ export class CombatManager {
             "has_won": false,
             "reward_cards": [],
             "pellets": [],
-            "victory_status": false
+            "victory_status": false,
+            "timer_timescale": 1
         }
         this.card_rendering = {
             "dragged_card": null,
@@ -1671,6 +1672,9 @@ export class CombatManager {
                     y - box.y + (card_size.h / 2)
                 );
                 this.card_rendering.cards.push(c);
+                if(this.cardManager.getHand().filter(c => c.isTurn(this.turn) && !this.card_rendering.cards.map(c => c.card).includes(c)).length == 0) {
+                    this.combatVariables.timer_timescale = 3;
+                }
             } else {
                 this.card_rendering.temporary_projectiles.forEach(p => this.projectiles.destroyProjectile(p));
             }
@@ -1805,6 +1809,8 @@ export class CombatManager {
         this.card_rendering.drag_point = null;
         this.card_rendering.dragged_card_in_box = false;
 
+        this.combatVariables.timer_timescale = 1;
+
         this.card_rendering.cards.forEach(c => {
             this.cardManager.discard(c);
         });
@@ -1838,6 +1844,7 @@ export class CombatManager {
         }
         this.turn = this.turn == 0 ? 1 : 0;
         this.round_timer = this.turn == 1 ? this.combatVariables.placing_time : this.combatVariables.placing_time/2;
+        this.combatVariables.timer_timescale = 1;
         this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare;
         this.setBackgroundText("prepare");
         let cb = this.getCombatBox();
@@ -1908,7 +1915,7 @@ export class CombatManager {
             return;
         }
         delta *= this.combatVariables.timescale
-        this.round_timer -= delta;
+        this.round_timer -= delta*this.combatVariables.timer_timescale;
         if(this.round_timer < 0) {
             if(!this.combat_active) this.onRoundStart();
             else this.onRoundEnd();
@@ -2115,6 +2122,9 @@ export class CombatManager {
         this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
         setTimeout(() => {
             this.reset(scenario)
+            if(this.engine.other_state_data != null) {
+                this.engine.other_state_data.closeDialogueWindow(this.engine);
+            }
         }, 650)
     }
 
