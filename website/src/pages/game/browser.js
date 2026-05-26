@@ -40,3 +40,6 @@ export async function pickFile() {
         input.click();
     });
 }
+
+export async function setValueInStorage(name, val) { window.localStorage.setItem(name, val); };
+export async function getValueInStorage(val) { return window.localStorage.getItem(val); };

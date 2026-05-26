@@ -734,7 +734,7 @@ export class Menu {
             }
         })
     }
-}
+};
 
 export class MenuRegistry {
     constructor(renderer) {
@@ -748,17 +748,18 @@ export class MenuRegistry {
         const em = this.MENUS.escape_menu;
         em.createUIElement((em.settings.width/2)-50, 0, 100, 100, "text", {"text":"menu","fontSize":"25"});
         let pmb = em.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"performance mode"})
-        pmb.data.bg_color = "red"
-        pmb.onclick = () => {
-            em.renderer.engine.settings.performance_mode = !em.renderer.engine.settings.performance_mode;
-            pmb.data.bg_color = em.renderer.engine.settings.performance_mode ? "green" : "red"
-            if(em.renderer.engine.settings.performance_mode) {
+        pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
+        pmb.onclick = async () => {
+            console.log("a")
+            await em.renderer.engine.settings.modifySetting("performance_mode", !em.renderer.engine.settings.settings.performance_mode);
+            pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
+            if(em.renderer.engine.settings.settings.performance_mode) {
                 alert("this turns off laggy effects like the background text in combat or cursor effects")
             }
         }
         let eb = em.createUIElement(25, 175, em.settings.width-50, 50, "textbutton", {"text":"exit"})
         eb.onclick = () => {
-            alert("no main menu yet bruh")
+            window.location.href = "/";
         }
     }
-}
+};

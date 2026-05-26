@@ -8,7 +8,7 @@
 import { Keyboard } from "./controller.js";
 import { Loader, Camera, Window, Renderer, AnimationManager } from "./renderer.js";
 import { Map } from "./map.js";
-import { downloadBlob, pickFile } from "./browser.js";
+import { downloadBlob, getValueInStorage, pickFile, setValueInStorage } from "./browser.js";
 
 import { clamp } from "../common.js";
 import { Card, CardManager, CombatManager } from "./combat.js";
@@ -159,9 +159,6 @@ export class Engine {
         this.other_state_data = null;
         this.inventory = new Inventory();
         this.has_setup_handlers = false;
-        this.settings = this.data.player_data.settings || {
-            "performance_mode": false
-        }
     };
 
     load() { return this.data.assets.filter(b => b[1].includes(".png") || b[1].includes(".jpg")).map(b => this.loader.loadImage(b[0], b[1])) };
@@ -647,7 +644,8 @@ export class Engine {
         })
     }
 
-    init() {
+    async init() {
+        this.settings = await EngineSettings.fromStorage();
         this.keyboard.listenForEvents(
             Object.values(this.keyboard.KEYCODES));
 
@@ -1230,5 +1228,21 @@ export class NPC {
             pos.x-(25/2)+pos.w/2,
             pos.y+pos.h/2
         );
+    }
+}
+
+export class EngineSettings {
+    static path() { return "settings"; }
+    static async getStorage() { let s = await getValueInStorage(EngineSettings.path()); return s; }
+    static async fromStorage() { return new EngineSettings(JSON.parse(await this.getStorage())); }
+    constructor(data) {
+        this.settings = data || {
+            "performance_mode": false
+        };
+    }
+
+    async modifySetting(name, val) {
+        this.settings[name] = val;
+        await setValueInStorage(EngineSettings.path(), JSON.stringify(this.settings));
     }
 }
