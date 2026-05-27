@@ -2112,23 +2112,22 @@ export class CombatManager {
     }
 
     enterCombat(scenario) {
-        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
-        setTimeout(() => {
+        let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
+        e.onBlack = () => {
             this.reset(scenario)
             if(this.engine.other_state_data != null) {
                 this.engine.other_state_data.closeDialogueWindow(this.engine);
             }
-        }, 650)
+        };
     }
 
     exitCombat() {
-        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
+        let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
         this.in_combat = false;
-        setTimeout(() => {
+        e.onBlack = () => {
             this.engine.state = "main";
             this.engine.setKeybinds();
-        }, 650);
-        
+        };
     }
 }
 

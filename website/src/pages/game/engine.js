@@ -713,8 +713,6 @@ export class Engine {
     update(delta) {
         if(this.other_state == "menu") {
             this.camera.update();
-            this.renderer.sprites.forEach(s =>  s.anims.updateAnimations(delta));
-            this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) });
             document.body.style.cursor = "default"; 
             if(!this.settings.settings.performance_mode) {
                 let mx = this.keyboard.mouseX; let my = this.keyboard.mouseY;
@@ -725,10 +723,11 @@ export class Engine {
                     if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
                         document.body.style.cursor = "pointer"; 
                     }
-                })
+                });
             }
             return;
         }
+        this.renderer.updateEffects(delta);
         if(this.combat.in_combat) {
             this.combat.combatUpdate(delta);
             return;
@@ -834,12 +833,12 @@ export class Sprite {
     };
 
     handlePortal(mapid, outx, outy) {
-        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 100});
-        setTimeout(() => {
+        let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 100});
+        e.onBlack = () => {
             if(this.mapid != mapid) this.worldMove(mapid);
             this.x = this.map.getX(outx) + this.map.tsize / 2;
             this.y = this.map.getY(outy) + this.map.tsize / 2;
-        }, 300)
+        }
     }
 
     move(delta, dirx, diry, speed=250) {

@@ -391,14 +391,22 @@ export class Renderer {
                 const fadeInTime = Math.floor(ms/2);
                 const fadeOutTime = Math.floor(ms/2);
 
-                this.effects.push({
+                const e = {
                     "type": type,
                     "startTime": Date.now(),
                     "ms": data.ms,
+                    "updateTime": Date.now(),
                     "blackTime": data.blackTime,
                     "fadeInTime": fadeInTime,
-                    "fadeOutTime": fadeOutTime
-                });
+                    "fadeOutTime": fadeOutTime,
+                    "onFinish": () => {},
+                    "onBlack": () => {},
+                    "onBlackCompleted": false
+                }
+
+                this.effects.push(e);
+
+                return e;
             }
         }
     }
@@ -411,6 +419,28 @@ export class Renderer {
     closeMenu() {
         this.engine.other_state = null;
         this.active_menu = null;
+    }
+
+    updateEffects(delta) {
+        this.effects.forEach((e, index) => {
+            switch(e.type) {
+                case "fadeOutIn": {
+                    e.updateTime += delta*1000;
+                    const elapsed = e.updateTime - e.startTime;
+                    
+                    if(!e.onBlackCompleted && elapsed >= (e.ms+e.blackTime)/2) {
+                        e.onBlackCompleted = true;
+                        e.onBlack();
+                    }
+
+                    if (elapsed >= e.ms+200) {
+                        this.effects.splice(index, 1);
+                        return; 
+                    }
+                    break;
+                }
+            }
+        });
     }
 
     render() { 
@@ -445,22 +475,18 @@ export class Renderer {
                 this.ctx.drawImage(this.active_cutscene, 0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
                 if(this.active_cutscene.ended) {
                     this.active_cutscene = null;
-                    this.applyEffect("fadeOutIn", {"ms": 300, "blackTime": 100});
-                    setTimeout(() => {
+                    let e = this.applyEffect("fadeOutIn", {"ms": 300, "blackTime": 100});
+                    e.onBlack = () => {
                         this.engine.state = "main";
-                    }, 150);
+                    }
                 }
             }
         }; 
 
-        if(this.engine.other_state == "menu") {
-            this.active_menu.render()
-        };
-
         this.effects.forEach((e, index) => {
             switch(e.type) {
                 case "fadeOutIn": {
-                    const elapsed = Date.now() - e.startTime;
+                    const elapsed = e.updateTime - e.startTime;
         
                     let alpha = 0;
         
@@ -478,15 +504,14 @@ export class Renderer {
                     this.ctx.fillStyle = "black";
                     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
                     this.ctx.restore();
-
-                    if (elapsed >= e.ms+200) {
-                        this.effects.splice(index, 1);
-                        return; 
-                    }
                     break;
                 }
             }
         });
+
+        if(this.engine.other_state == "menu") {
+            this.active_menu.render()
+        };
     };
 };
 
@@ -556,13 +581,12 @@ export class Cutscene {
     };
 
     play() {
-        this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 100});
-        setTimeout(() => {
+        let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 100});
+        e.onBlack = () => {
             this.engine.state = "cutscene";
             this.engine.renderer.active_cutscene = this.video;
             this.video.play();
-        }, 350)
-        
+        }
     }
 }
 
@@ -658,6 +682,8 @@ export class Menu {
         this.UIElements = [];
         this.submenus = [];
 
+        this.visible = true;
+
         this.settings = {
             "color": {
                 "bg": "white",
@@ -699,8 +725,10 @@ export class Menu {
         const rx = this.getRenderX();
         const ry = this.getRenderY();
 
-        ctx.fillStyle = this.settings.color.game;
-        ctx.fillRect(0, 0, this.renderer.camera.width, this.renderer.camera.height);
+        if(this.settings.color.game != null) {
+            ctx.fillStyle = this.settings.color.game;
+            ctx.fillRect(0, 0, this.renderer.camera.width, this.renderer.camera.height);
+        }
 
         ctx.save();
 
@@ -712,7 +740,7 @@ export class Menu {
         ctx.strokeRect(rx, ry, this.settings.width, this.settings.height);
 
         this.submenus.forEach(m => {
-            m.render();
+            if(m.visible) m.render();
         })
 
         this.UIElements.forEach(e => {
@@ -739,27 +767,105 @@ export class Menu {
 export class MenuRegistry {
     constructor(renderer) {
         this.MENUS = {
-            "escape_menu": new Menu(renderer)
+            "escape_menu": new Menu(renderer),
+            "combat_settings_menu": new Menu(renderer),
+            "keybinds_menu": new Menu(renderer)
         }
         this.setup();
     }
 
     setup() {
         const em = this.MENUS.escape_menu;
+        const change_active_submenu = (menu, button) => {
+            em.submenus.forEach(m => m.visible = false);
+            menu.visible = true;
+            em.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
+            button.data.strokeColor = "cyan";
+        };
+        const close_menu = () => {
+            em.submenus.forEach(m => m.visible = false);
+            em.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
+        }
         em.createUIElement((em.settings.width/2)-50, 0, 100, 100, "text", {"text":"menu","fontSize":"25"});
-        let pmb = em.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"performance mode"})
+        let pmb = em.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"performance mode"});
         pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
         pmb.onclick = async () => {
             console.log("a")
             await em.renderer.engine.settings.modifySetting("performance_mode", !em.renderer.engine.settings.settings.performance_mode);
             pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
-            if(em.renderer.engine.settings.settings.performance_mode) {
-                alert("this turns off laggy effects like the background text in combat or cursor effects")
+        };
+        let csb = em.createUIElement(25, 175, em.settings.width-50, 50, "textbutton", {"text":"combat settings"});
+        csb.onclick = async () => {
+            if(!csm.visible) {
+                change_active_submenu(csm, csb)
+            } else {
+                csm.visible = false;
+                csb.data.strokeColor = "black";
             }
         }
-        let eb = em.createUIElement(25, 175, em.settings.width-50, 50, "textbutton", {"text":"exit"})
-        eb.onclick = () => {
-            window.location.href = "/";
+        let kbb = em.createUIElement(25, 250, em.settings.width-50, 50, "textbutton", {"text":"keybinds"});
+        kbb.onclick = async () => {
+            if(!km.visible) {
+                change_active_submenu(km, kbb)
+            } else {
+                km.visible = false;
+                kbb.data.strokeColor = "black";
+            }
         }
+        let eb = em.createUIElement(25, 350, em.settings.width-50, 50, "textbutton", {"text":"exit menu"})
+        eb.onclick = () => {
+            em.renderer.closeMenu();
+            close_menu();
+        }
+        let ehb = em.createUIElement(25, 450, em.settings.width-50, 50, "textbutton", {"text":"exit to homepage"})
+        ehb.onclick = () => {
+            if(confirm("are you sure")) window.location.href = "/";
+        }
+
+
+
+        const csm = new Menu(em.renderer);
+        csm.settings = {
+            "color": {
+                "bg": "white",
+                "border": "black",
+                "border_weight": 2
+            },
+            "x": 450,
+            "y": em.renderer.camera.height*0.025,
+            "space": "screen",
+            "width": 400,
+            "height": em.renderer.camera.height*0.95,
+            "hide_game": false,
+            "rotation": 0 // degrees
+        };
+        csm.visible = false;
+        em.submenus.push(csm);
+        csm.createUIElement((csm.settings.width/2)-50, 0, 100, 100, "text", {"text":"combat settings","fontSize":"25"});
+        let bgtao = csm.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"background text opacity (in combat)"});
+        let bgtio = csm.createUIElement(25, 162.2, em.settings.width-50, 50, "textbutton", {"text":"background text opacity (out of combat)"});
+        let hsa = csm.createUIElement(25, 224.4, em.settings.width-50, 50, "textbutton", {"text":"hand size (hovered)"});
+        let hsi = csm.createUIElement(25, 286.6, em.settings.width-50, 50, "textbutton", {"text":"hand size (small)"});
+        let ds = csm.createUIElement(25, 348.2, em.settings.width-50, 50, "textbutton", {"text":"drop shadows toggle"});
+        let bgt = csm.createUIElement(25, 410.4, em.settings.width-50, 50, "textbutton", {"text":"background text toggle"});
+
+        const km = this.MENUS.keybinds_menu;
+        km.settings = {
+            "color": {
+                "bg": "white",
+                "border": "black",
+                "border_weight": 2
+            },
+            "x": 450,
+            "y": em.renderer.camera.height*0.025,
+            "space": "screen",
+            "width": 400,
+            "height": em.renderer.camera.height*0.95,
+            "hide_game": false,
+            "rotation": 0 // degrees
+        };
+        km.visible = false;
+        em.submenus.push(km);
+        km.createUIElement((csm.settings.width/2)-50, 0, 100, 100, "text", {"text":"keybinds","fontSize":"25"});
     }
 };
