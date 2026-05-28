@@ -420,20 +420,10 @@ export class CombatManager {
         this.engine = engine;
         
         setTimeout(() => { this.debug.buttons[0].onClick(); }, 500);
-        const handle_ability_press = (index) => {
-            let a = this.card_rendering.actives[index];
-            if(!a) return;
-            if(!a.ability) return;
-            if(!this.combat_active) return;
-            if(this.turn == 1) return;
-            a.ability.activate(this.player);
-        }
 
-        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[0].code, () => { if(this.in_combat) handle_ability_press(0); })
-        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[1].code, () => { if(this.in_combat) handle_ability_press(1); })
-        this.engine.keyboard.setFunctionOnKeyPress(this.combatSettings.active_keybinds[2].code, () => { if(this.in_combat) handle_ability_press(2); })
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.M_KEY, () => { if(this.in_combat) this.toggleEditor(); })
+        this.resetKeybinds();
 
+        /*
         this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.G_KEY, () => {
             this.debug.debug_kb_pressed = true;
         });
@@ -454,7 +444,23 @@ export class CombatManager {
             if(!this.debug.debug_kb_pressed) return;
             this.reset(this.debug.scen_data);
             this.debug.debug_kb_pressed = false;
-        })
+        })*/
+    }
+
+    resetKeybinds() {
+        const handle_ability_press = (index) => {
+            let a = this.card_rendering.actives[index];
+            if(!a) return;
+            if(!a.ability) return;
+            if(!this.combat_active) return;
+            if(this.turn == 1) return;
+            a.ability.activate(this.player);
+        }
+
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.settings.binds.getBind("active1").bind.code, () => { if(this.in_combat) handle_ability_press(0); })
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.settings.binds.getBind("active2").bind.code, () => { if(this.in_combat) handle_ability_press(1); })
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.settings.binds.getBind("active3").bind.code, () => { if(this.in_combat) handle_ability_press(2); })
+        this.engine.keyboard.setFunctionOnKeyPress(this.engine.settings.binds.getBind("activateLevelEditor").bind.code, () => { if(this.in_combat) this.toggleEditor(); })
     }
 
     setupVariables() {
@@ -546,20 +552,6 @@ export class CombatManager {
             "hand_active_size": 1,
             "hand_nonactive_size": 0.2,
             "paused": false,
-            "active_keybinds": [
-                {
-                    "code": "ShiftLeft",
-                    "name": "shift"
-                },
-                {
-                    "code": "Tab",
-                    "name": "tab"
-                },
-                {
-                    "code": "Space",
-                    "name": "space"
-                },
-            ],
             "drop_shadows": true,
             "show_bg_text": true,
             "performance": false
@@ -1579,7 +1571,7 @@ export class CombatManager {
             ctx.textBaseline = "middle";
             
             ctx.fillText(
-                `${this.combatSettings.active_keybinds[a].name}`,
+                `${this.engine.settings.binds.getBind(`active${a+1}`).bind.name}`,
                 x + w/2,
                 y - (h*0.1)
             );
@@ -1970,10 +1962,10 @@ export class CombatManager {
         }
 
         let dirx = 0, diry = 0;
-        if (this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.LEFT_ARROW) || this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.A_KEY)) { dirx += -1; }
-        if (this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.RIGHT_ARROW) || this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.D_KEY)) { dirx += 1; }
-        if (this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.UP_ARROW) || this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.W_KEY)) { diry += -1; }
-        if (this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.DOWN_ARROW) || this.engine.keyboard.isDown(this.engine.keyboard.KEYCODES.S_KEY)) { diry += 1; }
+        if (this.engine.keyboard.isDown(this.engine.settings.binds.getBind("walkLeft").bind.code)) { dirx += -1; }
+        if (this.engine.keyboard.isDown(this.engine.settings.binds.getBind("walkRight").bind.code)) { dirx += 1; }
+        if (this.engine.keyboard.isDown(this.engine.settings.binds.getBind("walkUp").bind.code)) { diry += -1; }
+        if (this.engine.keyboard.isDown(this.engine.settings.binds.getBind("walkDown").bind.code)) { diry += 1; }
 
         if(this.combat_active) this.player.move(delta, dirx, diry);
 
@@ -2114,7 +2106,8 @@ export class CombatManager {
     enterCombat(scenario) {
         let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
         e.onBlack = () => {
-            this.reset(scenario)
+            this.reset(scenario);
+            this.resetKeybinds();
             if(this.engine.other_state_data != null) {
                 this.engine.other_state_data.closeDialogueWindow(this.engine);
             }

@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { Keyboard } from "./controller.js";
+import { Keybinds, Keyboard } from "./controller.js";
 import { Loader, Camera, Window, Renderer, AnimationManager } from "./renderer.js";
 import { Map } from "./map.js";
 import { downloadBlob, getValueInStorage, pickFile, setValueInStorage } from "./browser.js";
@@ -153,7 +153,6 @@ export class Engine {
         this.map = new Map();
         this.map.importMapData(this.data.map);
         this.cards = new CardManager();
-        this.combat = new CombatManager(this.cards, this);
         this.state = "main";
         this.other_state = null;
         this.other_state_data = null;
@@ -622,10 +621,22 @@ export class Engine {
             });
 
             this.has_setup_handlers = true;
-        }
-       
-        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.M_KEY, () => {
+        };
+        this.keyboard.setFunctionOnKeyPress("Escape", () => {
+            if(this.keyboard.waiting) return;
+            if(this.other_state == "menu") {
+                this.renderer.closeMenu();
+            } else {
+                this.renderer.openMenu(this.renderer.menus.escape_menu);
+            }
+        });
+    }
+
+    resetControls() {
+        this.keyboard.listenForEvents(["Escape"].concat(this.settings.binds.binds.map(b => b.bind.code)));
+        this.keyboard.setFunctionOnKeyPress(this.settings.binds.getBind("activateLevelEditor").bind.code, () => {
             if(this.combat.in_combat) return;
+            if(this.other_state == "menu") return;
             if(this.debug.level_editor.first_open) {
                 alert("triggers don't activate while in level editor mode");
                 this.debug.level_editor.first_open = false;
@@ -638,19 +649,13 @@ export class Engine {
             this.debug.level_editor.tile_settings_subwindow.visible = false;
         });  
 
-        this.keyboard.setFunctionOnKeyPress(this.keyboard.KEYCODES.ESCAPE, () => {
-            if(this.other_state == "menu") {
-                this.renderer.closeMenu();
-            } else {
-                this.renderer.openMenu(this.renderer.menus.escape_menu);
-            }
-        })
+        if(this.combat.in_combat) this.combat.resetKeybinds();
     }
 
     async init() {
         this.settings = await EngineSettings.fromStorage();
-        this.keyboard.listenForEvents(
-            Object.values(this.keyboard.KEYCODES));
+        this.combat = new CombatManager(this.cards, this);
+        this.resetControls();
 
         const starting_area_data = this.map.getMapData(`home`);
     
@@ -715,15 +720,20 @@ export class Engine {
             this.camera.update();
             document.body.style.cursor = "default"; 
             if(!this.settings.settings.performance_mode) {
-                let mx = this.keyboard.mouseX; let my = this.keyboard.mouseY;
-                const m = this.renderer.active_menu
-                const rx = m.getRenderX(); const ry = m.getRenderY();
-                m.UIElements.forEach(e => {
-                    if(!e.visible || e.onclick == null) return;
-                    if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
-                        document.body.style.cursor = "pointer"; 
-                    }
-                });
+                const mx = this.renderer.engine.keyboard.mouseX;
+                const my = this.renderer.engine.keyboard.mouseY;
+                const handleClick = (menu) => {
+                    menu.UIElements.forEach(e => {
+                        const rx = menu.getRenderX();
+                        const ry = menu.getRenderY();
+                        if(!e.visible || e.onclick == null) return;
+                        if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
+                            document.body.style.cursor = "pointer"
+                        }
+                    })
+                };
+                handleClick(this.renderer.active_menu);
+                this.renderer.active_menu.submenus.filter(m => m.visible).forEach(m => handleClick(m));
             }
             return;
         }
@@ -735,18 +745,18 @@ export class Engine {
         if(this.state == "cutscene") return;
         var dirx = 0;
         var diry = 0;
-        if (this.keyboard.isDown(this.keyboard.KEYCODES.LEFT_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.A_KEY)) { dirx += -1; }
-        if (this.keyboard.isDown(this.keyboard.KEYCODES.RIGHT_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.D_KEY)) { dirx += 1; }
-        if (this.keyboard.isDown(this.keyboard.KEYCODES.UP_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.W_KEY)) { diry += -1; }
-        if (this.keyboard.isDown(this.keyboard.KEYCODES.DOWN_ARROW) || this.keyboard.isDown(this.keyboard.KEYCODES.S_KEY)) { diry += 1; }
+        if (this.keyboard.isDown(this.settings.binds.getBind("walkLeft").bind.code)) { dirx += -1; }
+        if (this.keyboard.isDown(this.settings.binds.getBind("walkRight").bind.code)) { dirx += 1; }
+        if (this.keyboard.isDown(this.settings.binds.getBind("walkUp").bind.code)) { diry += -1; }
+        if (this.keyboard.isDown(this.settings.binds.getBind("walkDown").bind.code)) { diry += 1; }
 
-        const space_down = this.keyboard.isDown(this.keyboard.KEYCODES.SPACE)
+        const space_down = this.keyboard.isDown("Space")
         this.renderer.windows.forEach(w => {
             w.opacity = space_down ? 0.2 : 1
             w.pass_clicks_through = space_down
         })
 
-        this.debug.show_grid = this.keyboard.isDown(this.keyboard.KEYCODES.G_KEY);
+        this.debug.show_grid = this.keyboard.isDown(this.settings.binds.getBind("showGrid").bind.code);
 
         const triggers = this.hero.map.triggers;
         if(!this.debug.level_editor.active) {
@@ -759,7 +769,7 @@ export class Engine {
         this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) })
        
     
-        this.hero.move(delta, dirx, diry, this.keyboard.isDown(this.keyboard.KEYCODES.SHIFT) ? 500 : 250);
+        this.hero.move(delta, dirx, diry, this.keyboard.isDown(this.settings.binds.getBind("sprint").bind.code) ? 500 : 250);
         this.camera.update();
 
         document.body.style.cursor = "default"; 
@@ -1238,13 +1248,19 @@ export class EngineSettings {
     static async getStorage() { let s = await getValueInStorage(EngineSettings.path()); return s; }
     static async fromStorage() { return new EngineSettings(JSON.parse(await this.getStorage())); }
     constructor(data) {
+        if(!data) data = {};
         this.settings = data || {
             "performance_mode": false
         };
+        this.binds = new Keybinds(data.binds || {}, this);
+    }
+
+    async updateStorage() {
+        await setValueInStorage(EngineSettings.path(), JSON.stringify(this.settings));
     }
 
     async modifySetting(name, val) {
         this.settings[name] = val;
-        await setValueInStorage(EngineSettings.path(), JSON.stringify(this.settings));
+        await this.updateStorage()
     }
 }

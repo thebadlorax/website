@@ -598,7 +598,7 @@ export class MenuUIElement {
     }
 
     destroy() {
-        this.window.UIElements.splice(this.window.UIElements.indexOf(this), 1);
+        this.menu.UIElements.splice(this.menu.UIElements.indexOf(this), 1);
     }
 
     render() {
@@ -751,16 +751,21 @@ export class Menu {
     }
 
     onclick() {
-        const rx = this.getRenderX();
-        const ry = this.getRenderY();
+        if( this.renderer.engine.keyboard.waiting) return;
         const mx = this.renderer.engine.keyboard.mouseX;
         const my = this.renderer.engine.keyboard.mouseY;
-        this.UIElements.forEach(e => {
-            if(!e.visible || e.onclick == null) return;
-            if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
-                e.onclick();
-            }
-        })
+        const handleClick = (menu) => {
+            menu.UIElements.forEach(e => {
+                const rx = menu.getRenderX();
+                const ry = menu.getRenderY();
+                if(!e.visible || e.onclick == null) return;
+                if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
+                    e.onclick();
+                }
+            })
+        };
+        handleClick(this);
+        this.submenus.filter(m => m.visible).forEach(m => handleClick(m));
     }
 };
 
@@ -867,5 +872,37 @@ export class MenuRegistry {
         km.visible = false;
         em.submenus.push(km);
         km.createUIElement((csm.settings.width/2)-50, 0, 100, 100, "text", {"text":"keybinds","fontSize":"25"});
+        const refresh_keybinds = () => {
+            km.UIElements.filter(e => e.type == "textbutton").forEach(e => e.destroy());
+            /*let b1 = km.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":`Reset Keybinds`});
+            b1.onclick = () => {
+                km.renderer.engine.settings.binds.reset();
+                km.renderer.engine.resetControls();
+                refresh_keybinds();
+            }*/
+            km.renderer.engine.settings.binds.binds.forEach((b, index) => {
+                let button = km.createUIElement(25, 100+(index*60), em.settings.width-50, 50, "textbutton", {"text":`${b.name}:     ${b.bind.name}`});
+                button.onclick = () => {
+                    if(km.renderer.engine.keyboard.waiting) return;
+                    button.data.text = `${b.name}:     Click a key`
+                    const handle = () => {
+                        km.renderer.engine.keyboard.waitForKeyPress().then(async k => {
+                            if(k.code == "Escape") {
+                                handle();
+                                return;
+                            }
+                            km.renderer.engine.keyboard.setFunctionOnKeyPress(b.bind.code, () => {})
+                            await km.renderer.engine.settings.binds.updateBind(b.id, k.key == " " ? "Space" : k.key, k.code);
+                            km.renderer.engine.resetControls();
+                            refresh_keybinds();
+                        })
+                    }
+                    handle();
+                    
+                }
+            })
+        };
+        refresh_keybinds();
+        
     }
 };
