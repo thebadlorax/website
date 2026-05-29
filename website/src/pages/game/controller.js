@@ -156,13 +156,18 @@ export class Keybinds {
         },
     ];
 
-    constructor(data={}, settings) {
-        this.binds = data || Keybinds.DEFAULT_KEYBINDS;
+    constructor(data, settings) {
+        this.binds = data
+        if(Object.keys(data) <= 0) {
+            this.binds = Keybinds.DEFAULT_KEYBINDS
+        }
         this.settings = settings;
     }
 
-    reset() {
+    async reset() {
         this.binds = Keybinds.DEFAULT_KEYBINDS;
+        this.settings.settings.binds = this.binds;
+        await this.settings.updateStorage();
     }
 
     getBind(id) {

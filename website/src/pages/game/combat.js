@@ -2106,6 +2106,7 @@ export class CombatManager {
     enterCombat(scenario) {
         let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
         e.onBlack = () => {
+            this.engine.renderer.menus.escape_menu.UIElements.find(e => e.data.text == "forfeit").visible = true;
             this.reset(scenario);
             this.resetKeybinds();
             if(this.engine.other_state_data != null) {
@@ -2118,6 +2119,7 @@ export class CombatManager {
         let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
         this.in_combat = false;
         e.onBlack = () => {
+            this.engine.renderer.menus.escape_menu.UIElements.find(e => e.data.text == "forfeit").visible = false;
             this.engine.state = "main";
             this.engine.setKeybinds();
         };

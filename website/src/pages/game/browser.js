@@ -43,3 +43,4 @@ export async function pickFile() {
 
 export async function setValueInStorage(name, val) { window.localStorage.setItem(name, val); };
 export async function getValueInStorage(val) { return window.localStorage.getItem(val); };
+export async function deleteValueInStorage(val) { return window.localStorage.removeItem(val); };

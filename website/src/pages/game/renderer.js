@@ -417,6 +417,9 @@ export class Renderer {
     }
 
     closeMenu() {
+        this.active_menu.submenus.forEach(m => m.visible = false);
+        this.active_menu.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
+        this.active_menu.submenus.forEach(m => m.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black"))
         this.engine.other_state = null;
         this.active_menu = null;
     }
@@ -741,10 +744,10 @@ export class Menu {
 
         this.submenus.forEach(m => {
             if(m.visible) m.render();
-        })
+        });
 
         this.UIElements.forEach(e => {
-            e.render();
+            if(e.visible) e.render();
         });
 
         ctx.restore();
@@ -762,10 +765,10 @@ export class Menu {
                 if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
                     e.onclick();
                 }
-            })
+            });
+            menu.submenus.filter(m => m.visible).forEach(m => handleClick(m));
         };
         handleClick(this);
-        this.submenus.filter(m => m.visible).forEach(m => handleClick(m));
     }
 };
 
@@ -773,6 +776,7 @@ export class MenuRegistry {
     constructor(renderer) {
         this.MENUS = {
             "escape_menu": new Menu(renderer),
+            "settings_menu": new Menu(renderer),
             "combat_settings_menu": new Menu(renderer),
             "keybinds_menu": new Menu(renderer)
         }
@@ -781,62 +785,97 @@ export class MenuRegistry {
 
     setup() {
         const em = this.MENUS.escape_menu;
-        const change_active_submenu = (menu, button) => {
-            em.submenus.forEach(m => m.visible = false);
-            menu.visible = true;
-            em.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
-            button.data.strokeColor = "cyan";
-        };
         const close_menu = () => {
             em.submenus.forEach(m => m.visible = false);
+            em.submenus.forEach(m => m.submenus.forEach(e => e.visible = false))
             em.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
+            em.submenus.forEach(m => m.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black"))
         }
         em.createUIElement((em.settings.width/2)-50, 0, 100, 100, "text", {"text":"menu","fontSize":"25"});
-        let pmb = em.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"performance mode"});
-        pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
-        pmb.onclick = async () => {
-            console.log("a")
-            await em.renderer.engine.settings.modifySetting("performance_mode", !em.renderer.engine.settings.settings.performance_mode);
-            pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
-        };
-        let csb = em.createUIElement(25, 175, em.settings.width-50, 50, "textbutton", {"text":"combat settings"});
-        csb.onclick = async () => {
-            if(!csm.visible) {
-                change_active_submenu(csm, csb)
+        let sb = em.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"settings"});
+        sb.onclick = async () => {
+            if(!sm.visible) {
+                sm.visible = true;
+                sb.data.strokeColor = "cyan";
             } else {
-                csm.visible = false;
-                csb.data.strokeColor = "black";
+                close_menu()
             }
         }
-        let kbb = em.createUIElement(25, 250, em.settings.width-50, 50, "textbutton", {"text":"keybinds"});
-        kbb.onclick = async () => {
-            if(!km.visible) {
-                change_active_submenu(km, kbb)
-            } else {
-                km.visible = false;
-                kbb.data.strokeColor = "black";
-            }
-        }
-        let eb = em.createUIElement(25, 350, em.settings.width-50, 50, "textbutton", {"text":"exit menu"})
+        let eb = em.createUIElement(25, 625, em.settings.width-50, 50, "textbutton", {"text":"exit menu"})
         eb.onclick = () => {
             em.renderer.closeMenu();
             close_menu();
         }
-        let ehb = em.createUIElement(25, 450, em.settings.width-50, 50, "textbutton", {"text":"exit to homepage"})
+        let ehb = em.createUIElement(25, 700, em.settings.width-50, 50, "textbutton", {"text":"exit to homepage"})
         ehb.onclick = () => {
             if(confirm("are you sure")) window.location.href = "/";
+        };
+        let fb = em.createUIElement(25, 550, em.settings.width-50, 50, "textbutton", {"text":"forfeit","bg_color": "red"});
+        fb.visible = false;
+        fb.onclick = () => {
+            if(!em.renderer.engine.combat.in_combat) return;
+            em.renderer.engine.combat.onDeath();
+            em.renderer.closeMenu();
+            close_menu();
         }
 
+        const sm = this.MENUS.settings_menu;
+        sm.settings = {
+            "color": {
+                "bg": "white",
+                "border": "black",
+                "border_weight": 2
+            },
+            "x": 425,
+            "y": em.renderer.camera.height*0.025,
+            "space": "screen",
+            "width": 400,
+            "height": em.renderer.camera.height*0.95,
+            "hide_game": false,
+            "rotation": 0 // degrees
+        };
+        sm.visible = false;
+        em.submenus.push(sm);
+        sm.createUIElement((sm.settings.width/2)-50, 0, 100, 100, "text", {"text":"settings","fontSize":"25"});
+        let kbb = sm.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"keybinds"});
+        kbb.onclick = async () => {
+            sm.submenus.filter(m => m != km).forEach(m => m.visible = false);
+            sm.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
+            if(!km.visible) {
+                km.visible = true;
+                kbb.data.strokeColor = "cyan";
+            } else {
+                km.visible = false;
+                kbb.data.strokeColor = "black";
+            }
+        };
+        let csb = sm.createUIElement(25, 160, em.settings.width-50, 50, "textbutton", {"text":"combat"});
+        csb.onclick = async () => {
+            sm.submenus.filter(m => m != csm).forEach(m => m.visible = false);
+            sm.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
+            if(!csm.visible) {
+                csm.visible = true;
+                csb.data.strokeColor = "cyan";
+            } else {
+                csm.visible = false;
+                csb.data.strokeColor = "black";
+            }
+        };
+        let pmb = sm.createUIElement(25, 220, em.settings.width-50, 50, "textbutton", {"text":"performance mode"});
+        pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
+        pmb.onclick = async () => {
+            await em.renderer.engine.settings.modifySetting("performance_mode", !em.renderer.engine.settings.settings.performance_mode);
+            pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
+        };
 
-
-        const csm = new Menu(em.renderer);
+        const csm = this.MENUS.combat_settings_menu;
         csm.settings = {
             "color": {
                 "bg": "white",
                 "border": "black",
                 "border_weight": 2
             },
-            "x": 450,
+            "x": 840,
             "y": em.renderer.camera.height*0.025,
             "space": "screen",
             "width": 400,
@@ -845,7 +884,7 @@ export class MenuRegistry {
             "rotation": 0 // degrees
         };
         csm.visible = false;
-        em.submenus.push(csm);
+        sm.submenus.push(csm);
         csm.createUIElement((csm.settings.width/2)-50, 0, 100, 100, "text", {"text":"combat settings","fontSize":"25"});
         let bgtao = csm.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"background text opacity (in combat)"});
         let bgtio = csm.createUIElement(25, 162.2, em.settings.width-50, 50, "textbutton", {"text":"background text opacity (out of combat)"});
@@ -861,7 +900,7 @@ export class MenuRegistry {
                 "border": "black",
                 "border_weight": 2
             },
-            "x": 450,
+            "x": 840,
             "y": em.renderer.camera.height*0.025,
             "space": "screen",
             "width": 400,
@@ -870,21 +909,18 @@ export class MenuRegistry {
             "rotation": 0 // degrees
         };
         km.visible = false;
-        em.submenus.push(km);
-        km.createUIElement((csm.settings.width/2)-50, 0, 100, 100, "text", {"text":"keybinds","fontSize":"25"});
+        sm.submenus.push(km);
         const refresh_keybinds = () => {
+            km.UIElements.forEach(e => e.destroy());
+            km.UIElements.filter(e => e.type == "text").forEach(e => e.destroy());
             km.UIElements.filter(e => e.type == "textbutton").forEach(e => e.destroy());
-            /*let b1 = km.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":`Reset Keybinds`});
-            b1.onclick = () => {
-                km.renderer.engine.settings.binds.reset();
-                km.renderer.engine.resetControls();
-                refresh_keybinds();
-            }*/
+            km.createUIElement((csm.settings.width/2)-50, 0, 100, 100, "text", {"text":"keybinds","fontSize":"25"});
             km.renderer.engine.settings.binds.binds.forEach((b, index) => {
-                let button = km.createUIElement(25, 100+(index*60), em.settings.width-50, 50, "textbutton", {"text":`${b.name}:     ${b.bind.name}`});
+                km.createUIElement(75, 60+(index*60), 100, 100, "text", {"text":b.name,"fontSize":"13"});
+                let button = km.createUIElement(225, 85+(index*60), em.settings.width-300, 50, "textbutton", {"text":`${b.bind.name}`});
                 button.onclick = () => {
                     if(km.renderer.engine.keyboard.waiting) return;
-                    button.data.text = `${b.name}:     Click a key`
+                    button.data.text = `Click a key`
                     const handle = () => {
                         km.renderer.engine.keyboard.waitForKeyPress().then(async k => {
                             if(k.code == "Escape") {

@@ -8,7 +8,7 @@
 import { Keybinds, Keyboard } from "./controller.js";
 import { Loader, Camera, Window, Renderer, AnimationManager } from "./renderer.js";
 import { Map } from "./map.js";
-import { downloadBlob, getValueInStorage, pickFile, setValueInStorage } from "./browser.js";
+import { deleteValueInStorage, downloadBlob, getValueInStorage, pickFile, setValueInStorage } from "./browser.js";
 
 import { clamp } from "../common.js";
 import { Card, CardManager, CombatManager } from "./combat.js";
@@ -188,7 +188,7 @@ export class Engine {
         this._previousElapsed = elapsed;
 
         this.update(delta);
-        this.renderer.render();
+        if(this.renderer != undefined) this.renderer.render();
     }
 
     setupLevelEditor() {
@@ -728,15 +728,16 @@ export class Engine {
                         const ry = menu.getRenderY();
                         if(!e.visible || e.onclick == null) return;
                         if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
-                            document.body.style.cursor = "pointer"
+                            document.body.style.cursor = "pointer";
                         }
-                    })
+                    });
+                    menu.submenus.filter(m => m.visible).forEach(m => handleClick(m));
                 };
                 handleClick(this.renderer.active_menu);
-                this.renderer.active_menu.submenus.filter(m => m.visible).forEach(m => handleClick(m));
             }
             return;
         }
+        if(!this.renderer) return;
         this.renderer.updateEffects(delta);
         if(this.combat.in_combat) {
             this.combat.combatUpdate(delta);
@@ -1252,11 +1253,15 @@ export class EngineSettings {
         this.settings = data || {
             "performance_mode": false
         };
-        this.binds = new Keybinds(data.binds || {}, this);
+        this.binds = new Keybinds(data.binds == null ? {} : data.binds, this);
     }
 
     async updateStorage() {
         await setValueInStorage(EngineSettings.path(), JSON.stringify(this.settings));
+    }
+
+    async clearStorage() {
+        await deleteValueInStorage(EngineSettings.path());
     }
 
     async modifySetting(name, val) {

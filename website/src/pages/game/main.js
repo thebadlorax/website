@@ -40,7 +40,7 @@ const checkIfDisabled = async () => {
 setInterval(async () => {await checkIfDisabled()}, 3000);
 
 let a = setInterval(() => {
-    console.log("DO NOT MESS AROUND IN HERE\nyou won't learn anything and my engine is too cool for you to understand")
+    console.log("DO NOT MESS AROUND IN HERE\nyou won't learn anything and my engine is too cool for you to understand\nalso if you fuck up your playerdata i can't help you")
 }, 30)
 setTimeout(() => {
     clearInterval(a);
