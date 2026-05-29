@@ -814,7 +814,7 @@ export class MenuRegistry {
         fb.visible = false;
         fb.onclick = () => {
             if(!em.renderer.engine.combat.in_combat) return;
-            em.renderer.engine.combat.onDeath();
+            em.renderer.engine.combat.onForfeit();
             em.renderer.closeMenu();
             close_menu();
         }

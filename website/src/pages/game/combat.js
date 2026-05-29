@@ -577,7 +577,7 @@ export class CombatManager {
             "has_won": false,
             "reward_cards": [],
             "pellets": [],
-            "victory_status": false,
+            "victory_status": 0,
             "timer_timescale": 1
         }
         this.card_rendering = {
@@ -1140,7 +1140,7 @@ export class CombatManager {
         rewards.forEach((reward, i) => {
 
             if(reward.type == "card") {
-                if(!this.combatVariables.victory_status) return;
+                if(this.combatVariables.victory_status != 0) return;
                 const angle = (Math.PI * 2) * (i / rewards.length);
 
                 this.engine.inventory.giveItem(reward);
@@ -1166,7 +1166,8 @@ export class CombatManager {
                     fadeSpeed: 2.5
                 });
             } else if(reward.type == "money") {
-                if(!this.combatVariables.victory_status) reward.data.amount /= 2;
+                if(this.combatVariables.victory_status != 0) reward.data.amount /= 2;
+                if(this.combatVariables.victory_status == 2) reward.data.amount = 10;
                 this.spawnRewardPellets(
                     cb.w / 2,
                     cb.h / 2,
@@ -1337,6 +1338,9 @@ export class CombatManager {
     
             p.x += p.vx * delta;
             p.y += p.vy * delta;
+
+            p.x = clamp(p.x, 0, cb.w);
+            p.y = clamp(p.y, 0, cb.h);
     
             const dx = px - p.x;
             const dy = py - p.y;
@@ -1383,7 +1387,7 @@ export class CombatManager {
         this.setBackgroundText("victory");
         this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
 
-        this.combatVariables.victory_status = true;
+        this.combatVariables.victory_status = 0;
 
         this.spawnRewards();
     }
@@ -1391,6 +1395,15 @@ export class CombatManager {
     onDeath() {
         this.combatVariables.has_won = true;
         this.setBackgroundText("defeat");
+        this.combatVariables.victory_status = 1;
+        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
+        this.spawnRewards();
+    }
+
+    onForfeit() {
+        this.combatVariables.has_won = true;
+        this.setBackgroundText("forfeit");
+        this.combatVariables.victory_status = 2;
         this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
         this.spawnRewards();
     }

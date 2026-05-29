@@ -693,6 +693,7 @@ export class Engine {
 
         this.data.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
 
+        console.log(this.data.player_data)
         this.data.player_data.inventory.items.forEach(i => {
             this.inventory.giveItem(i);
         });
