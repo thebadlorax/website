@@ -419,8 +419,6 @@ export class CombatManager {
         this.cardManager = cm;
         this.setupVariables();
         
-        
-        
         setTimeout(() => { this.debug.buttons[0].onClick(); }, 500);
 
         this.resetKeybinds();
@@ -801,6 +799,7 @@ export class CombatManager {
             ctx.clip("evenodd");
         }
     
+        this.drawDropShadow(30, 0.3, dcx, dcy, card_size.w*.9, card_size.h*.9, card_size.w*.2, card_size.h*.2)
         
         ctx.drawImage(
             c.image,
@@ -809,8 +808,6 @@ export class CombatManager {
             card_size.w,
             card_size.h
         );
-
-        this.drawDropShadow(30, 0.3, dcx, dcy, card_size.w*.9, card_size.h*.9, card_size.w*.2, card_size.h*.2)
     
         ctx.restore();
 
@@ -914,18 +911,11 @@ export class CombatManager {
 
         ctx.lineWidth = 3;
 
-        //let r = 255 * (1 - hp_percent);
-        //let g = 200 * hp_percent;
-        //ctx.fillStyle = `rgba(${r}, ${g}, 0, 1)`;
         ctx.fillStyle = `rgba(0, 190, 0, 1)`;
         ctx.fillRect(cb.x, ((cb.y-h)-padding), w * hp_percent, h)
 
-        /*r = 255 * (1 - opp_hp_percent);
-        g = 200 * opp_hp_percent;
-        ctx.fillStyle = `rgba(${r}, ${g}, 0, 1)`;*/
         ctx.fillStyle = `rgba(255, 0, 0, 1)`;
         ctx.fillRect(x2, ((cb.y-h)-padding), w2 * opp_hp_percent, h)
-
 
         ctx.strokeStyle = "rgba(255, 255, 255, 1)";
         ctx.strokeRect(cb.x, ((cb.y-h)-padding), w, h);
@@ -1403,6 +1393,8 @@ export class CombatManager {
 
     setBackgroundText(text) {
         if(this.combatVariables.bg_text_current == text) return;
+
+        document.title = text
     
         this.combatVariables.bg_text_next = text;
         this.combatVariables.bg_text_transition = 0;
@@ -2100,6 +2092,7 @@ export class CombatManager {
         e.onBlack = () => {
             this.engine.renderer.menus.escape_menu.UIElements.find(e => e.data.text == "forfeit").visible = true;
             this.reset(scenario);
+            document.title = this.combatVariables.bg_text_current
             this.resetKeybinds();
             if(this.engine.other_state_data != null) {
                 this.engine.other_state_data.closeDialogueWindow(this.engine);
@@ -2113,6 +2106,7 @@ export class CombatManager {
         e.onBlack = () => {
             this.engine.renderer.menus.escape_menu.UIElements.find(e => e.data.text == "forfeit").visible = false;
             this.engine.state = "main";
+            document.title = "game name"
             this.engine.setKeybinds();
         };
     }

@@ -515,7 +515,7 @@ export class Renderer {
         });
 
         if(this.engine.other_state == "menu") {
-            this.active_menu.render()
+            this.active_menu.render();
         };
     };
 };
@@ -682,6 +682,10 @@ export class MenuUIElement {
                     rx + pos.x + (pos.w / 2),
                     ry + pos.y + (pos.h / 2)
                 );
+                if(this.data.fg_color != null) {
+                    this.ctx.fillStyle = this.data.fg_color;
+                    this.ctx.fillRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
+                }
                 break;
             }
             case "image": {
@@ -762,7 +766,7 @@ export class MenuUIElement {
                 this.ctx.textBaseline = "middle";
                 if(this.data.showVal) {
                     this.ctx.fillText(
-                        this.data.progress.toFixed(3),
+                        this.data.progress.toFixed(2),
                         rx + pos.x + (pos.w*.95),
                         ry + pos.y + (pos.h*.9)
                     );
@@ -818,7 +822,7 @@ export class Menu {
             "space": "screen",
             "width": 0.3,
             "height": 0.95,
-            "hide_game": false,
+            "hide_game": true,
             "rotation": 0 // degrees
         }
     }
@@ -854,7 +858,7 @@ export class Menu {
         if(this.settings.color.game != null) {
             ctx.fillStyle = this.settings.color.game;
             ctx.fillRect(0, 0, this.renderer.camera.width, this.renderer.camera.height);
-        }
+        };
 
         ctx.save();
 
@@ -937,7 +941,8 @@ export class MenuRegistry {
             "settings_menu": new Menu(renderer),
             "combat_settings_menu": new Menu(renderer),
             "keybinds_menu": new Menu(renderer),
-            "visual_settings_menu": new Menu(renderer)
+            "visual_settings_menu": new Menu(renderer),
+            "main_menu": new Menu(renderer)
         }
         this.setup();
     }
@@ -960,10 +965,16 @@ export class MenuRegistry {
                 close_menu()
             }
         }
-        let eb = em.createUIElement(0.05, 0.8, 0.9, 0.07, "textbutton", {"text":"exit menu"})
+        let eb = em.createUIElement(0.05, 0.7, 0.9, 0.07, "textbutton", {"text":"exit menu (esc)"})
         eb.onclick = () => {
             em.renderer.closeMenu();
             close_menu();
+        }
+        let btmb = em.createUIElement(0.05, 0.8, 0.9, 0.07, "textbutton", {"text":"back to main menu"})
+        btmb.onclick = () => {
+            em.renderer.closeMenu();
+            close_menu();
+            em.renderer.openMenu(this.MENUS.main_menu);
         }
         let ehb = em.createUIElement(0.05, 0.9, 0.9, 0.07, "textbutton", {"text":"exit to homepage"})
         ehb.onclick = () => {
@@ -1033,7 +1044,7 @@ export class MenuRegistry {
             }
         };
         let rb = sm.createUIElement(0.05, 0.42, 0.9, 0.07, "textbutton", {"text":"reset all", "bg_color": "red"});
-        rb.onclick = async () => { if(confirm("are you sure? (will reload on confirmation)")) await em.renderer.engine.settings._fullReset(); }
+        rb.onclick = async () => { if(confirm("are you sure? (will reload the page)")) await em.renderer.engine.settings._fullReset(); }
 
         const csm = this.MENUS.combat_settings_menu;
         csm.settings = {
@@ -1077,6 +1088,18 @@ export class MenuRegistry {
         let hyo = csm.createUIElement(0.05, 0.42, 0.9, 0.07, "slider", {"min": -180, "max": 60, "step": 1, "title": "hand vertical offset"});
         hyo.onchange = async () => { await em.renderer.engine.settings.modifySetting("hyo", hyo.data.progress); }
         hyo.data.progress = em.renderer.engine.settings.settings.hyo || hyo.data.progress;
+        let dsb = csm.createUIElement(0.05, 0.52, 0.9, 0.07, "toggle", {"text":"combat drop shadows"});
+        dsb.data.active = em.renderer.engine.settings.settings.ds || false
+        dsb.onclick = () => { dsb.data.active = !em.renderer.engine.settings.settings.ds;
+            em.renderer.engine.settings.modifySetting("ds", dsb.data.active); }
+        let btb = csm.createUIElement(0.05, 0.62, 0.9, 0.07, "toggle", {"text":"combat background text"});
+        btb.data.active = em.renderer.engine.settings.settings.bt || false
+        btb.onclick = () => { btb.data.active = !em.renderer.engine.settings.settings.bt;
+            em.renderer.engine.settings.modifySetting("bt", btb.data.active); }
+        let misc_perf = csm.createUIElement(0.05, 0.72, 0.9, 0.07, "toggle", {"text":"misc performance improvements"});
+        misc_perf.data.active = em.renderer.engine.settings.settings.mp || false
+        misc_perf.onclick = () => { misc_perf.data.active = !em.renderer.engine.settings.settings.mp;
+            em.renderer.engine.settings.modifySetting("mp", misc_perf.data.active); }
 
         const km = this.MENUS.keybinds_menu;
         km.settings = {
@@ -1102,10 +1125,11 @@ export class MenuRegistry {
             km.UIElements.filter(e => e.type == "textbutton").forEach(e => e.destroy());
             km.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"keybinds","fontSize":"25"});
             km.renderer.engine.settings.binds.binds.forEach((b, index) => {
-                km.createUIElement(0.6, 0.11+(.0805*index), 0.1, 0.1, "text", {"text":b.name,"fontSize":"13"});
-                let button = km.createUIElement(0.1, 0.13+(.08*index), 0.3, 0.06, "textbutton", {"text":`${b.bind.name}`});
+                km.createUIElement(0.25, 0.11+(.0805*index), 0.1, 0.1, "text", {"text":b.name,"fontSize":"13"});
+                let button = km.createUIElement(0.6, 0.13+(.08*index), 0.3, 0.06, "textbutton", {"text":`${b.bind.name}`});
                 button.onclick = () => {
                     if(km.renderer.engine.keyboard.waiting) return;
+                    button.data.strokeColor = "cyan"
                     button.data.text = `Click a key`
                     const handle = () => {
                         km.renderer.engine.keyboard.waitForKeyPress().then(async k => {
@@ -1148,17 +1172,33 @@ export class MenuRegistry {
         ceb.data.active = em.renderer.engine.settings.settings.ce || false
         ceb.onclick = () => { ceb.data.active = !em.renderer.engine.settings.settings.ce;
             em.renderer.engine.settings.modifySetting("ce", ceb.data.active); }
-        let dsb = vsm.createUIElement(0.05, 0.22, 0.9, 0.07, "toggle", {"text":"combat drop shadows"});
-        dsb.data.active = em.renderer.engine.settings.settings.ds || false
-        dsb.onclick = () => { dsb.data.active = !em.renderer.engine.settings.settings.ds;
-            em.renderer.engine.settings.modifySetting("ds", dsb.data.active); }
-        let btb = vsm.createUIElement(0.05, 0.32, 0.9, 0.07, "toggle", {"text":"combat background text"});
-        btb.data.active = em.renderer.engine.settings.settings.bt || false
-        btb.onclick = () => { btb.data.active = !em.renderer.engine.settings.settings.bt;
-            em.renderer.engine.settings.modifySetting("bt", btb.data.active); }
-        let misc_perf = vsm.createUIElement(0.05, 0.42, 0.9, 0.07, "toggle", {"text":"misc performance improvements"});
-        misc_perf.data.active = em.renderer.engine.settings.settings.mp || false
-        misc_perf.onclick = () => { misc_perf.data.active = !em.renderer.engine.settings.settings.mp;
-            em.renderer.engine.settings.modifySetting("mp", misc_perf.data.active); }
-    }
+        
+        const mm = this.MENUS.main_menu;
+        mm.settings = {
+            "color": {
+                "bg": "rgba(200, 200, 200, 1)",
+                "border": "black",
+                "border_weight": 2
+            },
+            "x": 0,
+            "y": 0,
+            "space": "screen",
+            "width": 1,
+            "height": 1,
+            "hide_game": true,
+            "rotation": 0, // degrees
+            "block_esc": true
+        };
+        mm.createUIElement(0.45, 0.05, 0.1, 0.1, "text", {"text":"game name","fontSize":"80"});
+        let spb = mm.createUIElement(0.225, 0.3, 0.25, 0.1, "textbutton", {"text":"singleplayer","bg_color": "white"})
+        spb.onclick = async () => {
+            if(em.renderer.engine.settings.settings.fp) {
+                await em.renderer.engine.settings.modifySetting("fp", false);
+            }
+            em.renderer.closeMenu();
+        }
+        let mpb = mm.createUIElement(0.525, 0.3, 0.25, 0.1, "textbutton", {"text":"multiplayer (wip)","fg_color":"rgba(128, 128, 128, 0.8)"})
+        mm.visible = false;
+        
+    };
 };

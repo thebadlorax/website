@@ -20,8 +20,9 @@ d = await d.json();
 const engine = new Engine(d);
 
 function start() {
-    const canvas = document.getElementById("demo");
+    const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d");
+    document.body.appendChild(canvas)
     engine.run(context);
 }
 

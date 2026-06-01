@@ -170,11 +170,15 @@ export class Engine {
         this.ctx = context;
         this._previousElapsed = 0;
     
+        document.title = "loading assets"
         var p = this.load();
         Promise.all(p).then(() => {
+            document.title = "initializing"
             this.init();
             this.setupHTML();
+            document.title = "loaded"
             window.requestAnimationFrame(this.tick);
+            document.title = "game name"
         });
     }
 
@@ -626,7 +630,7 @@ export class Engine {
         this.keyboard.setFunctionOnKeyPress("Escape", () => {
             if(this.keyboard.waiting) return;
             if(this.other_state == "menu") {
-                this.renderer.closeMenu();
+                if(!this.renderer.active_menu.settings.block_esc) this.renderer.closeMenu();
             } else {
                 this.renderer.openMenu(this.renderer.menus.escape_menu);
             }
@@ -701,6 +705,8 @@ export class Engine {
         this.data.player_data.deck.forEach(c => {
             this.cards.addToDeck(c);
         });
+
+        if(!this.settings.settings.skip_mm) this.renderer.openMenu(this.renderer.menus.main_menu);
     };
 
     _resize() {
@@ -1262,7 +1268,6 @@ export class EngineSettings {
     static async getStorage() { let s = await getValueInStorage(EngineSettings.path()); return s; }
     static async fromStorage() { return new EngineSettings(JSON.parse(await this.getStorage())); }
     constructor(data) {
-        //if(!data) data = {};
         this.settings = data || {
             "performance_mode": false,
             "ce": true,
@@ -1272,7 +1277,9 @@ export class EngineSettings {
             "btooc": 0.1,
             "hs": 1,
             "hyo": 0,
-            "mp": false
+            "mp": false,
+            "fp": true,
+            "skip_mm": false
         };
         if(data != undefined) {
             this.binds = new Keybinds(data.binds || {}, this);

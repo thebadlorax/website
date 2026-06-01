@@ -5,9 +5,6 @@
  * copyright 2026
 */
 
-import { setValueInStorage } from "./browser.js";
-import { EngineSettings } from "./engine.js";
-
 export class Keyboard {
     _keys = {};
     _key_functions = {};

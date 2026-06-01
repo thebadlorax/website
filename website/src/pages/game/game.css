@@ -11,14 +11,10 @@ html, body {
     padding: 0;
     overflow: hidden;
     font-family: "Jersey 20", sans-serif;
-}
-
-body {
     background-color: black;
-
 }
 
-.canvas {
+body canvas {
     image-rendering: pixelated;
     display: block;
 }
