@@ -727,9 +727,18 @@ export class Engine {
                     menu.UIElements.forEach(e => {
                         const rx = menu.getRenderX();
                         const ry = menu.getRenderY();
+                        const mw = menu.getWidth();
+                        const mh = menu.getHeight();
+        
+                        const pos = {
+                            "x": mw * e.x,
+                            "y": mh * e.y,
+                            "w": mw * e.w,
+                            "h": mh * e.h
+                        }
                         if(!e.visible || e.onclick == null) return;
-                        if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
-                            document.body.style.cursor = "pointer";
+                        if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+pos.x,ry+pos.y, pos.w, pos.h)) {
+                            document.body.style.cursor = "pointer"
                         }
                     });
                     menu.submenus.filter(m => m.visible).forEach(m => handleClick(m));

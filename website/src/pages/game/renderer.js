@@ -607,32 +607,41 @@ export class MenuUIElement {
     render() {
         const rx = this.menu.getRenderX();
         const ry = this.menu.getRenderY();
+        const mw = this.menu.getWidth();
+        const mh = this.menu.getHeight();
+
+        const pos = {
+            "x": mw * this.x,
+            "y": mh * this.y,
+            "w": mw * this.w,
+            "h": mh * this.h
+        }
         switch(this.type) {
             case "button": {
                 this.ctx.fillStyle = "gray";
-                this.ctx.fillRect(rx + this.x, ry + this.y, this.w, this.h);
+                this.ctx.fillRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
                 this.ctx.strokeStyle = "black";
                 this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(rx + this.x, ry + this.y, this.w, this.h);
+                this.ctx.strokeRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
                 break;
             }
             case "textbutton": {
                 if(this.data.bg_color != null) {
                     this.ctx.fillStyle = this.data.bg_color;
-                    this.ctx.fillRect(rx + this.x, ry + this.y, this.w, this.h);
+                    this.ctx.fillRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
                 }
                 this.ctx.fillStyle = "black";
                 this.ctx.strokeStyle = this.data.strokeColor || "black";
                 this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(rx + this.x, ry + this.y, this.w, this.h);
+                this.ctx.strokeRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
                 this.ctx.font = "13px monospace";
 
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
                 this.ctx.fillText(
                     this.data.text,
-                    rx + this.x + (this.w / 2),
-                    ry + this.y + (this.h / 2)
+                    rx + pos.x + (pos.w / 2),
+                    ry + pos.y + (pos.h / 2)
                 );
                 break;
             }
@@ -644,23 +653,23 @@ export class MenuUIElement {
                         0, // source y
                         this.data.tileSize, // source width
                         this.data.tileSize, // source height
-                        (rx + this.x)+1,
-                        (ry + this.y)+1,
-                        this.w-2, // target width
-                        this.h-2 // target height
+                        (rx + pos.x)+1,
+                        (ry + pos.y)+1,
+                        pos.w-2, // target width
+                        pos.h-2 // target height
                     );
                 } else {
-                    this.ctx.drawImage(this.data.image, (rx+this.x)+1, (ry+this.y)+1, this.w-2, this.h-2)
+                    this.ctx.drawImage(this.data.image, (rx+pos.x)+1, (ry+pos.y)+1, pos.w-2, pos.h-2)
                 }
 
                 if(this.data.overlayColor != null) {
                     this.ctx.fillStyle = this.data.overlayColor;
-                    this.ctx.fillRect((rx + this.x), (ry + this.y), this.w, this.h);
+                    this.ctx.fillRect((rx + pos.x), (ry + pos.y), pos.w, pos.h);
                 }
                 
                 this.ctx.strokeStyle = this.data.strokeColor || "black";
                 this.ctx.lineWidth = 2;
-                this.ctx.strokeRect(rx + this.x, ry + this.y, this.w, this.h);
+                this.ctx.strokeRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
                 break;
             }
             case "text": {
@@ -670,8 +679,8 @@ export class MenuUIElement {
                 this.ctx.textBaseline = "middle";
                 this.ctx.fillText(
                     this.data.text,
-                    rx + this.x + (this.w / 2),
-                    ry + this.y + (this.h / 2)
+                    rx + pos.x + (pos.w / 2),
+                    ry + pos.y + (pos.h / 2)
                 );
             }
         }
@@ -694,27 +703,30 @@ export class Menu {
                 "border_weight": 2,
                 "game": "rgba(0, 0, 0, 0.6)"
             },
-            "x": 10,
-            "y": this.renderer.camera.height*0.025,
+            "x": 0.01,
+            "y": 0.025,
             "space": "screen",
-            "width": 400,
-            "height": this.renderer.camera.height*0.95,
+            "width": 0.3,
+            "height": 0.95,
             "hide_game": false,
             "rotation": 0 // degrees
         }
     }
 
+    getWidth() { return this.renderer.camera.width * this.settings.width; }
+    getHeight() { return this.renderer.camera.height * this.settings.height; }
+
     getRenderX() {
         if(this.settings.space === "world") {
             return this.settings.x - this.renderer.camera.x;
         }
-        return this.settings.x;
+        return this.renderer.camera.width * this.settings.x;
     }
     getRenderY() {
         if(this.settings.space === "world") {
             return this.settings.y - this.renderer.camera.y;
         }
-        return this.settings.y;
+        return this.renderer.camera.height * this.settings.y;
     }
 
     createUIElement(x, y, w, h, type, data=null) {
@@ -737,10 +749,10 @@ export class Menu {
 
         ctx.rotate(this.settings.rotation * Math.PI / 180);
         ctx.fillStyle = this.settings.color.bg;
-        ctx.fillRect(rx, ry, this.settings.width, this.settings.height);
+        ctx.fillRect(rx, ry, this.getWidth(), this.getHeight());
         ctx.strokeStyle = this.settings.color.border;
         ctx.lineWidth = this.settings.color.border_weight;
-        ctx.strokeRect(rx, ry, this.settings.width, this.settings.height);
+        ctx.strokeRect(rx, ry, this.getWidth(), this.getHeight());
 
         this.submenus.forEach(m => {
             if(m.visible) m.render();
@@ -761,8 +773,17 @@ export class Menu {
             menu.UIElements.forEach(e => {
                 const rx = menu.getRenderX();
                 const ry = menu.getRenderY();
+                const mw = menu.getWidth();
+                const mh = menu.getHeight();
+
+                const pos = {
+                    "x": mw * e.x,
+                    "y": mh * e.y,
+                    "w": mw * e.w,
+                    "h": mh * e.h
+                }
                 if(!e.visible || e.onclick == null) return;
-                if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
+                if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+pos.x,ry+pos.y, pos.w, pos.h)) {
                     e.onclick();
                 }
             });
@@ -778,7 +799,8 @@ export class MenuRegistry {
             "escape_menu": new Menu(renderer),
             "settings_menu": new Menu(renderer),
             "combat_settings_menu": new Menu(renderer),
-            "keybinds_menu": new Menu(renderer)
+            "keybinds_menu": new Menu(renderer),
+            "visual_settings_menu": new Menu(renderer)
         }
         this.setup();
     }
@@ -791,8 +813,8 @@ export class MenuRegistry {
             em.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
             em.submenus.forEach(m => m.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black"))
         }
-        em.createUIElement((em.settings.width/2)-50, 0, 100, 100, "text", {"text":"menu","fontSize":"25"});
-        let sb = em.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"settings"});
+        em.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"menu","fontSize":"25"});
+        let sb = em.createUIElement(0.05, 0.12, 0.9, 0.07, "textbutton", {"text":"settings"});
         sb.onclick = async () => {
             if(!sm.visible) {
                 sm.visible = true;
@@ -801,16 +823,16 @@ export class MenuRegistry {
                 close_menu()
             }
         }
-        let eb = em.createUIElement(25, 625, em.settings.width-50, 50, "textbutton", {"text":"exit menu"})
+        let eb = em.createUIElement(0.05, 0.8, 0.9, 0.07, "textbutton", {"text":"exit menu"})
         eb.onclick = () => {
             em.renderer.closeMenu();
             close_menu();
         }
-        let ehb = em.createUIElement(25, 700, em.settings.width-50, 50, "textbutton", {"text":"exit to homepage"})
+        let ehb = em.createUIElement(0.05, 0.9, 0.9, 0.07, "textbutton", {"text":"exit to homepage"})
         ehb.onclick = () => {
             if(confirm("are you sure")) window.location.href = "/";
         };
-        let fb = em.createUIElement(25, 550, em.settings.width-50, 50, "textbutton", {"text":"forfeit","bg_color": "red"});
+        let fb = em.createUIElement(0.05, 0.7, 0.9, 0.07, "textbutton", {"text":"forfeit","bg_color": "red"});
         fb.visible = false;
         fb.onclick = () => {
             if(!em.renderer.engine.combat.in_combat) return;
@@ -826,18 +848,18 @@ export class MenuRegistry {
                 "border": "black",
                 "border_weight": 2
             },
-            "x": 425,
-            "y": em.renderer.camera.height*0.025,
+            "x": 0.32,
+            "y": 0.025,
             "space": "screen",
-            "width": 400,
-            "height": em.renderer.camera.height*0.95,
+            "width": 0.3,
+            "height": 0.95,
             "hide_game": false,
             "rotation": 0 // degrees
         };
         sm.visible = false;
         em.submenus.push(sm);
-        sm.createUIElement((sm.settings.width/2)-50, 0, 100, 100, "text", {"text":"settings","fontSize":"25"});
-        let kbb = sm.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"keybinds"});
+        sm.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"settings","fontSize":"25"});
+        let kbb = sm.createUIElement(0.05, 0.12, 0.9, 0.07, "textbutton", {"text":"keybinds"});
         kbb.onclick = async () => {
             sm.submenus.filter(m => m != km).forEach(m => m.visible = false);
             sm.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
@@ -849,7 +871,7 @@ export class MenuRegistry {
                 kbb.data.strokeColor = "black";
             }
         };
-        let csb = sm.createUIElement(25, 160, em.settings.width-50, 50, "textbutton", {"text":"combat"});
+        let csb = sm.createUIElement(0.05, 0.22, 0.9, 0.07, "textbutton", {"text":"combat"});
         csb.onclick = async () => {
             sm.submenus.filter(m => m != csm).forEach(m => m.visible = false);
             sm.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
@@ -861,11 +883,17 @@ export class MenuRegistry {
                 csb.data.strokeColor = "black";
             }
         };
-        let pmb = sm.createUIElement(25, 220, em.settings.width-50, 50, "textbutton", {"text":"performance mode"});
-        pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
-        pmb.onclick = async () => {
-            await em.renderer.engine.settings.modifySetting("performance_mode", !em.renderer.engine.settings.settings.performance_mode);
-            pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
+        let vsb = sm.createUIElement(0.05, 0.32, 0.9, 0.07, "textbutton", {"text":"visual"});
+        vsb.onclick = async () => {
+            sm.submenus.filter(m => m != vsm).forEach(m => m.visible = false);
+            sm.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
+            if(!vsm.visible) {
+                vsm.visible = true;
+                vsb.data.strokeColor = "cyan";
+            } else {
+                vsm.visible = false;
+                vsb.data.strokeColor = "black";
+            }
         };
 
         const csm = this.MENUS.combat_settings_menu;
@@ -875,23 +903,23 @@ export class MenuRegistry {
                 "border": "black",
                 "border_weight": 2
             },
-            "x": 840,
-            "y": em.renderer.camera.height*0.025,
+            "x": 0.63,
+            "y": 0.025,
             "space": "screen",
-            "width": 400,
-            "height": em.renderer.camera.height*0.95,
+            "width": 0.3,
+            "height": 0.95,
             "hide_game": false,
             "rotation": 0 // degrees
         };
         csm.visible = false;
         sm.submenus.push(csm);
-        csm.createUIElement((csm.settings.width/2)-50, 0, 100, 100, "text", {"text":"combat settings","fontSize":"25"});
-        let bgtao = csm.createUIElement(25, 100, em.settings.width-50, 50, "textbutton", {"text":"background text opacity (in combat)"});
-        let bgtio = csm.createUIElement(25, 162.2, em.settings.width-50, 50, "textbutton", {"text":"background text opacity (out of combat)"});
-        let hsa = csm.createUIElement(25, 224.4, em.settings.width-50, 50, "textbutton", {"text":"hand size (hovered)"});
-        let hsi = csm.createUIElement(25, 286.6, em.settings.width-50, 50, "textbutton", {"text":"hand size (small)"});
-        let ds = csm.createUIElement(25, 348.2, em.settings.width-50, 50, "textbutton", {"text":"drop shadows toggle"});
-        let bgt = csm.createUIElement(25, 410.4, em.settings.width-50, 50, "textbutton", {"text":"background text toggle"});
+        csm.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"combat settings","fontSize":"25"});
+        let bgtao = csm.createUIElement(0.05, 0.12, 0.9, 0.07, "textbutton", {"text":"background text opacity (in combat)"});
+        let bgtio = csm.createUIElement(0.05, 0.22, 0.9, 0.07, "textbutton", {"text":"background text opacity (out of combat)"});
+        let hsa = csm.createUIElement(0.05, 0.32, 0.9, 0.07, "textbutton", {"text":"hand size (hovered)"});
+        let hsi = csm.createUIElement(0.05, 0.42, 0.9, 0.07, "textbutton", {"text":"hand size (small)"});
+        let ds = csm.createUIElement(0.05, 0.52, 0.9, 0.07, "textbutton", {"text":"drop shadows toggle"});
+        let bgt = csm.createUIElement(0.05, 0.62, 0.9, 0.07, "textbutton", {"text":"background text toggle"});
 
         const km = this.MENUS.keybinds_menu;
         km.settings = {
@@ -900,11 +928,11 @@ export class MenuRegistry {
                 "border": "black",
                 "border_weight": 2
             },
-            "x": 840,
-            "y": em.renderer.camera.height*0.025,
+            "x": 0.63,
+            "y": 0.025,
             "space": "screen",
-            "width": 400,
-            "height": em.renderer.camera.height*0.95,
+            "width": 0.3,
+            "height": 0.95,
             "hide_game": false,
             "rotation": 0 // degrees
         };
@@ -914,10 +942,10 @@ export class MenuRegistry {
             km.UIElements.forEach(e => e.destroy());
             km.UIElements.filter(e => e.type == "text").forEach(e => e.destroy());
             km.UIElements.filter(e => e.type == "textbutton").forEach(e => e.destroy());
-            km.createUIElement((csm.settings.width/2)-50, 0, 100, 100, "text", {"text":"keybinds","fontSize":"25"});
+            km.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"keybinds","fontSize":"25"});
             km.renderer.engine.settings.binds.binds.forEach((b, index) => {
-                km.createUIElement(75, 60+(index*60), 100, 100, "text", {"text":b.name,"fontSize":"13"});
-                let button = km.createUIElement(225, 85+(index*60), em.settings.width-300, 50, "textbutton", {"text":`${b.bind.name}`});
+                km.createUIElement(0.6, 0.12+(.05*index), 0.1, 0.1, "text", {"text":b.name,"fontSize":"13"});
+                let button = km.createUIElement(0.2, 0.15+(.05*index), 0.2, 0.04, "textbutton", {"text":`${b.bind.name}`});
                 button.onclick = () => {
                     if(km.renderer.engine.keyboard.waiting) return;
                     button.data.text = `Click a key`
@@ -939,6 +967,30 @@ export class MenuRegistry {
             })
         };
         refresh_keybinds();
-        
+
+        const vsm = this.MENUS.visual_settings_menu;
+        vsm.settings = {
+            "color": {
+                "bg": "white",
+                "border": "black",
+                "border_weight": 2
+            },
+            "x": 0.63,
+            "y": 0.025,
+            "space": "screen",
+            "width": 0.3,
+            "height": 0.95,
+            "hide_game": false,
+            "rotation": 0 // degrees
+        };
+        vsm.visible = false;
+        sm.submenus.push(vsm);
+        vsm.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"visual settings","fontSize":"25"});
+        let pmb = vsm.createUIElement(0.05, 0.12, 0.9, 0.07, "textbutton", {"text":"performance mode"});
+        pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
+        pmb.onclick = async () => {
+            await em.renderer.engine.settings.modifySetting("performance_mode", !em.renderer.engine.settings.settings.performance_mode);
+            pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
+        };
     }
 };
