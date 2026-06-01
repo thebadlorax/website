@@ -122,7 +122,7 @@ export class Window {
         const ry = this.getRenderY(camera);
         this.UIElements.forEach(e => {
             if(!e.visible) return;
-            if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
+            if(Engine.rectanglesIntersect(mx-5, my-5, 10, 10, rx+e.x,ry+e.y, e.w, e.h)) {
                 e.onclick();
             }
         })
@@ -418,8 +418,10 @@ export class Renderer {
 
     closeMenu() {
         this.active_menu.submenus.forEach(m => m.visible = false);
+        this.active_menu.submenus.forEach(m => m.submenus.forEach(e => e.visible = false))
         this.active_menu.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
         this.active_menu.submenus.forEach(m => m.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black"))
+        this.active_menu.getAllUIElements().forEach(e => e.dragging = false);
         this.engine.other_state = null;
         this.active_menu = null;
     }
@@ -597,11 +599,48 @@ export class MenuUIElement {
     constructor(ctx, x, y, w, h, type, data, menu) {
         this.x = x; this.y = y; this.w = w; this.h = h; this.type = type;
         this.onclick = null; this.visible = true; this.ctx = ctx; this.data = data;
-        this.menu = menu;
+        this.menu = menu; this.dragging = false; this.onchange = null;
     }
 
     destroy() {
         this.menu.UIElements.splice(this.menu.UIElements.indexOf(this), 1);
+    }
+
+    setup() {
+        switch(this.type) {
+            case "slider": {
+                if(this.data.min == undefined) this.data.min = 0;
+                if(this.data.max == undefined) this.data.max = 0;
+                if(this.data.step == undefined) this.data.step = 1;
+                if(this.data.progress == undefined) this.data.progress = (this.data.max/2);
+                if(this.data.showVal == undefined) this.data.showVal = true;
+            }
+        }
+    };
+
+    setSliderFromMouse() {
+        const mouseX = this.menu.renderer.engine.keyboard.mouseX;
+        const rx = this.menu.getRenderX();
+        const mw = this.menu.getWidth();
+    
+        const x = rx + (mw * this.x);
+        const w = mw * this.w;
+    
+        let t = (mouseX - x) / w;
+        t = Math.max(0, Math.min(1, t));
+    
+        let value =
+            this.data.min +
+            t * (this.data.max - this.data.min);
+    
+        value =
+            Math.round(value / this.data.step) *
+            this.data.step;
+
+        if(this.data.progress != value) { 
+            this.data.progress = value;
+            if(this.onchange != null) this.onchange(); 
+        }
     }
 
     render() {
@@ -682,6 +721,77 @@ export class MenuUIElement {
                     rx + pos.x + (pos.w / 2),
                     ry + pos.y + (pos.h / 2)
                 );
+                break;
+            }
+            case "slider": {
+                const value = this.data.progress;
+                const min = this.data.min;
+                const max = this.data.max;
+            
+                const percent = (value - min) / (max - min);
+            
+                // Track
+                this.ctx.fillStyle = "#888";
+                this.ctx.fillRect(
+                    rx + pos.x,
+                    ry + pos.y + pos.h/2 - 3,
+                    pos.w,
+                    6
+                );
+            
+                // Thumb
+                const thumbX = rx + pos.x + (percent * pos.w);
+            
+                this.ctx.fillStyle = "#ddd";
+                this.ctx.beginPath();
+                this.ctx.arc(
+                    thumbX,
+                    ry + pos.y + pos.h/2,
+                    pos.h/4,
+                    0,
+                    Math.PI * 2
+                );
+                this.ctx.fill();
+            
+                this.ctx.strokeStyle = "black";
+                this.ctx.stroke();
+
+                this.ctx.font = `${this.data.fontSize || "13"}px monospace`;
+                this.ctx.fillStyle = "black";
+                this.ctx.textAlign = "center";
+                this.ctx.textBaseline = "middle";
+                if(this.data.showVal) {
+                    this.ctx.fillText(
+                        this.data.progress.toFixed(3),
+                        rx + pos.x + (pos.w*.95),
+                        ry + pos.y + (pos.h*.9)
+                    );
+                }
+                if(this.data.title != undefined) {
+                    this.ctx.fillText(
+                        this.data.title,
+                        rx + pos.x + (pos.w*.5),
+                        ry + pos.y
+                    );
+                }
+                break;
+            }
+            case "toggle": {
+                this.ctx.fillStyle = this.data.active ? "rgba(0, 255, 0, 0.3)" : "rgba(255, 0, 0, 0.3)";
+                this.ctx.fillRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
+
+                this.ctx.fillStyle = "black";
+                this.ctx.strokeStyle = this.data.strokeColor || "black";
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
+                this.ctx.font = "13px monospace";
+                this.ctx.textAlign = "center";
+                this.ctx.textBaseline = "middle";
+                this.ctx.fillText(
+                    this.data.text,
+                    rx + pos.x + (pos.w / 2),
+                    ry + pos.y + (pos.h / 2)
+                );
             }
         }
     }
@@ -731,6 +841,7 @@ export class Menu {
 
     createUIElement(x, y, w, h, type, data=null) {
         let e = new MenuUIElement(this.renderer.ctx, x, y, w, h, type, data, this);
+        e.setup();
         this.UIElements.push(e);
         return e;
     }
@@ -765,6 +876,26 @@ export class Menu {
         ctx.restore();
     }
 
+    getAllUIElements() {
+        let l = [];
+        const a = (m) => {
+            l = l.concat(m.UIElements);
+            m.submenus.filter(m => m.visible).forEach(m2 => a(m2));
+        }
+        a(this);
+        return l;
+    }
+
+    update(delta) {
+        this.getAllUIElements().forEach(e => {
+            if(e.type === "slider" && e.dragging) {
+                e.setSliderFromMouse(
+                    this.renderer.engine.keyboard.mouseX
+                );
+            }
+        });
+    }
+
     onclick() {
         if( this.renderer.engine.keyboard.waiting) return;
         const mx = this.renderer.engine.keyboard.mouseX;
@@ -782,9 +913,15 @@ export class Menu {
                     "w": mw * e.w,
                     "h": mh * e.h
                 }
-                if(!e.visible || e.onclick == null) return;
+                if(!e.visible || (e.onclick == null && e.type != "slider")) return;
                 if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+pos.x,ry+pos.y, pos.w, pos.h)) {
-                    e.onclick();
+                    if(e.type == "slider") {
+                        e.dragging = true;
+                        e.setSliderFromMouse(mx);
+                    } else {
+                        e.onclick();
+                    }
+                    
                 }
             });
             menu.submenus.filter(m => m.visible).forEach(m => handleClick(m));
@@ -895,6 +1032,8 @@ export class MenuRegistry {
                 vsb.data.strokeColor = "black";
             }
         };
+        let rb = sm.createUIElement(0.05, 0.42, 0.9, 0.07, "textbutton", {"text":"reset all", "bg_color": "red"});
+        rb.onclick = async () => { if(confirm("are you sure? (will reload on confirmation)")) await em.renderer.engine.settings._fullReset(); }
 
         const csm = this.MENUS.combat_settings_menu;
         csm.settings = {
@@ -914,12 +1053,30 @@ export class MenuRegistry {
         csm.visible = false;
         sm.submenus.push(csm);
         csm.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"combat settings","fontSize":"25"});
-        let bgtao = csm.createUIElement(0.05, 0.12, 0.9, 0.07, "textbutton", {"text":"background text opacity (in combat)"});
-        let bgtio = csm.createUIElement(0.05, 0.22, 0.9, 0.07, "textbutton", {"text":"background text opacity (out of combat)"});
-        let hsa = csm.createUIElement(0.05, 0.32, 0.9, 0.07, "textbutton", {"text":"hand size (hovered)"});
-        let hsi = csm.createUIElement(0.05, 0.42, 0.9, 0.07, "textbutton", {"text":"hand size (small)"});
-        let ds = csm.createUIElement(0.05, 0.52, 0.9, 0.07, "textbutton", {"text":"drop shadows toggle"});
-        let bgt = csm.createUIElement(0.05, 0.62, 0.9, 0.07, "textbutton", {"text":"background text toggle"});
+        let btoic = csm.createUIElement(0.05, 0.12, 0.9, 0.07, "slider", {"min": 0.01, "max": 0.2, "step": 0.01, "title": "background text opacity (in combat)"});
+        btoic.onchange = async () => { 
+            if(em.renderer.engine.combat.in_combat) {
+                if(em.renderer.engine.combat.turn == 1) em.renderer.engine.combat.combatVariables.bg_text_target_opacity = btoic.data.progress
+            }
+            await em.renderer.engine.settings.modifySetting("btoic", btoic.data.progress);
+         }
+        btoic.data.progress = em.renderer.engine.settings.settings.btoic || btoic.data.progress;
+        let btooc = csm.createUIElement(0.05, 0.22, 0.9, 0.07, "slider", {"min": 0.01, "max": 0.2, "step": 0.01, "title": "background text opacity (out of combat)"});
+        btooc.onchange = async () => { 
+            if(em.renderer.engine.combat.in_combat) {
+                if(em.renderer.engine.combat.turn == 0) {
+                    em.renderer.engine.combat.combatVariables.bg_text_target_opacity = btooc.data.progress
+                }
+            }
+            await em.renderer.engine.settings.modifySetting("btooc", btooc.data.progress); 
+        }
+        btooc.data.progress = em.renderer.engine.settings.settings.btooc || btooc.data.progress;
+        let hs = csm.createUIElement(0.05, 0.32, 0.9, 0.07, "slider", {"min": 0.6, "max": 1.5, "step": 0.05, "title": "hand size"});
+        hs.onchange = async () => { await em.renderer.engine.settings.modifySetting("hs", hs.data.progress); }
+        hs.data.progress = em.renderer.engine.settings.settings.hs || hs.data.progress;
+        let hyo = csm.createUIElement(0.05, 0.42, 0.9, 0.07, "slider", {"min": -180, "max": 60, "step": 1, "title": "hand vertical offset"});
+        hyo.onchange = async () => { await em.renderer.engine.settings.modifySetting("hyo", hyo.data.progress); }
+        hyo.data.progress = em.renderer.engine.settings.settings.hyo || hyo.data.progress;
 
         const km = this.MENUS.keybinds_menu;
         km.settings = {
@@ -938,20 +1095,21 @@ export class MenuRegistry {
         };
         km.visible = false;
         sm.submenus.push(km);
+        const banned_keybinds = ["Escape"]
         const refresh_keybinds = () => {
             km.UIElements.forEach(e => e.destroy());
             km.UIElements.filter(e => e.type == "text").forEach(e => e.destroy());
             km.UIElements.filter(e => e.type == "textbutton").forEach(e => e.destroy());
             km.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"keybinds","fontSize":"25"});
             km.renderer.engine.settings.binds.binds.forEach((b, index) => {
-                km.createUIElement(0.6, 0.12+(.05*index), 0.1, 0.1, "text", {"text":b.name,"fontSize":"13"});
-                let button = km.createUIElement(0.2, 0.15+(.05*index), 0.2, 0.04, "textbutton", {"text":`${b.bind.name}`});
+                km.createUIElement(0.6, 0.11+(.0805*index), 0.1, 0.1, "text", {"text":b.name,"fontSize":"13"});
+                let button = km.createUIElement(0.1, 0.13+(.08*index), 0.3, 0.06, "textbutton", {"text":`${b.bind.name}`});
                 button.onclick = () => {
                     if(km.renderer.engine.keyboard.waiting) return;
                     button.data.text = `Click a key`
                     const handle = () => {
                         km.renderer.engine.keyboard.waitForKeyPress().then(async k => {
-                            if(k.code == "Escape") {
+                            if(banned_keybinds.includes(k.code)) {
                                 handle();
                                 return;
                             }
@@ -986,11 +1144,21 @@ export class MenuRegistry {
         vsm.visible = false;
         sm.submenus.push(vsm);
         vsm.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"visual settings","fontSize":"25"});
-        let pmb = vsm.createUIElement(0.05, 0.12, 0.9, 0.07, "textbutton", {"text":"performance mode"});
-        pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
-        pmb.onclick = async () => {
-            await em.renderer.engine.settings.modifySetting("performance_mode", !em.renderer.engine.settings.settings.performance_mode);
-            pmb.data.bg_color = em.renderer.engine.settings.settings.performance_mode ? "green" : "red"
-        };
+        let ceb = vsm.createUIElement(0.05, 0.12, 0.9, 0.07, "toggle", {"text":"cursor effects (pointer, etc)"});
+        ceb.data.active = em.renderer.engine.settings.settings.ce || false
+        ceb.onclick = () => { ceb.data.active = !em.renderer.engine.settings.settings.ce;
+            em.renderer.engine.settings.modifySetting("ce", ceb.data.active); }
+        let dsb = vsm.createUIElement(0.05, 0.22, 0.9, 0.07, "toggle", {"text":"combat drop shadows"});
+        dsb.data.active = em.renderer.engine.settings.settings.ds || false
+        dsb.onclick = () => { dsb.data.active = !em.renderer.engine.settings.settings.ds;
+            em.renderer.engine.settings.modifySetting("ds", dsb.data.active); }
+        let btb = vsm.createUIElement(0.05, 0.32, 0.9, 0.07, "toggle", {"text":"combat background text"});
+        btb.data.active = em.renderer.engine.settings.settings.bt || false
+        btb.onclick = () => { btb.data.active = !em.renderer.engine.settings.settings.bt;
+            em.renderer.engine.settings.modifySetting("bt", btb.data.active); }
+        let misc_perf = vsm.createUIElement(0.05, 0.42, 0.9, 0.07, "toggle", {"text":"misc performance improvements"});
+        misc_perf.data.active = em.renderer.engine.settings.settings.mp || false
+        misc_perf.onclick = () => { misc_perf.data.active = !em.renderer.engine.settings.settings.mp;
+            em.renderer.engine.settings.modifySetting("mp", misc_perf.data.active); }
     }
 };

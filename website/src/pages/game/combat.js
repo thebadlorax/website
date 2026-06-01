@@ -403,7 +403,7 @@ export class CombatScenario {
     }
 
     getCenter() {
-        return {"x": this.x-this.size.w, "y": this.y-this.size.h}
+        return {"x": this.x-(this.size.w/2), "y": this.y-(this.size.h/2)}
     }
 
     onProjectileCollision(proj) {
@@ -415,36 +415,15 @@ export class CombatScenario {
 
 export class CombatManager {
     constructor(cm, engine) {
-        this.setupVariables();
-        this.cardManager = cm;
         this.engine = engine;
+        this.cardManager = cm;
+        this.setupVariables();
+        
+        
         
         setTimeout(() => { this.debug.buttons[0].onClick(); }, 500);
 
         this.resetKeybinds();
-
-        /*
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.G_KEY, () => {
-            this.debug.debug_kb_pressed = true;
-        });
-
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.T_KEY, () => {
-            if(!this.debug.debug_kb_pressed) return;
-            this.turn = this.turn == 1 ? 0 : 1
-            this.debug.debug_kb_pressed = false;
-        })
-
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.O_KEY, () => {
-            if(!this.debug.debug_kb_pressed) return;
-            this.onWin();
-            this.debug.debug_kb_pressed = false;
-        })
-
-        this.engine.keyboard.setFunctionOnKeyPress(this.engine.keyboard.KEYCODES.V_KEY, () => {
-            if(!this.debug.debug_kb_pressed) return;
-            this.reset(this.debug.scen_data);
-            this.debug.debug_kb_pressed = false;
-        })*/
     }
 
     resetKeybinds() {
@@ -562,8 +541,8 @@ export class CombatManager {
             "bg_text_next": null,
             "bg_text_transition": 0,
             "bg_text_transition_speed": 3,
-            "bg_text_opacity": this.combatSettings.bg_text_opacity_prepare,
-            "bg_text_target_opacity": this.combatSettings.bg_text_opacity_prepare,
+            "bg_text_opacity": this.engine.settings.settings.btooc || this.combatSettings.bg_text_opacity_prepare,
+            "bg_text_target_opacity": this.engine.settings.settings.btooc || this.combatSettings.bg_text_opacity_prepare,
             "bg_text_opacity_speed": 2,
             "bg_text_angle": 45,
             "bg_text_color": "white",
@@ -609,7 +588,7 @@ export class CombatManager {
         const card_size = Card.getSize();
         const cb = this.getCombatBox();
     
-        const y_off = -60;
+        const y_off = -60 + this.engine.settings.settings.hyo || 0;
     
         const center = (count - 1) / 2;
     
@@ -645,9 +624,9 @@ export class CombatManager {
 
         let deck = this.cardManager.getHand();
         const card_size = Card.getSize();
-        if(Engine.rectanglesIntersect(
+        /*if(Engine.rectanglesIntersect(
             this.engine.keyboard.mouseX, this.engine.keyboard.mouseY, 10, 10,
-        ));
+        ));*/
 
         deck = deck.filter(c =>
             !this.card_rendering.cards
@@ -699,7 +678,7 @@ export class CombatManager {
 
             const hover = this.combatVariables.hand_hover;
 
-            const scale = 0.7 + (0.3 * hover);
+            const scale = (0.7*this.engine.settings.settings.hs) + (0.3 * hover);
 
             ctx.globalAlpha = 1 - this.combatVariables.fade_out_opacity
 
@@ -773,7 +752,7 @@ export class CombatManager {
         const cby = cb.y
         const cbs = cb.w
 
-        if(this.combatSettings.performance) {
+        if(this.engine.settings.settings.mp) {
             ctx.strokeStyle = "white";
             ctx.lineWidth = 2;
             ctx.strokeRect(
@@ -1385,7 +1364,7 @@ export class CombatManager {
     onWin() {
         this.combatVariables.has_won = true;
         this.setBackgroundText("victory");
-        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
+        this.combatVariables.bg_text_target_opacity = this.engine.settings.settings.btooc || this.combatSettings.bg_text_opacity_prepare+0.1;
 
         this.combatVariables.victory_status = 0;
 
@@ -1396,7 +1375,7 @@ export class CombatManager {
         this.combatVariables.has_won = true;
         this.setBackgroundText("defeat");
         this.combatVariables.victory_status = 1;
-        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
+        this.combatVariables.bg_text_target_opacity = tthis.engine.settings.settings.btooc || this.combatSettings.bg_text_opacity_prepare+0.1;
         this.spawnRewards();
     }
 
@@ -1404,7 +1383,7 @@ export class CombatManager {
         this.combatVariables.has_won = true;
         this.setBackgroundText("forfeit");
         this.combatVariables.victory_status = 2;
-        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare+0.1;
+        this.combatVariables.bg_text_target_opacity = this.engine.settings.settings.btooc || this.combatSettings.bg_text_opacity_prepare+0.1;
         this.spawnRewards();
     }
 
@@ -1430,7 +1409,7 @@ export class CombatManager {
     }
 
     drawBackgroundText(text, angle, alpha, size, color, offsetX=0, offsetY=0) {
-        if(this.engine.settings.settings.performance_mode) return;
+        if(!this.engine.settings.settings.bt) return;
         const ctx = this.engine.ctx;
         
         ctx.font = `${size}px monospace`;
@@ -1607,7 +1586,7 @@ export class CombatManager {
     }
 
     drawDropShadow(size, opacity, x, y, w, h, offsetX=0, offsetY=0) {
-        if(this.engine.settings.settings.performance_mode) return;
+        if(!this.engine.settings.settings.ds) return;
         const ctx = this.engine.ctx;
         ctx.fillStyle = `rgba(0, 0, 0, ${opacity/4})`;
         ctx.fillRect((x+offsetX)-size*1.5, (y+offsetY)-size*1.5, w+size*2, h+size*2);
@@ -1760,7 +1739,7 @@ export class CombatManager {
                 
                 const cx = pos.x - (card_size.w / 2);
                 const cy = pos.y - (card_size.h / 2);
-                if(Engine.rectanglesIntersect(x, y, 10, 10, cx, cy, card_size.w, card_size.h)) {
+                if(Engine.rectanglesIntersect(x-5, y-5, 10, 10, cx, cy, card_size.w, card_size.h)) {
                     let is_usable = c.isTurn(this.turn);
                     if(is_usable) {
                         this.card_rendering.dragged_card = c;
@@ -1780,7 +1759,7 @@ export class CombatManager {
             if(this.card_rendering.dragged_card == null) {
                 this.card_rendering.cards.forEach(c => {
                     if(Engine.rectanglesIntersect(
-                        x, y, 10, 10,
+                        x-5, y-5, 10, 10,
                         box.x + c.x,
                         box.y + c.y,
                         card_size.w,
@@ -1821,7 +1800,7 @@ export class CombatManager {
             this.setBackgroundText("watch");
         }
 
-        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_play;
+        this.combatVariables.bg_text_target_opacity = this.engine.settings.settings.btoic || this.combatSettings.bg_text_opacity_play;
 
         this.round_timer = (this.projectiles.getHighestLifespan()-1) || 10;
 
@@ -1843,7 +1822,7 @@ export class CombatManager {
         this.turn = this.turn == 0 ? 1 : 0;
         this.round_timer = this.turn == 1 ? this.combatVariables.placing_time : this.combatVariables.placing_time/2;
         this.combatVariables.timer_timescale = 1;
-        this.combatVariables.bg_text_target_opacity = this.combatSettings.bg_text_opacity_prepare;
+        this.combatVariables.bg_text_target_opacity = this.engine.settings.settings.btooc || this.combatSettings.bg_text_opacity_prepare;
         this.setBackgroundText("prepare");
         let cb = this.getCombatBox();
         this.player.x = Math.floor(cb.w / 2)
@@ -2051,7 +2030,7 @@ export class CombatManager {
 
 
         document.body.style.cursor = "default";
-        if(!this.engine.settings.settings.performance_mode) {
+        if(this.engine.settings.settings.ce) {
             if(this.card_rendering.dragged_card != null) {
             document.body.style.cursor = "grabbing";
             } else {
@@ -2081,7 +2060,7 @@ export class CombatManager {
                     
                     const cx = pos.x - (card_size.w / 2);
                     const cy = pos.y - (card_size.h / 2);
-                    if(Engine.rectanglesIntersect(this.engine.keyboard.mouseX, this.engine.keyboard.mouseY, 10, 10, cx, cy, card_size.w, card_size.h)) {
+                    if(Engine.rectanglesIntersect(this.engine.keyboard.mouseX-5, this.engine.keyboard.mouseY-5, 10, 10, cx, cy, card_size.w, card_size.h)) {
                         let is_usable = c.isTurn(this.turn);
                         if(is_usable) {
                             document.body.style.cursor = "grab";
@@ -2182,7 +2161,7 @@ export class CombatPlayer {
         const cb = this.combat.getCombatBox();
         if(!this.combat.combat_active || this.combat.turn == 1) return;
 
-        if(!this.combat.engine.settings.settings.performance_mode) {
+        if(!this.combat.engine.settings.settings.mp) {
             for (const img of this.afterimages) {
                 const alpha = img.life / 0.25;
         
@@ -2207,7 +2186,7 @@ export class CombatPlayer {
     }
 
     getCenter() {
-        return {"x": this.x+this.size.w, "y": this.y+this.size.h}
+        return {"x": this.x-(this.size.w/2), "y": this.y-(this.size.h/2)}
     }
 
     addForce(force) {
@@ -2233,7 +2212,7 @@ export class CombatPlayer {
     update(delta) {
         const cb = this.combat.getCombatBox();
 
-        if(!this.combat.engine.settings.settings.performance_mode) {
+        if(!this.combat.engine.settings.settings.mp) {
             const speed = Math.hypot(this.velx, this.vely);
 
             if (speed > 450) {

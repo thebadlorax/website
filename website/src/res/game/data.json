@@ -163,6 +163,11 @@
                                             }
                                         }
                                     }
+                                ],
+                                "interact2": [
+                                    {
+                                        "text": "i'm done fighting you, i'm bored"
+                                    }
                                 ]
                             },
                             "animations": [
@@ -178,7 +183,10 @@
                                     "time": 0.1,
                                     "start_index": 6
                                 }
-                            ]
+                            ],
+                            "flags": {
+                                "max_interact_flag": 2
+                            }
                         }
                     }
                 ]

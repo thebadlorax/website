@@ -148,7 +148,7 @@ export class Keybinds {
         },
         {
             "id": "showGrid",
-            "name": "Show Tile Grid",
+            "name": "Show Tile Grid (hold)",
             "bind": {
                 "name": "g",
                 "code": "KeyG"
@@ -157,7 +157,7 @@ export class Keybinds {
     ];
 
     constructor(data, settings) {
-        this.binds = data
+        this.binds = data || {}
         if(Object.keys(data) <= 0) {
             this.binds = Keybinds.DEFAULT_KEYBINDS
         }

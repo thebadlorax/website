@@ -511,6 +511,7 @@ export class Engine {
     
             window.addEventListener("mouseup", (e) => {
                 if(this.other_state == "menu") {
+                    this.renderer.active_menu.getAllUIElements().forEach(e => e.dragging = false);
                     return;
                 }
                 if(this.combat.in_combat) {
@@ -693,7 +694,6 @@ export class Engine {
 
         this.data.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
 
-        console.log(this.data.player_data)
         this.data.player_data.inventory.items.forEach(i => {
             this.inventory.giveItem(i);
         });
@@ -720,7 +720,8 @@ export class Engine {
         if(this.other_state == "menu") {
             this.camera.update();
             document.body.style.cursor = "default"; 
-            if(!this.settings.settings.performance_mode) {
+            this.renderer.active_menu.update(delta);
+            if(this.settings.settings.ce) {
                 const mx = this.renderer.engine.keyboard.mouseX;
                 const my = this.renderer.engine.keyboard.mouseY;
                 const handleClick = (menu) => {
@@ -736,8 +737,8 @@ export class Engine {
                             "w": mw * e.w,
                             "h": mh * e.h
                         }
-                        if(!e.visible || e.onclick == null) return;
-                        if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+pos.x,ry+pos.y, pos.w, pos.h)) {
+                        if(!e.visible || (e.onclick == null && e.type != "slider")) return;
+                        if(Engine.rectanglesIntersect(mx-5, my-5, 10, 10, rx+pos.x,ry+pos.y, pos.w, pos.h)) {
                             document.body.style.cursor = "pointer"
                         }
                     });
@@ -784,7 +785,7 @@ export class Engine {
         this.camera.update();
 
         document.body.style.cursor = "default"; 
-        if(!this.settings.settings.performance_mode) {
+        if(this.settings.settings.ce) {
             let mx = this.keyboard.mouseX; let my = this.keyboard.mouseY;
             let m = this.hero.map;
             let tsize = m.tsize;
@@ -1145,11 +1146,12 @@ export class NPC {
         this.active_anim = "idle"
 
         this.flags = {
+            ...this.data.flags,
             "speak_counter": 0
         }
 
         this.draw_dialogue = false;
-        this.active_dialogue = `interact${this.flags.speak_counter}`;
+        this.active_dialogue = `interact${clamp(this.flags.speak_counter, 0, this.flags.max_interact_flag || 1000)}`;
 
         // format dialogues
         let temp = [];
@@ -1185,6 +1187,7 @@ export class NPC {
         engine.other_state_data = this;
         this.draw_dialogue = true;
         engine.hero.block_movement = true;
+        this.getDialogue().current_line = 0;
     }
 
     dialogueExists(name) {
@@ -1201,7 +1204,7 @@ export class NPC {
             engine.hero.block_movement = false
         }
         this.flags.speak_counter += 1;
-        let nname = `interact${this.flags.speak_counter}`;
+        let nname = `interact${clamp(this.flags.speak_counter, 0, this.flags.max_interact_flag || 1000)}`;
         if(this.dialogueExists(nname)) this.active_dialogue = nname;
     }
 
@@ -1259,11 +1262,24 @@ export class EngineSettings {
     static async getStorage() { let s = await getValueInStorage(EngineSettings.path()); return s; }
     static async fromStorage() { return new EngineSettings(JSON.parse(await this.getStorage())); }
     constructor(data) {
-        if(!data) data = {};
+        //if(!data) data = {};
         this.settings = data || {
-            "performance_mode": false
+            "performance_mode": false,
+            "ce": true,
+            "ds": true,
+            "bt": true,
+            "btoic": 0.06,
+            "btooc": 0.1,
+            "hs": 1,
+            "hyo": 0,
+            "mp": false
         };
-        this.binds = new Keybinds(data.binds == null ? {} : data.binds, this);
+        if(data != undefined) {
+            this.binds = new Keybinds(data.binds || {}, this);
+        } else {
+            this.binds = new Keybinds({}, this);
+        }
+        
     }
 
     async updateStorage() {
@@ -1277,5 +1293,10 @@ export class EngineSettings {
     async modifySetting(name, val) {
         this.settings[name] = val;
         await this.updateStorage()
+    }
+
+   async  _fullReset() {
+        await this.clearStorage();
+        location.reload();
     }
 }
