@@ -1244,25 +1244,29 @@ export class MenuRegistry {
         spb.onclick = async () => {
             if(em.renderer.engine.settings.settings.fp) {
                 alert("going to do a performance check to see what settings to give you (first time only)");
-                await em.renderer.engine.settings.modifySetting("fp", false);
                 em.renderer.ctx.canvas.style.display = "none";
-                const performance_test = (iter) => {
-                    const engine = em.renderer.engine;
-                    const start_time = Date.now();
-                    engine.combat._enterCombat(engine.data.scenarios.find(s => s.id == "test"));
-                    engine.combat.combatSettings.performance = true;
-                    for(let x = 0; x < iter; x++) {
-                        engine.combat.onClick();
-                        engine.combat.combatUpdate(0.06);
-                        engine.combat.render();
-                    }
-                    engine.combat.combatSettings.performance = false;
-                    engine.combat._exitCombat();
-                    const end_time = Date.now();
-                    return end_time-start_time;
+                document.getElementById("perf_test").style.display = "block";
+                const nextFrame = () => new Promise(requestAnimationFrame);
+                for(let x = 0; x < 10; x++) { await nextFrame(); }
+                const performance_test = async (iter) => {
+                    let p = new Promise((resolve, reject) => {
+                        const engine = em.renderer.engine;
+                        const start_time = Date.now();
+                        engine.combat._enterCombat(engine.data.scenarios.find(s => s.id == "test"));
+                        engine.combat.combatSettings.performance = true;
+                        for(let x = 0; x < iter; x++) {
+                            engine.combat.onClick();
+                            engine.combat.combatUpdate(0.06);
+                            engine.combat.render();
+                        }
+                        engine.combat.combatSettings.performance = false;
+                        engine.combat._exitCombat();
+                        const end_time = Date.now();
+                        resolve(end_time-start_time)
+                    })
+                    return await p;
                 }
-                const ms = performance_test(500)
-                em.renderer.ctx.canvas.style.display = "block";
+                const ms = await performance_test(500)
                 let cs = null
                 if(ms > 2000) {
                     cs = 0
@@ -1270,7 +1274,11 @@ export class MenuRegistry {
                     cs = 1;
                 }
                 alert(`your computer is probably only good enough for ${cs == 0 ? "LOW" : "HIGH"} settings, but you can always change them if you want to`);
-                em.renderer.engine.settings.swapSettingsWithBinds(cs == 0 ? EngineSettings.defaultSettings.low : EngineSettings.defaultSettings.high);
+                const settings = cs == 0 ? EngineSettings.defaultSettings.low : EngineSettings.defaultSettings.high
+                em.renderer.ctx.canvas.style.display = "block";
+                document.getElementById("perf_test").style.display = "none";
+                await em.renderer.engine.settings.swapSettingsWithBinds(settings);
+                await em.renderer.engine.settings.modifySetting("fp", false);
             }
             document.title = "game name"
             em.renderer.closeMenu();

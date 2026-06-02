@@ -1316,10 +1316,9 @@ export class EngineSettings {
         }
     }
 
-    swapSettingsWithBinds(data) {
-        const b = this.binds;
+    async swapSettingsWithBinds(data) {
         this.settings = data;
-        this.settings.binds = b;
+        await this.updateStorage();
     }
 
     async updateStorage() {
