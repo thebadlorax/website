@@ -39,14 +39,3 @@ const checkIfDisabled = async () => {
     })
 }
 setInterval(async () => {await checkIfDisabled()}, 3000);
-
-
-if(!window.location.href.includes("localhost")) {
-    let a = setInterval(() => {
-        console.log("DO NOT MESS AROUND IN HERE\nyou won't learn anything and my engine is too cool for you to understand\nalso if you fuck up your playerdata i can't help you")
-    }, 30)
-    setTimeout(() => {
-        clearInterval(a);
-        console.log("but if you wanna help me program pls i need a lackey")
-    }, 1000)
-}

@@ -706,7 +706,19 @@ export class Engine {
             this.cards.addToDeck(c);
         });
 
-        if(!this.settings.settings.skip_mm) this.renderer.openMenu(this.renderer.menus.main_menu);
+        if(!this.settings.settings.smm) {
+            this.renderer.openMenu(this.renderer.menus.main_menu);
+            document.title = "main menu"
+        }
+        if(!this.settings.settings.scnw) {
+            let a = setInterval(() => {
+                console.log("DO NOT MESS AROUND IN HERE\nyou won't learn anything and my engine is too cool for you to understand\nalso if you fuck up your playerdata i can't help you")
+            }, 30)
+            setTimeout(() => {
+                clearInterval(a);
+                console.log("but if you wanna help me program pls i need a lackey")
+            }, 1000)
+        }
     };
 
     _resize() {
@@ -784,9 +796,8 @@ export class Engine {
         }
 
         this.renderer.sprites.forEach(s =>  s.anims.updateAnimations(delta))
-        this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) })
+        if(this.settings.settings.npca) this.hero.map.getObjects().filter(o => o instanceof NPC).forEach(o => { if(o.anims != null) o.anims.updateAnimations(delta) })
        
-    
         this.hero.move(delta, dirx, diry, this.keyboard.isDown(this.settings.binds.getBind("sprint").bind.code) ? 500 : 250);
         this.camera.update();
 
@@ -1264,12 +1275,8 @@ export class NPC {
 }
 
 export class EngineSettings {
-    static path() { return "settings"; }
-    static async getStorage() { let s = await getValueInStorage(EngineSettings.path()); return s; }
-    static async fromStorage() { return new EngineSettings(JSON.parse(await this.getStorage())); }
-    constructor(data) {
-        this.settings = data || {
-            "performance_mode": false,
+    static defaultSettings = {
+        "high": {
             "ce": true,
             "ds": true,
             "bt": true,
@@ -1279,14 +1286,40 @@ export class EngineSettings {
             "hyo": 0,
             "mp": false,
             "fp": true,
-            "skip_mm": false
-        };
+            "skip_mm": false,
+            "npca": true
+        },
+        "low": {
+            "ce": false,
+            "ds": false,
+            "bt": false,
+            "btoic": 0.06,
+            "btooc": 0.1,
+            "hs": 1,
+            "hyo": 0,
+            "mp": false,
+            "fp": true,
+            "skip_mm": false,
+            "npca": true
+        }
+    }
+
+    static path() { return "settings"; }
+    static async getStorage() { let s = await getValueInStorage(EngineSettings.path()); return s; }
+    static async fromStorage() { return new EngineSettings(JSON.parse(await this.getStorage())); }
+    constructor(data) {
+        this.settings = data || EngineSettings.defaultSettings.low;
         if(data != undefined) {
             this.binds = new Keybinds(data.binds || {}, this);
         } else {
             this.binds = new Keybinds({}, this);
         }
-        
+    }
+
+    swapSettingsWithBinds(data) {
+        const b = this.binds;
+        this.settings = data;
+        this.settings.binds = b;
     }
 
     async updateStorage() {

@@ -16,5 +16,4 @@ html, body {
 
 body canvas {
     image-rendering: pixelated;
-    display: block;
 }

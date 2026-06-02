@@ -384,6 +384,10 @@ export class CombatScenario {
         context.fillStyle = `rgba(255, 0, 0, ${this.iframes == 0 ? "1" : "0.4"})`;
         const center = this.getCenter();
         context.fillRect(center.x + cb.x, center.y + cb.y, this.size.w, this.size.h);
+        if(this.combat.engine.settings.settings.shb) {
+            context.strokeStyle = "green";
+            context.strokeRect(center.x + cb.x, center.y + cb.y, this.size.w, this.size.h);
+        }
     }
 
     damage() {
@@ -732,6 +736,17 @@ export class CombatManager {
             }
             
             ctx.restore();
+
+            if(this.engine.settings.settings.shb) {
+                ctx.strokeStyle = "blue";
+                ctx.lineWidth = 1;
+                ctx.strokeRect(
+                    pos.x + -card_size.w / 2,
+                    pos.y + -card_size.h / 2,
+                    card_size.w * scale,
+                    card_size.h * scale
+                )
+            }
 
             ctx.globalAlpha = 1;
         }
@@ -1365,7 +1380,7 @@ export class CombatManager {
         this.combatVariables.has_won = true;
         this.setBackgroundText("defeat");
         this.combatVariables.victory_status = 1;
-        this.combatVariables.bg_text_target_opacity = tthis.engine.settings.settings.btooc || this.combatSettings.bg_text_opacity_prepare+0.1;
+        this.combatVariables.bg_text_target_opacity = this.engine.settings.settings.btooc || this.combatSettings.bg_text_opacity_prepare+0.1;
         this.spawnRewards();
     }
 
@@ -1401,7 +1416,7 @@ export class CombatManager {
     }
 
     drawBackgroundText(text, angle, alpha, size, color, offsetX=0, offsetY=0) {
-        if(!this.engine.settings.settings.bt) return;
+        if(!this.engine.settings.settings.bt && !this.combatSettings.performance) return;
         const ctx = this.engine.ctx;
         
         ctx.font = `${size}px monospace`;
@@ -2090,25 +2105,31 @@ export class CombatManager {
     enterCombat(scenario) {
         let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
         e.onBlack = () => {
-            this.engine.renderer.menus.escape_menu.UIElements.find(e => e.data.text == "forfeit").visible = true;
-            this.reset(scenario);
-            document.title = this.combatVariables.bg_text_current
-            this.resetKeybinds();
-            if(this.engine.other_state_data != null) {
-                this.engine.other_state_data.closeDialogueWindow(this.engine);
-            }
+            this._enterCombat(scenario)
         };
+    }
+    _enterCombat(scenario) {
+        this.engine.renderer.menus.escape_menu.UIElements.find(e => e.data.text == "forfeit").visible = true;
+        this.reset(scenario);
+        document.title = this.combatVariables.bg_text_current
+        this.resetKeybinds();
+        if(this.engine.other_state_data != null) {
+            this.engine.other_state_data.closeDialogueWindow(this.engine);
+        }
     }
 
     exitCombat() {
         let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
-        this.in_combat = false;
         e.onBlack = () => {
-            this.engine.renderer.menus.escape_menu.UIElements.find(e => e.data.text == "forfeit").visible = false;
-            this.engine.state = "main";
-            document.title = "game name"
-            this.engine.setKeybinds();
+            this._exitCombat();
         };
+    }
+    _exitCombat() {
+        this.in_combat = false;
+        this.engine.renderer.menus.escape_menu.UIElements.find(e => e.data.text == "forfeit").visible = false;
+        this.engine.state = "main";
+        document.title = "game name"
+        this.engine.setKeybinds();
     }
 }
 
@@ -2155,6 +2176,8 @@ export class CombatPlayer {
         const cb = this.combat.getCombatBox();
         if(!this.combat.combat_active || this.combat.turn == 1) return;
 
+        const center = this.getCenter();
+
         if(!this.combat.engine.settings.settings.mp) {
             for (const img of this.afterimages) {
                 const alpha = img.life / 0.25;
@@ -2172,7 +2195,12 @@ export class CombatPlayer {
         
 
         context.fillStyle = `rgba(0, 0, 255, ${this.iframes == 0 ? "1" : "0.4"})`;
-        context.fillRect(this.x + cb.x, this.y + cb.y, this.size.w, this.size.h);
+        context.fillRect(center.x + cb.x, center.y + cb.y, this.size.w, this.size.h);
+
+        if(this.combat.engine.settings.settings.shb) {
+            context.strokeStyle = "green";
+            context.strokeRect(center.x + cb.x, center.y + cb.y, this.size.w, this.size.h);
+        }
     }
 
     reset() {
@@ -2300,9 +2328,14 @@ export class ProjectilePath {
                 switch(this.settings.target) {
                     case "player": {
                         let target = this.projectile.combat.player.getCenter();
+                        target.x += this.projectile.combat.player.size.w/2
+                        target.y += this.projectile.combat.player.size.h/2
                         if(this.projectile.combat.turn == 1) {
                             target = this.projectile.combat.scenario.getCenter();
+                            target.x += this.projectile.combat.scenario.size.w/2
+                            target.y += this.projectile.combat.scenario.size.h/2
                         }
+                        
                     
                         let px = this.projectile.x;
                         let py = this.projectile.y;
@@ -2461,12 +2494,18 @@ export class Projectile {
         ctx.fill();
         ctx.restore();
         ctx.globalAlpha = 1;
+
+        if(this.combat.engine.settings.settings.shb) {
+            const hb = this.getHitbox();
+            ctx.strokeStyle = "red"
+            ctx.strokeRect(cb.x+hb.x, cb.y+hb.y, hb.w, hb.h)
+        }
     }
 
     getHitbox() {
         return {
-            "x": this.x,
-            "y": this.y,
+            "x": this.x-(this.settings.size/2),
+            "y": this.y-(this.settings.size/2),
             "w": this.settings.size,
             "h": this.settings.size
         }

@@ -15,6 +15,21 @@ export class Keyboard {
         })
         window.addEventListener('keydown', this._onKeyDown.bind(this));
         window.addEventListener('keyup', this._onKeyUp.bind(this));
+
+        window.addEventListener("blur", () => {
+            for (const key in this._keys) {
+                this._keys[key] = false;
+            }
+        });
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                for (const key in this._keys) {
+                    this._keys[key] = false;
+                }
+            }
+        });
+
         this.waiting = false;
     };
 
@@ -46,7 +61,7 @@ export class Keyboard {
     };
 
     isDown(keyCode) {
-        if (!keyCode in this._keys) {
+        if (!(keyCode in this._keys)) {
             throw new Error('Keycode ' + keyCode + ' is not being listened to');
         }
         return this._keys[keyCode];

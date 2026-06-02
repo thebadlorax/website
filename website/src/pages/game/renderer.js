@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { Engine } from "./engine.js";
+import { Engine, EngineSettings } from "./engine.js";
 
 export class Loader {
     images;
@@ -673,7 +673,7 @@ export class MenuUIElement {
                 this.ctx.strokeStyle = this.data.strokeColor || "black";
                 this.ctx.lineWidth = 1;
                 this.ctx.strokeRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
-                this.ctx.font = "13px monospace";
+                this.ctx.font = `${this.data.fontSize || 13}px monospace`;
 
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
@@ -942,7 +942,8 @@ export class MenuRegistry {
             "combat_settings_menu": new Menu(renderer),
             "keybinds_menu": new Menu(renderer),
             "visual_settings_menu": new Menu(renderer),
-            "main_menu": new Menu(renderer)
+            "main_menu": new Menu(renderer),
+            "debug_settings_menu": new Menu(renderer)
         }
         this.setup();
     }
@@ -975,6 +976,7 @@ export class MenuRegistry {
             em.renderer.closeMenu();
             close_menu();
             em.renderer.openMenu(this.MENUS.main_menu);
+            document.title = "main menu"
         }
         let ehb = em.createUIElement(0.05, 0.9, 0.9, 0.07, "textbutton", {"text":"exit to homepage"})
         ehb.onclick = () => {
@@ -1043,6 +1045,18 @@ export class MenuRegistry {
                 vsb.data.strokeColor = "black";
             }
         };
+        let debugsb = sm.createUIElement(0.05, 0.9, 0.9, 0.07, "textbutton", {"text":"debug"});
+        debugsb.onclick = async () => {
+            sm.submenus.filter(m => m != dsm).forEach(m => m.visible = false);
+            sm.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
+            if(!dsm.visible) {
+                dsm.visible = true;
+                debugsb.data.strokeColor = "cyan";
+            } else {
+                dsm.visible = false;
+                debugsb.data.strokeColor = "black";
+            }
+        };
         let rb = sm.createUIElement(0.05, 0.42, 0.9, 0.07, "textbutton", {"text":"reset all", "bg_color": "red"});
         rb.onclick = async () => { if(confirm("are you sure? (will reload the page)")) await em.renderer.engine.settings._fullReset(); }
 
@@ -1100,6 +1114,10 @@ export class MenuRegistry {
         misc_perf.data.active = em.renderer.engine.settings.settings.mp || false
         misc_perf.onclick = () => { misc_perf.data.active = !em.renderer.engine.settings.settings.mp;
             em.renderer.engine.settings.modifySetting("mp", misc_perf.data.active); }
+        let show_hb = csm.createUIElement(0.05, 0.82, 0.9, 0.07, "toggle", {"text":"show hitboxes"});
+        show_hb.data.active = em.renderer.engine.settings.settings.shb || false
+        show_hb.onclick = () => { show_hb.data.active = !em.renderer.engine.settings.settings.shb;
+            em.renderer.engine.settings.modifySetting("shb", show_hb.data.active); }
 
         const km = this.MENUS.keybinds_menu;
         km.settings = {
@@ -1172,6 +1190,37 @@ export class MenuRegistry {
         ceb.data.active = em.renderer.engine.settings.settings.ce || false
         ceb.onclick = () => { ceb.data.active = !em.renderer.engine.settings.settings.ce;
             em.renderer.engine.settings.modifySetting("ce", ceb.data.active); }
+        let npcab = vsm.createUIElement(0.05, 0.22, 0.9, 0.07, "toggle", {"text":"npc animations"});
+        npcab.data.active = em.renderer.engine.settings.settings.npca || false
+        npcab.onclick = () => { npcab.data.active = !em.renderer.engine.settings.settings.npca;
+            em.renderer.engine.settings.modifySetting("npca", npcab.data.active); }
+
+        const dsm = this.MENUS.debug_settings_menu;
+        dsm.settings = {
+            "color": {
+                "bg": "white",
+                "border": "black",
+                "border_weight": 2
+            },
+            "x": 0.63,
+            "y": 0.025,
+            "space": "screen",
+            "width": 0.3,
+            "height": 0.95,
+            "hide_game": false,
+            "rotation": 0 // degrees
+        };
+        dsm.visible = false;
+        sm.submenus.push(dsm);
+        dsm.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"debug settings","fontSize":"25"});
+        let smmb = dsm.createUIElement(0.05, 0.12, 0.9, 0.07, "toggle", {"text":"skip main menu"});
+        smmb.data.active = em.renderer.engine.settings.settings.smm || false
+        smmb.onclick = () => { smmb.data.active = !em.renderer.engine.settings.settings.smm;
+            em.renderer.engine.settings.modifySetting("smm", smmb.data.active); }
+        let scnw = dsm.createUIElement(0.05, 0.22, 0.9, 0.07, "toggle", {"text":"supress console noob warning"});
+        scnw.data.active = em.renderer.engine.settings.settings.scnw || false
+        scnw.onclick = () => { scnw.data.active = !em.renderer.engine.settings.settings.scnw;
+            em.renderer.engine.settings.modifySetting("scnw", scnw.data.active); }
         
         const mm = this.MENUS.main_menu;
         mm.settings = {
@@ -1189,16 +1238,48 @@ export class MenuRegistry {
             "rotation": 0, // degrees
             "block_esc": true
         };
+        mm.visible = false;
         mm.createUIElement(0.45, 0.05, 0.1, 0.1, "text", {"text":"game name","fontSize":"80"});
-        let spb = mm.createUIElement(0.225, 0.3, 0.25, 0.1, "textbutton", {"text":"singleplayer","bg_color": "white"})
+        let spb = mm.createUIElement(0.225, 0.3, 0.25, 0.1, "textbutton", {"text":"singleplayer","bg_color": "rgba(0, 255, 0, 1)","fontSize":"20"})
         spb.onclick = async () => {
             if(em.renderer.engine.settings.settings.fp) {
+                alert("going to do a performance check to see what settings to give you (first time only)");
                 await em.renderer.engine.settings.modifySetting("fp", false);
+                em.renderer.ctx.canvas.style.display = "none";
+                const performance_test = (iter) => {
+                    const engine = em.renderer.engine;
+                    const start_time = Date.now();
+                    engine.combat._enterCombat(engine.data.scenarios.find(s => s.id == "test"));
+                    engine.combat.combatSettings.performance = true;
+                    for(let x = 0; x < iter; x++) {
+                        engine.combat.onClick();
+                        engine.combat.combatUpdate(0.06);
+                        engine.combat.render();
+                    }
+                    engine.combat.combatSettings.performance = false;
+                    engine.combat._exitCombat();
+                    const end_time = Date.now();
+                    return end_time-start_time;
+                }
+                const ms = performance_test(500)
+                em.renderer.ctx.canvas.style.display = "block";
+                let cs = null
+                if(ms > 2000) {
+                    cs = 0
+                } else {
+                    cs = 1;
+                }
+                alert(`your computer is probably only good enough for ${cs == 0 ? "LOW" : "HIGH"} settings, but you can always change them if you want to`);
+                em.renderer.engine.settings.swapSettingsWithBinds(cs == 0 ? EngineSettings.defaultSettings.low : EngineSettings.defaultSettings.high);
             }
+            document.title = "game name"
             em.renderer.closeMenu();
         }
-        let mpb = mm.createUIElement(0.525, 0.3, 0.25, 0.1, "textbutton", {"text":"multiplayer (wip)","fg_color":"rgba(128, 128, 128, 0.8)"})
-        mm.visible = false;
+        let mpb = mm.createUIElement(0.525, 0.3, 0.25, 0.1, "textbutton", {"text":"multiplayer (wip)","fg_color":"rgba(128, 128, 128, 0.8)","fontSize":"20"})
+        let bb = mm.createUIElement(0.375, 0.45, 0.25, 0.1, "textbutton", {"text":"exit","bg_color": "rgba(180, 0, 0, 0.65)","fontSize":"20"})
+        bb.onclick = async () => {
+            window.location.href = "/"
+        }
         
     };
 };
