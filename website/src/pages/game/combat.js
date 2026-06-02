@@ -2103,7 +2103,7 @@ export class CombatManager {
     }
 
     enterCombat(scenario) {
-        let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
+        let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 50});
         e.onBlack = () => {
             this._enterCombat(scenario)
         };
@@ -2119,7 +2119,7 @@ export class CombatManager {
     }
 
     exitCombat() {
-        let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 1200, "blackTime": 100});
+        let e = this.engine.renderer.applyEffect("fadeOutIn", {"ms": 600, "blackTime": 50});
         e.onBlack = () => {
             this._exitCombat();
         };
@@ -2192,7 +2192,6 @@ export class CombatPlayer {
                 );
             }
         }
-        
 
         context.fillStyle = `rgba(0, 0, 255, ${this.iframes == 0 ? "1" : "0.4"})`;
         context.fillRect(center.x + cb.x, center.y + cb.y, this.size.w, this.size.h);

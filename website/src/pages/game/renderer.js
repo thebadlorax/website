@@ -205,6 +205,19 @@ export class Window {
                         ry + e.y + (e.h / 2)
                     );
                 }
+                case "anim": {
+                    this.ctx.drawImage(
+                        e.data.image, // image
+                        (e.data.atlasIndex - 1) * e.data.tileSize, // source x
+                        0, // source y
+                        e.data.tileSize, // source width
+                        e.data.tileSize, // source height
+                        (rx + e.x)+1,
+                        (ry + e.y)+1,
+                        e.w-2, // target width
+                        e.h-2 // target height
+                    );
+                }
             }
         });
 
@@ -417,13 +430,15 @@ export class Renderer {
     }
 
     closeMenu() {
-        this.active_menu.submenus.forEach(m => m.visible = false);
-        this.active_menu.submenus.forEach(m => m.submenus.forEach(e => e.visible = false))
-        this.active_menu.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
-        this.active_menu.submenus.forEach(m => m.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black"))
-        this.active_menu.getAllUIElements().forEach(e => e.dragging = false);
+        if(this.active_menu != null) {
+            this.active_menu.submenus.forEach(m => m.visible = false);
+            this.active_menu.submenus.forEach(m => m.submenus.forEach(e => e.visible = false))
+            this.active_menu.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
+            this.active_menu.submenus.forEach(m => m.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black"))
+            this.active_menu.getAllUIElements().forEach(e => e.dragging = false);
+            this.active_menu = null;
+        };
         this.engine.other_state = null;
-        this.active_menu = null;
     }
 
     updateEffects(delta) {
@@ -918,7 +933,7 @@ export class Menu {
                     "h": mh * e.h
                 }
                 if(!e.visible || (e.onclick == null && e.type != "slider")) return;
-                if(Engine.rectanglesIntersect(mx, my, 10, 10, rx+pos.x,ry+pos.y, pos.w, pos.h)) {
+                if(Engine.rectanglesIntersect(mx-5, my-5, 10, 10, rx+pos.x,ry+pos.y, pos.w, pos.h)) {
                     if(e.type == "slider") {
                         e.dragging = true;
                         e.setSliderFromMouse(mx);
@@ -1221,6 +1236,8 @@ export class MenuRegistry {
         scnw.data.active = em.renderer.engine.settings.settings.scnw || false
         scnw.onclick = () => { scnw.data.active = !em.renderer.engine.settings.settings.scnw;
             em.renderer.engine.settings.modifySetting("scnw", scnw.data.active); }
+        let test_scen = dsm.createUIElement(0.05, 0.32, 0.9, 0.07, "textbutton", {"text":"enter scenario"});
+        test_scen.onclick = () => { const id = em.renderer.engine.data.scenarios.find(s => s.id == prompt("id")); if(!id) { alert("not real") } else { close_menu(); em.renderer.closeMenu(); em.renderer.engine.combat.enterCombat(id); } }
         
         const mm = this.MENUS.main_menu;
         mm.settings = {
@@ -1243,41 +1260,47 @@ export class MenuRegistry {
         let spb = mm.createUIElement(0.225, 0.3, 0.25, 0.1, "textbutton", {"text":"singleplayer","bg_color": "rgba(0, 255, 0, 1)","fontSize":"20"})
         spb.onclick = async () => {
             if(em.renderer.engine.settings.settings.fp) {
-                alert("going to do a performance check to see what settings to give you (first time only)");
-                em.renderer.ctx.canvas.style.display = "none";
-                document.getElementById("perf_test").style.display = "block";
-                const nextFrame = () => new Promise(requestAnimationFrame);
-                for(let x = 0; x < 10; x++) { await nextFrame(); }
-                const performance_test = async (iter) => {
-                    let p = new Promise((resolve, reject) => {
-                        const engine = em.renderer.engine;
-                        const start_time = Date.now();
-                        engine.combat._enterCombat(engine.data.scenarios.find(s => s.id == "test"));
-                        engine.combat.combatSettings.performance = true;
-                        for(let x = 0; x < iter; x++) {
-                            engine.combat.onClick();
-                            engine.combat.combatUpdate(0.06);
-                            engine.combat.render();
-                        }
-                        engine.combat.combatSettings.performance = false;
-                        engine.combat._exitCombat();
-                        const end_time = Date.now();
-                        resolve(end_time-start_time)
-                    })
-                    return await p;
-                }
-                const ms = await performance_test(500)
-                let cs = null
-                if(ms > 2000) {
-                    cs = 0
+                let settings = EngineSettings.defaultSettings.high
+                if(!confirm("going to do a performance check to see what settings to give you (first time only)")) {
+                    alert("ig bro, im gonna give you the good settings lets hope your computer doesn't explode");
                 } else {
-                    cs = 1;
-                }
-                alert(`your computer is probably only good enough for ${cs == 0 ? "LOW" : "HIGH"} settings, but you can always change them if you want to`);
-                const settings = cs == 0 ? EngineSettings.defaultSettings.low : EngineSettings.defaultSettings.high
-                em.renderer.ctx.canvas.style.display = "block";
-                document.getElementById("perf_test").style.display = "none";
+                    em.renderer.ctx.canvas.style.display = "none";
+                    document.getElementById("perf_test").style.display = "block";
+                    const nextFrame = () => new Promise(requestAnimationFrame);
+                    for(let x = 0; x < 10; x++) { await nextFrame(); }
+                    const performance_test = async (iter) => {
+                        let p = new Promise((resolve, reject) => {
+                            const engine = em.renderer.engine;
+                            const start_time = Date.now();
+                            engine.combat._enterCombat(engine.data.scenarios.find(s => s.id == "test"));
+                            engine.combat.combatSettings.performance = true;
+                            for(let x = 0; x < iter; x++) {
+                                engine.combat.onClick();
+                                engine.combat.combatUpdate(0.06);
+                                engine.combat.render();
+                            }
+                            engine.combat.combatSettings.performance = false;
+                            engine.combat._exitCombat();
+                            const end_time = Date.now();
+                            resolve(end_time-start_time)
+                        })
+                        return await p;
+                    }
+                    const ms = await performance_test(500)
+                    let cs = null
+                    if(ms > 2000) {
+                        cs = 0
+                    } else {
+                        cs = 1;
+                    }
+                    alert(`your computer is probably only good enough for ${cs == 0 ? "LOW" : "HIGH"} settings, but you can always change them if you want to`);
+                    settings = cs == 0 ? EngineSettings.defaultSettings.low : EngineSettings.defaultSettings.high
+                    em.renderer.ctx.canvas.style.display = "block";
+                    document.getElementById("perf_test").style.display = "none";
+                    
+                };
                 await em.renderer.engine.settings.swapSettingsWithBinds(settings);
+                    em.renderer.engine.resetControls();
                 await em.renderer.engine.settings.modifySetting("fp", false);
             }
             document.title = "game name"

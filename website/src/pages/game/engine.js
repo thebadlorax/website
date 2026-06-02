@@ -72,7 +72,7 @@ export class Engine {
             w: width,
             h: height
         };
-    } static catmullRom(p0, p1, p2, p3, t) {
+    }; static catmullRom(p0, p1, p2, p3, t) {
         const t2 = t * t;
         const t3 = t2 * t;
     
@@ -94,7 +94,7 @@ export class Engine {
         const dx = px - cx;
         const dy = py - cy;
         return (dx * dx + dy * dy) <= (radius * radius);
-    }
+    };
 
     static async gzipCompressString(str) {
         const input = new TextEncoder().encode(str);
@@ -130,6 +130,7 @@ export class Engine {
         return await new Response(stream).text();
     };
 
+
     debug = {
         "show_grid": false,
         "level_editor": {
@@ -164,7 +165,7 @@ export class Engine {
 
     setupHTML() {
         document.getElementById("loading-text").style.display = "none";
-    }
+    };
 
     run(context) {
         this.ctx = context;
@@ -180,7 +181,7 @@ export class Engine {
             window.requestAnimationFrame(this.tick);
             document.title = "game name"
         });
-    }
+    };
 
     tick(elapsed) {
         window.requestAnimationFrame(this.tick);
@@ -193,7 +194,7 @@ export class Engine {
 
         this.update(delta);
         if(this.renderer != undefined) this.renderer.render();
-    }
+    };
 
     setupLevelEditor() {
         this.debug.level_editor.selected_window          = new Window(this.ctx, 0, 0, 370, 370, "world");
@@ -232,6 +233,7 @@ export class Engine {
             ele.onclick = () => {
                 const tiles = get_rect_as_list();
                 tiles.forEach(t => {
+                    console.log(`tile ${x}`);
                     this.hero.map.setTile(this.debug.level_editor.selected_layer, t.x, t.y, x)
                 })
             };
@@ -460,7 +462,7 @@ export class Engine {
                 "text": "map pos: (x, x)"
             }
         );
-    }
+    };
 
     setKeybinds() {
         if(!this.has_setup_handlers) {
@@ -635,7 +637,7 @@ export class Engine {
                 this.renderer.openMenu(this.renderer.menus.escape_menu);
             }
         });
-    }
+    };
 
     resetControls() {
         this.keyboard.listenForEvents(["Escape"].concat(this.settings.binds.binds.map(b => b.bind.code)));
@@ -655,7 +657,7 @@ export class Engine {
         });  
 
         if(this.combat.in_combat) this.combat.resetKeybinds();
-    }
+    };
 
     async init() {
         this.settings = await EngineSettings.fromStorage();
@@ -1280,8 +1282,8 @@ export class EngineSettings {
             "ce": true,
             "ds": true,
             "bt": true,
-            "btoic": 0.06,
-            "btooc": 0.1,
+            "btoic": 0.08,
+            "btooc": 0.14,
             "hs": 1,
             "hyo": 0,
             "mp": false,
@@ -1293,8 +1295,8 @@ export class EngineSettings {
             "ce": false,
             "ds": false,
             "bt": false,
-            "btoic": 0.06,
-            "btooc": 0.1,
+            "btoic": 0.08,
+            "btooc": 0.14,
             "hs": 1,
             "hyo": 0,
             "mp": false,
@@ -1319,6 +1321,7 @@ export class EngineSettings {
     async swapSettingsWithBinds(data) {
         this.settings = data;
         await this.updateStorage();
+        await this.binds.updateStorage();
     }
 
     async updateStorage() {

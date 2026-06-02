@@ -186,12 +186,16 @@ export class Keybinds {
         return this.binds.find(b => b.id == id);
     }
 
+    async updateStorage() {
+        this.settings.settings.binds = this.binds;
+        await this.settings.updateStorage();
+    }
+
     async updateBind(id, name, code) {
         this.binds[this.binds.indexOf(this.binds.find(b => b.id == id))].bind = {
             "name": name,
             "code": code
         };
-        this.settings.settings.binds = this.binds;
-        await this.settings.updateStorage();
+        await this.updateStorage();
     }
 }
