@@ -664,6 +664,8 @@ export class MenuUIElement {
         const mw = this.menu.getWidth();
         const mh = this.menu.getHeight();
 
+        const ts = (this.data.fontSize || 13) * (this.menu.renderer.camera.width)*(0.0008+(0.0001*this.menu.renderer.engine.settings.settings.fss || 0));
+
         const pos = {
             "x": mw * this.x,
             "y": mh * this.y,
@@ -688,7 +690,7 @@ export class MenuUIElement {
                 this.ctx.strokeStyle = this.data.strokeColor || "black";
                 this.ctx.lineWidth = 1;
                 this.ctx.strokeRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
-                this.ctx.font = `${this.data.fontSize || 13}px monospace`;
+                this.ctx.font = `${ts}px monospace`;
 
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
@@ -731,7 +733,7 @@ export class MenuUIElement {
                 break;
             }
             case "text": {
-                this.ctx.font = `${this.data.fontSize || "13"}px monospace`;
+                this.ctx.font = `${ts}px monospace`;
                 this.ctx.fillStyle = "black";
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
@@ -775,7 +777,7 @@ export class MenuUIElement {
                 this.ctx.strokeStyle = "black";
                 this.ctx.stroke();
 
-                this.ctx.font = `${this.data.fontSize || "13"}px monospace`;
+                this.ctx.font = `${ts}px monospace`;
                 this.ctx.fillStyle = "black";
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
@@ -803,7 +805,7 @@ export class MenuUIElement {
                 this.ctx.strokeStyle = this.data.strokeColor || "black";
                 this.ctx.lineWidth = 1;
                 this.ctx.strokeRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
-                this.ctx.font = "13px monospace";
+                this.ctx.font = `${ts}px monospace`;
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
                 this.ctx.fillText(
@@ -964,6 +966,18 @@ export class MenuRegistry {
     }
 
     setup() {
+        this.clear();
+        this._setup();
+    }
+
+    clear() {
+        Object.values(this.MENUS).forEach(m => {
+            m.UIElements = [];
+            m.submenus = [];
+        })
+    }
+
+    _setup() {
         const em = this.MENUS.escape_menu;
         const close_menu = () => {
             em.submenus.forEach(m => m.visible = false);
@@ -1201,12 +1215,15 @@ export class MenuRegistry {
         vsm.visible = false;
         sm.submenus.push(vsm);
         vsm.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"visual settings","fontSize":"25"});
-        let ceb = vsm.createUIElement(0.05, 0.12, 0.9, 0.07, "toggle", {"text":"cursor effects (pointer, etc)"});
-        ceb.data.active = em.renderer.engine.settings.settings.ce || false
+        let fss = vsm.createUIElement(0.05, 0.12, 0.9, 0.07, "slider", {"min": -5, "max": 5, "step": 1, "title": "font size"});
+        fss.onchange = async () => { await em.renderer.engine.settings.modifySetting("fss", fss.data.progress); }
+        fss.data.progress = em.renderer.engine.settings.settings.fss ?? fss.data.progress;
+        let ceb = vsm.createUIElement(0.05, 0.22, 0.9, 0.07, "toggle", {"text":"cursor effects (pointer, etc)"});
+        ceb.data.active = em.renderer.engine.settings.settings.ce ?? false
         ceb.onclick = () => { ceb.data.active = !em.renderer.engine.settings.settings.ce;
             em.renderer.engine.settings.modifySetting("ce", ceb.data.active); }
-        let npcab = vsm.createUIElement(0.05, 0.22, 0.9, 0.07, "toggle", {"text":"npc animations"});
-        npcab.data.active = em.renderer.engine.settings.settings.npca || false
+        let npcab = vsm.createUIElement(0.05, 0.32, 0.9, 0.07, "toggle", {"text":"npc animations"});
+        npcab.data.active = em.renderer.engine.settings.settings.npca ?? false
         npcab.onclick = () => { npcab.data.active = !em.renderer.engine.settings.settings.npca;
             em.renderer.engine.settings.modifySetting("npca", npcab.data.active); }
 
@@ -1229,7 +1246,7 @@ export class MenuRegistry {
         sm.submenus.push(dsm);
         dsm.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"debug settings","fontSize":"25"});
         let smmb = dsm.createUIElement(0.05, 0.12, 0.9, 0.07, "toggle", {"text":"skip main menu"});
-        smmb.data.active = em.renderer.engine.settings.settings.smm || false
+        smmb.data.active = em.renderer.engine.settings.settings.smm ?? false
         smmb.onclick = () => { smmb.data.active = !em.renderer.engine.settings.settings.smm;
             em.renderer.engine.settings.modifySetting("smm", smmb.data.active); }
         let scnw = dsm.createUIElement(0.05, 0.22, 0.9, 0.07, "toggle", {"text":"supress console noob warning"});
@@ -1238,6 +1255,8 @@ export class MenuRegistry {
             em.renderer.engine.settings.modifySetting("scnw", scnw.data.active); }
         let test_scen = dsm.createUIElement(0.05, 0.32, 0.9, 0.07, "textbutton", {"text":"enter scenario"});
         test_scen.onclick = () => { const id = em.renderer.engine.data.scenarios.find(s => s.id == prompt("id")); if(!id) { alert("not real") } else { close_menu(); em.renderer.closeMenu(); em.renderer.engine.combat.enterCombat(id); } }
+        let dd = dsm.createUIElement(0.05, 0.42, 0.9, 0.07, "textbutton", {"text":"log engine object to console"});
+        dd.onclick = () => { console.log(em.renderer.engine) };
         
         const mm = this.MENUS.main_menu;
         mm.settings = {
@@ -1261,12 +1280,12 @@ export class MenuRegistry {
         spb.onclick = async () => {
             if(em.renderer.engine.settings.settings.fp) {
                 let settings = EngineSettings.defaultSettings.high
+                const nextFrame = () => new Promise(requestAnimationFrame);
                 if(!confirm("going to do a performance check to see what settings to give you (first time only)")) {
                     alert("ig bro, im gonna give you the good settings lets hope your computer doesn't explode");
                 } else {
                     em.renderer.ctx.canvas.style.display = "none";
                     document.getElementById("perf_test").style.display = "block";
-                    const nextFrame = () => new Promise(requestAnimationFrame);
                     for(let x = 0; x < 10; x++) { await nextFrame(); }
                     const performance_test = async (iter) => {
                         let p = new Promise((resolve, reject) => {
@@ -1297,11 +1316,12 @@ export class MenuRegistry {
                     settings = cs == 0 ? EngineSettings.defaultSettings.low : EngineSettings.defaultSettings.high
                     em.renderer.ctx.canvas.style.display = "block";
                     document.getElementById("perf_test").style.display = "none";
-                    
+                    for(let x = 0; x < 10; x++) { await nextFrame(); }
                 };
                 await em.renderer.engine.settings.swapSettingsWithBinds(settings);
-                    em.renderer.engine.resetControls();
+                em.renderer.engine.resetControls();
                 await em.renderer.engine.settings.modifySetting("fp", false);
+                this.setup();
             }
             document.title = "game name"
             em.renderer.closeMenu();
@@ -1311,6 +1331,5 @@ export class MenuRegistry {
         bb.onclick = async () => {
             window.location.href = "/"
         }
-        
     };
 };

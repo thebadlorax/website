@@ -1289,7 +1289,8 @@ export class EngineSettings {
             "mp": false,
             "fp": true,
             "skip_mm": false,
-            "npca": true
+            "npca": true,
+            "fss": 0.0
         },
         "low": {
             "ce": false,
@@ -1302,7 +1303,8 @@ export class EngineSettings {
             "mp": false,
             "fp": true,
             "skip_mm": false,
-            "npca": true
+            "npca": true,
+            "fss": 0.0
         }
     }
 
