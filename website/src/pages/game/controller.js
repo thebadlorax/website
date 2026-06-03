@@ -58,6 +58,14 @@ export class Keyboard {
             event.preventDefault();
             this._keys[keyCode] = false;
         }
+
+        if (keyCode === "MetaLeft" || keyCode === "MetaRight") {
+            for (const key in this._keys) {
+                if (key !== "MetaLeft" && key !== "MetaRight") {
+                    this._keys[key] = false;
+                }
+            }
+        }
     };
 
     isDown(keyCode) {

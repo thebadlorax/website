@@ -205,6 +205,7 @@ export class Window {
                         rx + e.x + (e.w / 2),
                         ry + e.y + (e.h / 2)
                     );
+                    break;
                 }
                 case "anim": {
                     const a = e.data.anim;
@@ -1088,7 +1089,14 @@ export class MenuRegistry {
                 debugsb.data.strokeColor = "black";
             }
         };
-        let rb = sm.createUIElement(0.05, 0.42, 0.9, 0.07, "textbutton", {"text":"reset all", "bg_color": "red"});
+        let rpt = sm.createUIElement(0.05, 0.8, 0.9, 0.07, "textbutton", {"text":"redo performance test"});
+        rpt.onclick = async () => {
+            await em.renderer.engine.settings.swapSettingsWithBinds(await handlePerfTest());
+            em.renderer.engine.resetControls();
+            await em.renderer.engine.settings.modifySetting("fp", false);
+            this.setup();
+        }
+        let rb = sm.createUIElement(0.05, 0.9, 0.9, 0.07, "textbutton", {"text":"reset", "bg_color": "red"});
         rb.onclick = async () => { if(confirm("are you sure? (will reload the page)")) await em.renderer.engine.settings._fullReset(); }
 
         const csm = this.MENUS.combat_settings_menu;
@@ -1331,7 +1339,7 @@ export class MenuRegistry {
                   "user": user,
                   "ms": ms
             }})});
-            return ms;
+            return settings;
         }
         spb.onclick = async () => {
             if(em.renderer.engine.settings.settings.fp) {
@@ -1340,8 +1348,7 @@ export class MenuRegistry {
                 if(!confirm("going to do a performance check to see what settings to give you (first time only)")) {
                     alert("ig bro, im gonna give you the good settings lets hope your computer doesn't explode");
                 } else {
-                    await handlePerfTest();
-                    
+                    settings = await handlePerfTest();
                 };
                 await em.renderer.engine.settings.swapSettingsWithBinds(settings);
                 em.renderer.engine.resetControls();
@@ -1360,6 +1367,4 @@ export class MenuRegistry {
         const v = Engine.getVersion();
         mm.createUIElement(0, 0.92, 0.08, 0.1, "text", {"text":`v${v[0]}.${v[1]}.${v[2]}`,"fontSize":"25"});
     };
-
-
 };
