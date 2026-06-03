@@ -842,7 +842,7 @@ const server = Bun.serve({
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
             let json = await data.json();
-            let player_data = await db.fetch("game") || {"player_data": {}};
+            let player_data = await db.fetch("game") || {"player_data": {}, "analytics": {}};
             
             player_data = player_data.player_data || {};
             player_data = player_data[user.account.id] || {
@@ -857,7 +857,7 @@ const server = Bun.serve({
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
-            let d = await db.fetch("game") || {"player_data": {}};
+            let d = await db.fetch("game") || {"player_data": {}, "analytics": {}};
             let x = d.player_data[user.account.id] ?? {
               "inventory": { "items": [{ "type": "card", "data": { "id": 0 } }] },
               "deck": [0, 0, 1, 1, 2]
@@ -871,8 +871,19 @@ const server = Bun.serve({
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
-            let d = await db.fetch("game") || {"player_data": {}};
+            let d = await db.fetch("game") || {"player_data": {}, "analytics": {}};
             delete d.player_data[user.account.id].settings;
+            await db.modify("game", d);
+            return corsResponse(null, { status: 200 });
+          }
+          case "/game/analytics/perfTest": {
+            let user_json = await req.json();
+            let user = await auth.fetchAccount(user_json.name, user_json.pass);
+            if(!user) return corsResponse(null, { status: 401 });
+            let d = await db.fetch("game") || {"player_data": {}, "analytics": {}};
+            if(!d.analytics) d.analytics = {};
+            if(!d.analytics.perfTests) d.analytics.perfTests = [];
+            d.analytics.perfTests.push(user_json.data);
             await db.modify("game", d);
             return corsResponse(null, { status: 200 });
           }

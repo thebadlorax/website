@@ -83,7 +83,8 @@ export class Database {
 
     backup_database = async () => {
         this.log.log("moving old database backup", "DATABASE")
-        await rename(`${this.path}.bk.gz`, `${this.path}.old.bk.gz`)
+        try { await rename(`${this.path}.bk.gz`, `${this.path}.old.bk.gz`) }
+        catch { this.log.log("no old database backup", "DATABASE")}
         this.log.log("starting database backup", "DATABASE")
         
         await pipeline(

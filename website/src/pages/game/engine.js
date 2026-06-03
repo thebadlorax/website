@@ -662,7 +662,11 @@ export class Engine {
     };
 
     async init() {
-        this.settings = new EngineSettings(JSON.parse(this.data.player_data.settings));
+        this.settings = new EngineSettings(this.data.player_data.settings != undefined ? JSON.parse(this.data.player_data.settings) : null);
+        if(!this.settings.isRecent() && this.data.player_data.settings != undefined) {
+            alert("your settings will be reset because of a new update");
+            await this.settings._fullReset();
+        }
         this.combat = new CombatManager(this.cards, this);
         this.resetControls();
 

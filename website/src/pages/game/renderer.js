@@ -6,6 +6,7 @@
 */
 
 import { Engine, EngineSettings } from "./engine.js";
+import { getApiLink } from "../common.js";
 
 export class Loader {
     images;
@@ -1278,6 +1279,60 @@ export class MenuRegistry {
         mm.visible = false;
         mm.createUIElement(0.45, 0.05, 0.1, 0.1, "text", {"text":"game name","fontSize":"80"});
         let spb = mm.createUIElement(0.225, 0.3, 0.25, 0.1, "textbutton", {"text":"singleplayer","bg_color": "rgba(0, 255, 0, 1)","fontSize":"20"})
+        const handlePerfTest = async () => {
+            let settings = EngineSettings.defaultSettings.high
+            em.renderer.ctx.canvas.style.display = "none";
+            document.getElementById("perf_test").style.display = "block";
+            const nextFrame = () => new Promise(requestAnimationFrame);
+            for(let x = 0; x < 10; x++) { await nextFrame(); }
+            const performance_test = async (iter) => {
+                let p = new Promise((resolve, reject) => {
+                    const engine = em.renderer.engine;
+                    const start_time = Date.now();
+                    engine.combat._enterCombat(engine.data.scenarios.find(s => s.id == "test"));
+                    engine.combat.combatSettings.performance = true;
+                    for(let x = 0; x < iter; x++) {
+                        engine.combat.onClick();
+                        engine.combat.combatUpdate(0.06);
+                        engine.combat.render();
+                    }
+                    engine.combat.combatSettings.performance = false;
+                    engine.combat._exitCombat();
+                    const end_time = Date.now();
+                    resolve(end_time-start_time)
+                })
+                return await p;
+            };
+            const ms = await performance_test(1000)
+            let cs = null;
+            if(ms > 5500) {
+                cs = 0
+            } else {
+                cs = 1;
+            }
+            alert(`your computer is probably only good enough for ${cs == 0 ? "LOW" : "HIGH"} settings, but you can always change them if you want to`);
+            settings = cs == 0 ? EngineSettings.defaultSettings.low : EngineSettings.defaultSettings.high
+            if(!confirm("do you consent to collecting data on your computer to refine the performance test (very uninvasive)")) {
+                alert("too bad i'm doing it anyways")
+            }
+            em.renderer.ctx.canvas.style.display = "block";
+            document.getElementById("perf_test").style.display = "none";
+            for(let x = 0; x < 10; x++) { await nextFrame(); }
+            const user = JSON.parse(window.localStorage.getItem("user"));
+            await fetch(getApiLink("/game/analytics/perfTest"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "data": {
+                "computer": {
+                    logicalCores: navigator.hardwareConcurrency || "Unknown", // CPU threads
+                    estimatedRAM: navigator.deviceMemory || "Unknown",        // RAM in GB (approximate)
+                    operatingSystem: navigator.userAgentData?.platform || navigator.platform,
+                    screenResolution: `${screen.width}x${screen.height}`,
+                    browserLanguage: navigator.language,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                  },
+                  "user": user,
+                  "ms": ms
+            }})});
+            return ms;
+        }
         spb.onclick = async () => {
             if(em.renderer.engine.settings.settings.fp) {
                 let settings = EngineSettings.defaultSettings.high
@@ -1285,40 +1340,8 @@ export class MenuRegistry {
                 if(!confirm("going to do a performance check to see what settings to give you (first time only)")) {
                     alert("ig bro, im gonna give you the good settings lets hope your computer doesn't explode");
                 } else {
-                    em.renderer.ctx.canvas.style.display = "none";
-                    document.getElementById("perf_test").style.display = "block";
-                    for(let x = 0; x < 10; x++) { await nextFrame(); }
-                    const performance_test = async (iter) => {
-                        let p = new Promise((resolve, reject) => {
-                            const engine = em.renderer.engine;
-                            const start_time = Date.now();
-                            engine.combat._enterCombat(engine.data.scenarios.find(s => s.id == "test"));
-                            engine.combat.combatSettings.performance = true;
-                            for(let x = 0; x < iter; x++) {
-                                engine.combat.onClick();
-                                engine.combat.combatUpdate(0.06);
-                                engine.combat.render();
-                            }
-                            engine.combat.combatSettings.performance = false;
-                            engine.combat._exitCombat();
-                            const end_time = Date.now();
-                            resolve(end_time-start_time)
-                        })
-                        return await p;
-                    };
-                    const ms = await performance_test(1000)
-                    console.log(ms);
-                    let cs = null;
-                    if(ms > 5500) {
-                        cs = 0
-                    } else {
-                        cs = 1;
-                    }
-                    alert(`your computer is probably only good enough for ${cs == 0 ? "LOW" : "HIGH"} settings, but you can always change them if you want to`);
-                    settings = cs == 0 ? EngineSettings.defaultSettings.low : EngineSettings.defaultSettings.high
-                    em.renderer.ctx.canvas.style.display = "block";
-                    document.getElementById("perf_test").style.display = "none";
-                    for(let x = 0; x < 10; x++) { await nextFrame(); }
+                    await handlePerfTest();
+                    
                 };
                 await em.renderer.engine.settings.swapSettingsWithBinds(settings);
                 em.renderer.engine.resetControls();
@@ -1337,4 +1360,6 @@ export class MenuRegistry {
         const v = Engine.getVersion();
         mm.createUIElement(0, 0.92, 0.08, 0.1, "text", {"text":`v${v[0]}.${v[1]}.${v[2]}`,"fontSize":"25"});
     };
+
+
 };
