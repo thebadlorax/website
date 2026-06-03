@@ -206,6 +206,7 @@ export class Window {
                     );
                 }
                 case "anim": {
+                    const a = e.data.anim;
                     this.ctx.drawImage(
                         e.data.image, // image
                         (e.data.atlasIndex - 1) * e.data.tileSize, // source x
@@ -1304,10 +1305,11 @@ export class MenuRegistry {
                             resolve(end_time-start_time)
                         })
                         return await p;
-                    }
-                    const ms = await performance_test(500)
-                    let cs = null
-                    if(ms > 2000) {
+                    };
+                    const ms = await performance_test(1000)
+                    console.log(ms);
+                    let cs = null;
+                    if(ms > 5500) {
                         cs = 0
                     } else {
                         cs = 1;

@@ -10,7 +10,7 @@ import { Loader, Camera, Window, Renderer, AnimationManager } from "./renderer.j
 import { Map } from "./map.js";
 import { deleteValueInStorage, downloadBlob, getValueInStorage, pickFile, setValueInStorage } from "./browser.js";
 
-import { clamp } from "../common.js";
+import { clamp, getApiLink } from "../common.js";
 import { Card, CardManager, CombatManager } from "./combat.js";
 
 export class InventoryItem {
@@ -662,7 +662,7 @@ export class Engine {
     };
 
     async init() {
-        this.settings = await EngineSettings.fromStorage();
+        this.settings = new EngineSettings(JSON.parse(this.data.player_data.settings));
         this.combat = new CombatManager(this.cards, this);
         this.resetControls();
 
@@ -1330,11 +1330,15 @@ export class EngineSettings {
     }
 
     async updateStorage() {
-        await setValueInStorage(EngineSettings.path(), JSON.stringify(this.settings));
+        const user = JSON.parse(window.localStorage.getItem("user"));
+        let d = await fetch(getApiLink("/game/data/pushSettings"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "new": JSON.stringify(this.settings)})})
+        return d.status;
     }
 
     async clearStorage() {
-        await deleteValueInStorage(EngineSettings.path());
+        const user = JSON.parse(window.localStorage.getItem("user"));
+        let d = await fetch(getApiLink("/game/data/clearSettings"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})})
+        return d.status;
     }
 
     isRecent() {

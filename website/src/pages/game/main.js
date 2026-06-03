@@ -13,7 +13,7 @@ if(!user) {
     alert("this only works if you have an account :(");
     window.location.href = "/?account";
 }
-let d = await fetch(getApiLink("/game/data"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})})
+let d = await fetch(getApiLink("/game/data/fetch"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})})
 d = await d.json();
 
 

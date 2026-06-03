@@ -836,7 +836,7 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify(data), {
               headers: { "Content-Type": "application/json" },
             });
-          case "/game/data": {
+          case "/game/data/fetch": {
             let data = Bun.file("src/res/game/data.json");
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
@@ -847,10 +847,34 @@ const server = Bun.serve({
             player_data = player_data.player_data || {};
             player_data = player_data[user.account.id] || {
               "inventory": { "items": [{ "type": "card", "data": { "id": 0 } }] },
-              "deck": [0, 0, 1, 1, 2]
+              "deck": [0, 0, 1, 1, 2],
+              "settings": null
             };
             json = {...json, ...{"player_data": player_data}};
             return corsResponse(JSON.stringify(json), { status: 200 });
+          }
+          case "/game/data/pushSettings": {
+            let user_json = await req.json();
+            let user = await auth.fetchAccount(user_json.name, user_json.pass);
+            if(!user) return corsResponse(null, { status: 401 });
+            let d = await db.fetch("game") || {"player_data": {}};
+            let x = d.player_data[user.account.id] ?? {
+              "inventory": { "items": [{ "type": "card", "data": { "id": 0 } }] },
+              "deck": [0, 0, 1, 1, 2]
+            }
+            x.settings = user_json.new;
+            d.player_data[user.account.id] = x;
+            await db.modify("game", d);
+            return corsResponse(null, { status: 200 });
+          }
+          case "/game/data/clearSettings": {
+            let user_json = await req.json();
+            let user = await auth.fetchAccount(user_json.name, user_json.pass);
+            if(!user) return corsResponse(null, { status: 401 });
+            let d = await db.fetch("game") || {"player_data": {}};
+            delete d.player_data[user.account.id].settings;
+            await db.modify("game", d);
+            return corsResponse(null, { status: 200 });
           }
           case "/health":
             return corsResponse("OK"); 
