@@ -330,33 +330,39 @@ export class CombatScenario {
     
         const cols = Math.floor(combatBox.w / gridSize);
         const rows = Math.floor(combatBox.h / gridSize);
-    
+
+        const placed = [];
+
         for (const card of hand) {
             const grid = freqGrids.find(g => g.id === card.id);
             if (!grid) continue;
     
             const weights = grid.data;
-    
-            const index = CombatScenario.weightedRandomIndex(weights);
-    
-            const y = Math.floor(index / cols);
-            const x = index % cols;
-    
-            const px = x * gridSize;
-            const py = y * gridSize;
-    
-            const jitter = gridSize * 0.25;
-            const jx = (Math.random() - 0.5) * jitter;
-            const jy = (Math.random() - 0.5) * jitter;
-    
-            placements.push({
-                card,
-                x: clamp(px + jx, 0, combatBox.w - 128),
-                y: clamp(py + jy, 0, combatBox.h - 128)
-            });
-        }
+            const adjusted = weights.map((w, i) => {
+                const x = i % cols;
+                const y = Math.floor(i / cols);
 
-        return placements;
+                let penalty = 0;
+
+                for (const p of placed) {
+                    penalty += Math.max(
+                        0,
+                        6 - Math.hypot(x - p.x, y - p.y)
+                    );
+                }
+
+                return w / (1 + penalty);
+            });
+
+            const index = CombatScenario.weightedRandomIndex(adjusted);
+
+            const x = index % cols;
+            const y = Math.floor(index / cols);
+
+            placed.push({card, x: x*gridSize, y: y*gridSize});
+        }
+        console.log(placed)
+        return placed;
     }
 
     runPlacingTurn() {
@@ -2142,7 +2148,7 @@ export class CombatPlayer {
         
         this.visible = false;
         this.combat = combat; this.size = {"w": 20, "h": 20};
-        this.iframes = 0; this.maxhealth = 5; this.health = this.maxhealth;
+        this.iframes = 0; this.maxhealth = 10; this.health = this.maxhealth;
         this.afterimages = [];
     }
 

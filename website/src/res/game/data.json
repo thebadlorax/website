@@ -358,8 +358,8 @@
                         "settings": {
                             "target": "player",
                             "speed": 6,
-                            "turnSpeed": 4.2,
-                            "accuracy": 0.65
+                            "turnSpeed": 2.5,
+                            "accuracy": 0.7
                         }
                     }
                 }

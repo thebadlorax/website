@@ -130,6 +130,8 @@ export class Engine {
         return await new Response(stream).text();
     };
 
+    static getVersion() { return [0,0,1]; };
+
 
     debug = {
         "show_grid": false,
@@ -1290,7 +1292,8 @@ export class EngineSettings {
             "fp": true,
             "skip_mm": false,
             "npca": true,
-            "fss": 0.0
+            "fss": 0.0,
+            "v": Engine.getVersion()
         },
         "low": {
             "ce": false,
@@ -1304,10 +1307,10 @@ export class EngineSettings {
             "fp": true,
             "skip_mm": false,
             "npca": true,
-            "fss": 0.0
+            "fss": 0.0,
+            "v": Engine.getVersion()
         }
     }
-
     static path() { return "settings"; }
     static async getStorage() { let s = await getValueInStorage(EngineSettings.path()); return s; }
     static async fromStorage() { return new EngineSettings(JSON.parse(await this.getStorage())); }
@@ -1334,12 +1337,19 @@ export class EngineSettings {
         await deleteValueInStorage(EngineSettings.path());
     }
 
+    isRecent() {
+        const v1 = Engine.getVersion();
+        const v2 = this.settings.v;
+        if(!v2) return false;
+        return v1[0] == v2[0] && v1[1] == v2[1] && v1[2] == v2[2];
+    }
+
     async modifySetting(name, val) {
         this.settings[name] = val;
         await this.updateStorage()
     }
 
-   async  _fullReset() {
+    async  _fullReset() {
         await this.clearStorage();
         location.reload();
     }

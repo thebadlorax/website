@@ -1,19 +1,52 @@
 /* LONGER TERM PLANS
- *    forum page
- *    user generated ads
+ * forum page
+ * user generated ads
  * chat ui rework w/ embedding support
- * move server into a server class (or api)
+ * voice chat support
+ *    would need to host my own webrtc though
+ * ------
  * finish gambling ring (roulette, poker, etc.), and abstract away everything possible from blackjack like cards and turns w/ a gameinstance
- *        visual update on things like ui elements and upscale things like the bg
+ *      create a scratch clone to make card games
+ * -----
+ * visual update on things like ui elements and upscale things like the bg
  * refactor all clientside js to not make 1000000 requests and also look nicer w switches and classes
- *        more user to user interaction (friends, online dates, etc)
+ * more user to user interaction (friends, online dates, etc)
  * make the snail races be the same for every viewer (and sync up start times)
- *    meowl shrine
+ * meowl shrine
  * finish webring
- *    make an actual dev portfolio on professional.thebadlorax.dev
+ * make an actual dev portfolio on professional.thebadlorax.dev
+ *      maybe the website itself is the portfolio in a way, but def have this for my resume and stuff
+ * ------
  * improve website hosting experience
- *      run a newspaper 
- *      FISHING MULTIPLAYER GAME
+ * run a newspaper 
+ * FISHING MULTIPLAYER GAME
+ *      folded into normal game
+ * ------
+ * board game multiplayer engine
+ *      allow making your own board games
+ * --------
+ * mini projects page
+ *    long walk simulation
+ *    sand simulation
+ *    pet ownership simulation
+ *    physics engine
+ *    garden simulation
+ *        maybe fold pet ownership and garden into a life simulation
+ * -------
+ * make a toggle to make protected folders public but immutable
+ *    also if you have the url protected is useless
+ * -------
+ * urls to add protected folders to your file browser (webdav impl)
+ * write about me
+ *    maybe redo the home screen so that all that is in a personal page
+ * ------
+ * create custom file editors/viewers for types like .txt & .mp4
+ *    maybe make these seperate tools and then have like a /editor?src=api.thebadlorax.dev/...
+ * -----
+ * do something about the guestbook on the home screen
+ * refactor api code
+ * port desktop app to windows & linux + autoupdater
+ * link google account functionality
 */
 
 import { Glob, $, type ServerWebSocket } from "bun";

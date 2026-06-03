@@ -1074,7 +1074,7 @@ export class MenuRegistry {
                 vsb.data.strokeColor = "black";
             }
         };
-        let debugsb = sm.createUIElement(0.05, 0.9, 0.9, 0.07, "textbutton", {"text":"debug"});
+        let debugsb = sm.createUIElement(-1, 0.04, 0.2, 0.03, "textbutton", {"text":"debug"});
         debugsb.onclick = async () => {
             sm.submenus.filter(m => m != dsm).forEach(m => m.visible = false);
             sm.UIElements.filter(e => e.type == "textbutton").forEach(e => e.data.strokeColor = "black");
@@ -1215,7 +1215,7 @@ export class MenuRegistry {
         vsm.visible = false;
         sm.submenus.push(vsm);
         vsm.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"visual settings","fontSize":"25"});
-        let fss = vsm.createUIElement(0.05, 0.12, 0.9, 0.07, "slider", {"min": -5, "max": 5, "step": 1, "title": "font size"});
+        let fss = vsm.createUIElement(0.05, 0.12, 0.9, 0.07, "slider", {"min": -3, "max": 5, "step": 1, "title": "font size"});
         fss.onchange = async () => { await em.renderer.engine.settings.modifySetting("fss", fss.data.progress); }
         fss.data.progress = em.renderer.engine.settings.settings.fss ?? fss.data.progress;
         let ceb = vsm.createUIElement(0.05, 0.22, 0.9, 0.07, "toggle", {"text":"cursor effects (pointer, etc)"});
@@ -1323,6 +1323,7 @@ export class MenuRegistry {
                 await em.renderer.engine.settings.modifySetting("fp", false);
                 this.setup();
             }
+            console.log(em.renderer.engine.settings.isRecent())
             document.title = "game name"
             em.renderer.closeMenu();
         }
@@ -1331,5 +1332,7 @@ export class MenuRegistry {
         bb.onclick = async () => {
             window.location.href = "/"
         }
+        const v = Engine.getVersion();
+        mm.createUIElement(0, 0.92, 0.08, 0.1, "text", {"text":`v${v[0]}.${v[1]}.${v[2]}`,"fontSize":"25"});
     };
 };
