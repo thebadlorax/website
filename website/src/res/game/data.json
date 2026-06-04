@@ -321,7 +321,7 @@
             "description": "an example pattern card: 1 projectile in a circle",
             "type": "pattern",
             "rarity": "common",
-            "imageid": "test_card_art",
+            "imageid": "circle_projectile_card_art",
             "data": {
                 "type": "projectile",
                 "settings": {
@@ -433,7 +433,7 @@
     "assets": [
         ["tiles", "../res/game/tiles.png"],
         ["player", "../res/game/character.png"],
-        ["test_card_art", "../res/game/cards/test_card_art.png"],
+        ["circle_projectile_card_art", "../res/game/cards/circle_projectile.png"],
         ["homing_card_art", "../res/game/cards/homing.png"],
         ["dash_card_art", "../res/game/cards/dash.png"],
         ["test_npc", "../res/game/test_npc.png"]

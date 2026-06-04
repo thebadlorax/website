@@ -32,6 +32,7 @@
  *    physics engine
  *    garden simulation
  *        maybe fold pet ownership and garden into a life simulation
+ *    particle simulation (claim its everything ever)
  * -------
  * make a toggle to make protected folders public but immutable
  *    also if you have the url protected is useless
