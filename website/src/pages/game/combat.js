@@ -596,7 +596,7 @@ export class CombatManager {
         const card_size = Card.getSize();
         const cb = this.getCombatBox();
     
-        const y_off = -60 + this.engine.settings.settings.hyo || 0;
+        const y_off = (-this.engine.camera.height*0.15) + this.engine.settings.settings.hyo || 0;
     
         const center = (count - 1) / 2;
     
@@ -610,7 +610,7 @@ export class CombatManager {
         const angleSpread = 0.12 - (0.07 * hover);
         const lift = -30 * hover;
         const offset = index - center;
-        const loweredY = 85 * (1 - hover);
+        const loweredY = (this.engine.camera.height*0.15) * (1 - hover);
     
         return {
             x:
@@ -888,13 +888,13 @@ export class CombatManager {
         const ctx = this.engine.ctx;
         const cb = this.getCombatBox();
 
-        let x = cb.x + Math.floor(cb.w/2);
-        let y = 65;
+        let x = cb.x + Math.floor(cb.w*.51);
+        let y = cb.y + 40;
 
         ctx.globalAlpha = 1 - this.combatVariables.fade_out_opacity
 
         ctx.font = "40px monospace";
-        ctx.fillStyle = "white";
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.combat_active ? 0.3 : 1})`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         if(!this.debug.editor) {
