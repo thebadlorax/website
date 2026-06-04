@@ -34,7 +34,7 @@ export async function pickFile() {
                 return;
             }
 
-            resolve(file); // File is a Blob subclass
+            resolve(file);
         };
 
         input.click();

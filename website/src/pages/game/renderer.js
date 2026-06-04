@@ -1096,6 +1096,21 @@ export class MenuRegistry {
             await em.renderer.engine.settings.modifySetting("fp", false);
             this.setup();
         }
+        sm.createUIElement(0.5, 0.525, 0, 0, "text", {"text":"presets", "fontSize": 17});
+        let lsb = sm.createUIElement(0.05, 0.55, 0.425, 0.07, "textbutton", {"text":"low"});
+        lsb.onclick = async () => {
+            await em.renderer.engine.settings.swapSettingsWithBinds(EngineSettings.defaultSettings.low);
+            em.renderer.engine.resetControls();
+            await em.renderer.engine.settings.modifySetting("fp", false);
+            this.setup();
+        }
+        let hsb = sm.createUIElement(0.525, 0.55, 0.425, 0.07, "textbutton", {"text":"high"});
+        hsb.onclick = async () => {
+            await em.renderer.engine.settings.swapSettingsWithBinds(EngineSettings.defaultSettings.high);
+            em.renderer.engine.resetControls();
+            await em.renderer.engine.settings.modifySetting("fp", false);
+            this.setup();
+        }
         let rb = sm.createUIElement(0.05, 0.9, 0.9, 0.07, "textbutton", {"text":"reset", "bg_color": "red"});
         rb.onclick = async () => { if(confirm("are you sure? (will reload the page)")) await em.renderer.engine.settings._fullReset(); }
 
@@ -1313,7 +1328,7 @@ export class MenuRegistry {
             };
             const ms = await performance_test(1000)
             let cs = null;
-            if(ms > 5500) {
+            if(ms > 8500) {
                 cs = 0
             } else {
                 cs = 1;
@@ -1344,7 +1359,6 @@ export class MenuRegistry {
         spb.onclick = async () => {
             if(em.renderer.engine.settings.settings.fp) {
                 let settings = EngineSettings.defaultSettings.high
-                const nextFrame = () => new Promise(requestAnimationFrame);
                 if(!confirm("going to do a performance check to see what settings to give you (first time only)")) {
                     alert("ig bro, im gonna give you the good settings lets hope your computer doesn't explode");
                 } else {
