@@ -8,7 +8,7 @@
 import { Keybinds, Keyboard } from "./controller.js";
 import { Loader, Camera, Window, Renderer, AnimationManager } from "./renderer.js";
 import { Map } from "./map.js";
-import { deleteValueInStorage, downloadBlob, getValueInStorage, pickFile, setValueInStorage } from "./browser.js";
+import { downloadBlob, getValueInStorage, pickFile } from "./browser.js";
 
 import { clamp, getApiLink } from "../common.js";
 import { Card, CardManager, CombatManager } from "./combat.js";

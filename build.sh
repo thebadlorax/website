@@ -40,7 +40,9 @@ if [ "$1" = "public" ]; then
 fi
 cp -r .git staging/.git
 
-for file in staging/src/pages/*; do # minify
+shopt -s globstar dotglob 
+
+for file in staging/src/pages/**/*; do # minify
     if [[ -f "$file" && "$file" == *.js ]]; then
         echo "Minifying $file"
         bun build --minify $file --outfile $file.temp

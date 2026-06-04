@@ -384,7 +384,7 @@ export class CombatScenario {
     }
 
     render() {
-        if(!this.combat.combat_active || this.combat.turn == 0) return;
+        if(!this.combat.combat_active || this.combat.turn == 0 || this.combat.combatVariables.has_won) return;
         const cb = this.combat.getCombatBox();
         const context = this.combat.engine.ctx;
         context.fillStyle = `rgba(255, 0, 0, ${this.iframes == 0 ? "1" : "0.4"})`;
@@ -1501,16 +1501,13 @@ export class CombatManager {
                 );
 
             }
-
             this.renderCombatBox();
             if(this.turn == 0) this.drawActiveSlots();
             else this.drawEditorPath(false, "white", this.scenario.path);
-            
+            this.drawUIText();
             
             this.player.render(this.engine.ctx);
             this.scenario.render();
-            
-            this.drawUIText();
             this.drawHealthbar()
             this.renderCardsInHand(this.combat_active);
             this.renderDraggedCard();

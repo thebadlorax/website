@@ -889,15 +889,15 @@ export class Menu {
         ctx.lineWidth = this.settings.color.border_weight;
         ctx.strokeRect(rx, ry, this.getWidth(), this.getHeight());
 
-        this.submenus.forEach(m => {
-            if(m.visible) m.render();
-        });
-
         this.UIElements.forEach(e => {
             if(e.visible) e.render();
         });
 
         ctx.restore();
+
+        this.submenus.forEach(m => {
+            if(m.visible) m.render();
+        });
     }
 
     getAllUIElements() {
