@@ -6,6 +6,7 @@
 */
 
 import { Engine, EngineSettings } from "./engine.js";
+import { Packet } from "./connection.js";
 import { getApiLink } from "../common.js";
 
 export class Loader {
@@ -1282,6 +1283,16 @@ export class MenuRegistry {
         test_scen.onclick = () => { const id = em.renderer.engine.data.scenarios.find(s => s.id == prompt("id")); if(!id) { alert("not real") } else { close_menu(); em.renderer.closeMenu(); em.renderer.engine.combat.enterCombat(id); } }
         let dd = dsm.createUIElement(0.05, 0.42, 0.9, 0.07, "textbutton", {"text":"log engine object to console"});
         dd.onclick = () => { console.log(em.renderer.engine) };
+        let lpb = dsm.createUIElement(0.05, 0.52, 0.9, 0.07, "toggle", {"text":"log packets"});
+        lpb.data.active = em.renderer.engine.settings.settings.lp ?? false
+        lpb.onclick = () => { lpb.data.active = !em.renderer.engine.settings.settings.lp; 
+            em.renderer.engine.settings.modifySetting("lp", lpb.data.active); }
+        let rpd = dsm.createUIElement(0.05, 0.62, 0.9, 0.07, "textbutton", {"text":"resetPlayerData"});
+        rpd.onclick = () => { em.renderer.engine.conn.send(em.renderer.engine.conn.newPacket("clearData", {
+            "operation": "all"
+        }))};
+        let sp = dsm.createUIElement(0.05, 0.72, 0.9, 0.07, "textbutton", {"text":"send packet"});
+        sp.onclick = () => { em.renderer.engine.conn.send(em.renderer.engine.conn.newPacket(prompt("packet name"), JSON.parse(prompt("data"))))};
         
         const mm = this.MENUS.main_menu;
         mm.settings = {
@@ -1369,7 +1380,6 @@ export class MenuRegistry {
                 await em.renderer.engine.settings.modifySetting("fp", false);
                 this.setup();
             }
-            console.log(em.renderer.engine.settings.isRecent())
             document.title = "game name"
             em.renderer.closeMenu();
         }

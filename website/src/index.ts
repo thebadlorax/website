@@ -33,6 +33,7 @@
  *    garden simulation
  *        maybe fold pet ownership and garden into a life simulation
  *    atom simulation (universe simulation)
+ *    military simulator (really complicated and long term)
  * -------
  * make a toggle to make protected folders public but immutable
  *    also if you have the url protected is useless
@@ -63,6 +64,7 @@ import { CacheWizard } from "./backend/cache";
 import { LogWizard } from "./backend/logging";
 import { AuthorizationWizard, userToJSON } from "./backend/auth";
 import { TimeWizard } from "./backend/time";
+import { GameWizard } from "./backend/game";
 
 let log = new LogWizard();
 await log.init();
@@ -76,6 +78,8 @@ cache.addRoot("src/res")
 cache.addRoot("src/pages")
 const chat = new ChatWizard(db);
 const time = new TimeWizard();
+const game = new GameWizard(db);
+await game.init();
 
 let news: any = undefined;
 const reset_news = async () => {
@@ -843,14 +847,10 @@ const server = Bun.serve({
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
             let json = await data.json();
-            let player_data = await db.fetch("game") || {"player_data": {}, "analytics": {}};
+            let player_data = await db.fetch("game") || GameWizard.defaultGameData;
             
             player_data = player_data.player_data || {};
-            player_data = player_data[user.account.id] || {
-              "inventory": { "items": [{ "type": "card", "data": { "id": 0 } }] },
-              "deck": [0, 0, 1, 1, 2],
-              "settings": null
-            };
+            player_data = player_data[user.account.id] || GameWizard.defaultPlayerData;
             json = {...json, ...{"player_data": player_data}};
             return corsResponse(JSON.stringify(json), { status: 200 });
           }
@@ -858,11 +858,8 @@ const server = Bun.serve({
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
-            let d = await db.fetch("game") || {"player_data": {}, "analytics": {}};
-            let x = d.player_data[user.account.id] ?? {
-              "inventory": { "items": [{ "type": "card", "data": { "id": 0 } }] },
-              "deck": [0, 0, 1, 1, 2]
-            }
+            let d = await db.fetch("game") || GameWizard.defaultGameData;
+            let x = d.player_data[user.account.id] ?? GameWizard.defaultPlayerData
             x.settings = user_json.new;
             d.player_data[user.account.id] = x;
             await db.modify("game", d);
@@ -872,7 +869,7 @@ const server = Bun.serve({
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
-            let d = await db.fetch("game") || {"player_data": {}, "analytics": {}};
+            let d = await db.fetch("game") || GameWizard.defaultGameData;
             delete d.player_data[user.account.id].settings;
             await db.modify("game", d);
             return corsResponse(null, { status: 200 });
@@ -881,12 +878,19 @@ const server = Bun.serve({
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
-            let d = await db.fetch("game") || {"player_data": {}, "analytics": {}};
+            let d = await db.fetch("game") || GameWizard.defaultGameData;
             if(!d.analytics) d.analytics = {};
             if(!d.analytics.perfTests) d.analytics.perfTests = [];
             d.analytics.perfTests.push(user_json.data);
             await db.modify("game", d);
             return corsResponse(null, { status: 200 });
+          }
+          case "/game/live": {
+            const success = server.upgrade(req, {
+              data: { source: "/game/live" }, // Attach per-socket data
+            });
+            if(success) return undefined;
+            return corsResponse("WebSocket upgrade failed", { status: 400 });
           }
           case "/health":
             return corsResponse("OK"); 
@@ -989,14 +993,14 @@ websocket: {
       
       case "/gambling/blackjack/join": blackjack.handleConnection(ws); break;
       
-      case "/game/live": break;
+      case "/game/live": game.createSingleplayerConnection(ws); break;
 
       default:
         websockets.push(ws);
     }
   },
 
-  message(ws, message) {
+  async message(ws, message) {
     switch (ws.data.source) {
       case "/chat/live": chat.pipe(JSON.parse(message).id, ws, message); break;
 
@@ -1027,6 +1031,8 @@ websocket: {
 
       case "/gambling/blackjack/join": blackjack.handleRecieved(ws, message); break;
 
+      case "/game/live": await game.onMessage(ws, message); break;
+
       default:
         ws.send("where u come from :-(");
     }
@@ -1056,6 +1062,8 @@ websocket: {
         blackjack.deregisterPlayer(ws);
         break;
   
+      case "/game/live": game.onClose(ws); break;
+
     }
   },
 

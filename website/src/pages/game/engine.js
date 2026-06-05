@@ -3,15 +3,16 @@
  * created on 06-05-2026-10h-55m
  * github: https://github.com/thebadlorax
  * copyright 2026
-*/
+ */
 
 import { Keybinds, Keyboard } from "./controller.js";
 import { Loader, Camera, Window, Renderer, AnimationManager } from "./renderer.js";
 import { Map } from "./map.js";
 import { downloadBlob, getValueInStorage, pickFile } from "./browser.js";
+import { Card, CardManager, CombatManager } from "./combat.js";
+import { SinglePlayerServerConnection } from "./connection.js";
 
 import { clamp, getApiLink } from "../common.js";
-import { Card, CardManager, CombatManager } from "./combat.js";
 
 export class InventoryItem {
     constructor(data) {
@@ -153,7 +154,7 @@ export class Engine {
         this.tick = this.tick.bind(this);
         this.loader = new Loader();
         this.keyboard = new Keyboard();
-        this.map = new Map();
+        this.map = new Map(this);
         this.map.importMapData(this.data.map);
         this.cards = new CardManager();
         this.state = "main";
@@ -670,6 +671,9 @@ export class Engine {
         this.combat = new CombatManager(this.cards, this);
         this.resetControls();
 
+        this.conn = new SinglePlayerServerConnection(this);
+        this.conn.start();
+
         const starting_area_data = this.map.getMapData(`home`);
     
         let wwidth = window.innerWidth; let wheight = window.innerHeight;
@@ -1131,14 +1135,8 @@ export class Dialogue {
         this.block_progress = false;
     }
 
-    progress(engine, owner) { 
-        if(this.block_progress) return;
-        if(this.current_line == this.lines) {
-            this.current_line = 0;
-            engine.other_state_data.closeDialogueWindow(engine);
-            return;
-        }
-        this.current_line += 1; 
+    setLine(index, engine, owner) {
+        this.current_line = index; 
         const l = this.getLine();
         if(!l) return;
         if(!l.extra) return;
@@ -1150,38 +1148,54 @@ export class Dialogue {
                 return;
             }
             case "anim": {
-                owner.active_anim = data.name;
+                owner.modifyFlag("active_anim", data.name);
                 return;
+            }
+            case "reset_data": {
+                engine.conn.send(engine.conn.newPacket("clearData", {
+                    "operation": "all"
+                }));
+                setTimeout(location.reload(), 500);
             }
             default: return;
         }
     }
 
+    progress(engine, owner) { 
+        if(this.block_progress) return;
+        if(this.current_line == this.lines) {
+            this.current_line = 0;
+            engine.other_state_data.closeDialogueWindow(engine);
+            return;
+        }
+        this.setLine(this.current_line+1, engine, owner);
+    }
+
     getLine() { return this.data[this.current_line]; }
 }
 
-export class NPC {
-    constructor(data, x, y, z) {
+export class _Object {
+    constructor(data, engine, x, y, z) {
         this.x = x; this.y = y; this.data = data;
-        this.sprite = null;
-        this.name = data.name; this.dialogues = data.dialogue;
+        this.sprite = null; this.engine = engine;
+        this.name = data.name;
         this.zindex = z; this.anims = null;
         this.tsize = null;
-
-        this.active_anim = "idle"
-
         this.flags = {
-            ...this.data.flags,
-            "speak_counter": 0
-        }
+            ...this.data.flags
+        };
+        this.flags.active_anim = this.flags.active_anim ?? "idle";
+    }
 
-        this.draw_dialogue = false;
-        this.active_dialogue = `interact${clamp(this.flags.speak_counter, 0, this.flags.max_interact_flag || 1000)}`;
-
-        // format dialogues
-        let temp = [];
-        Object.keys(this.dialogues).forEach(d => temp.push(new Dialogue(this.dialogues[d], d)));
-        this.dialogues = temp;
+    modifyFlag(name, val) {
+        this.flags[name] = val;
+        this.engine.conn.send(this.engine.conn.newPacket("flag", {
+            "operation": "set",
+            "type": "object",
+            "id": this.data.id,
+            "name": name,
+            "value": val
+        }))
     }
 
     getWorldPos(engine) {
@@ -1191,6 +1205,28 @@ export class NPC {
             "tsize": engine.hero.map.tsize
         }
     }
+}
+
+export class NPC extends _Object {
+    constructor(data, engine, x, y, z) {
+        super(data, engine, x, y, z); this.dialogues = data.dialogue;
+        this.flags.speak_counter = 0;
+
+        const f = (this.engine.data.player_data.flags.objects ?? {})[this.data.id];
+        if(f != undefined) {
+            Object.entries(f).forEach(([k, v]) => {
+                this.flags[k] = v;
+            });
+        }
+        
+        this.draw_dialogue = false;
+        this.active_dialogue = `interact${clamp(this.flags.speak_counter, 0, this.flags.max_interact_flag ?? 1000)}`;
+
+        // format dialogues
+        let temp = [];
+        Object.keys(this.dialogues).forEach(d => temp.push(new Dialogue(this.dialogues[d], d)));
+        this.dialogues = temp;
+    }
 
     render(engine) {
         if(this.sprite == null) {
@@ -1199,7 +1235,7 @@ export class NPC {
             this.data.animations.forEach(a => this.anims.createAnimation(a));
         }
         const wp = this.getWorldPos(engine);
-        const f = this.anims.getAnimation(this.active_anim);
+        const f = this.anims.getAnimation(this.flags.active_anim);
         engine.ctx.drawImage(
             f.getFrame(),
             wp.x,
@@ -1228,8 +1264,8 @@ export class NPC {
         } else {
             engine.hero.block_movement = false
         }
-        this.flags.speak_counter += 1;
-        let nname = `interact${clamp(this.flags.speak_counter, 0, this.flags.max_interact_flag || 1000)}`;
+        this.modifyFlag("speak_counter", this.flags.speak_counter+1)
+        let nname = `interact${clamp(this.flags.speak_counter, 0, this.flags.max_interact_flag ?? 1000)}`;
         if(this.dialogueExists(nname)) this.active_dialogue = nname;
     }
 

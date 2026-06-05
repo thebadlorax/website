@@ -361,7 +361,6 @@ export class CombatScenario {
 
             placed.push({card, x: x*gridSize, y: y*gridSize});
         }
-        console.log(placed)
         return placed;
     }
 
@@ -1912,7 +1911,7 @@ export class CombatManager {
         this.projectiles.updateProjectiles(delta);
         let mouseX = this.engine.keyboard.mouseX - cb.x;
         let mouseY = this.engine.keyboard.mouseY - cb.y;
-        const handZoneY = cb.y + cb.h-(card_size.h*1.5);
+        const handZoneY = cb.y + cb.h-(card_size.h*1.7);
         const hoveringHand =
             mouseY > handZoneY && !this.combat_active && this.card_rendering.dragged_card == null && this.card_rendering.dragged_alr_card == null;
 

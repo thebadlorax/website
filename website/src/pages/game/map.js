@@ -9,7 +9,7 @@ import { Trigger, Engine, NPC } from "./engine.js";
 
 class MapData {
     data;
-    constructor(data) { 
+    constructor(data, engine) { 
         this.data = data;
 
         this.id = data.id;
@@ -29,7 +29,7 @@ class MapData {
         (data.objects || []).forEach(o => {
             switch(o.type) {
                 case "npc": {
-                    this.objects.push(new NPC(o.data, o.x, o.y, o.z || 1))
+                    this.objects.push(new NPC(o.data, engine, o.x, o.y, o.z || 1))
                 }
             }
         });
@@ -135,7 +135,9 @@ class MapData {
 export class Map {
     data;
     maps = {};
-    constructor() {};
+    constructor(engine) {
+        this.engine = engine;
+    };
 
     constructMapData() {
         let d = {};
@@ -156,7 +158,7 @@ export class Map {
         this.data = data;
 
         data.maps.forEach(m => {
-            this.maps[m.id] = new MapData(m)
+            this.maps[m.id] = new MapData(m, this.engine)
         })
 
         this.constructMapData();
@@ -197,7 +199,7 @@ export class Map {
             objects: []
         };
 
-        this.maps[id] = new MapData(map);
+        this.maps[id] = new MapData(map, this.engine);
 
         return this.maps[id];
     }

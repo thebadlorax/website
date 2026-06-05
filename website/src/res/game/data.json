@@ -127,6 +127,7 @@
                         "x": 14,
                         "y": 12,
                         "data": {
+                            "id": "test_npc",
                             "name": "test npc",
                             "sprite": "test_npc",
                             "dialogue": {
@@ -186,6 +187,43 @@
                             ],
                             "flags": {
                                 "max_interact_flag": 2
+                            }
+                        }
+                    },
+                    {
+                        "type": "npc",
+                        "x": 10,
+                        "y": 10,
+                        "data": {
+                            "id": "reset_npc",
+                            "name": "reset guy",
+                            "sprite": "reset_npc",
+                            "dialogue": {
+                                "interact0": [
+                                    {
+                                        "text": "hey bro"
+                                    },
+                                    {
+                                        "text": "i'm gonna reset your data"
+                                    },
+                                    {
+                                        "text": "goodbye",
+                                        "extra": {
+                                            "type": "reset_data"
+                                        }
+                                    }
+                                ]
+                            },
+                            "animations": [
+                                {
+                                    "name": "idle",
+                                    "frames": 11,
+                                    "time": 0.09,
+                                    "start_index": 0
+                                }
+                            ],
+                            "flags": {
+                                "max_interact_flag": 0
                             }
                         }
                     }
@@ -436,7 +474,8 @@
         ["circle_projectile_card_art", "../res/game/cards/circle_projectile.png"],
         ["homing_card_art", "../res/game/cards/homing.png"],
         ["dash_card_art", "../res/game/cards/dash.png"],
-        ["test_npc", "../res/game/test_npc.png"]
+        ["test_npc", "../res/game/test_npc.png"],
+        ["reset_npc", "../res/game/resetguy.png"]
     ],
     "animations": {
         "player": [
