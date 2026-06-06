@@ -196,9 +196,22 @@
                         "y": 10,
                         "data": {
                             "id": "reset_npc",
-                            "name": "reset guy",
+                            "name": "mr. reset",
                             "sprite": "reset_npc",
                             "dialogue": {
+                                "reset": [
+                                    {
+                                        "text": "ok goodbye",
+                                        "extra": {
+                                            "type": "reset_data"
+                                        }
+                                    }
+                                ],
+                                "noreset": [
+                                    {
+                                        "text": "ok that's cool"
+                                    }
+                                ],
                                 "interact0": [
                                     {
                                         "text": "hey bro"
@@ -207,9 +220,21 @@
                                         "text": "i'm gonna reset your data"
                                     },
                                     {
-                                        "text": "goodbye",
+                                        "text": "are you cool with that?",
                                         "extra": {
-                                            "type": "reset_data"
+                                            "type": "conditional",
+                                            "data": {
+                                                "options": [
+                                                    {
+                                                        "text": "yes",
+                                                        "route": "reset"
+                                                    },
+                                                    {
+                                                        "text": "no",
+                                                        "route": "noreset"
+                                                    }
+                                                ]
+                                            }
                                         }
                                     }
                                 ]

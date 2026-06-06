@@ -302,7 +302,6 @@ export class Engine {
             ele.onclick = () => {
                 const tiles = get_rect_as_list();
                 tiles.forEach(t => {
-                    console.log(`tile ${x}`);
                     this.hero.map.setTile(this.debug.level_editor.selected_layer, t.x, t.y, x)
                 })
             };
@@ -549,14 +548,44 @@ export class Engine {
                     return;
                 };
 
+                let mx = e.clientX; let my = e.clientY;
                 switch(this.other_state) {
                     case "dialogue": {
-                        this.other_state_data.getDialogue().progress(this, this.other_state_data);
-                        return;
+                        const d = this.other_state_data.getDialogue();
+
+                        if(d.other_data.other_state == "conditional") {
+                            const cW = this.renderer.camera.width;
+                            const cH = this.renderer.camera.height;
+                            const options = d.other_data.state_data.options;
+    
+                            const centerX = cW / 2;
+                            const w = cW * 0.3;
+                            const h = cH * 0.15;
+                            const spacing = w * 1.1;
+    
+                            options.forEach((o, index) => {
+                                const offset = index - (options.length - 1) / 2;
+                                const x = centerX + offset * spacing - w / 2;
+                                const y = cH - (h * 1.1);
+    
+                                if(Engine.rectanglesIntersect(mx-5, my-5, 10, 10, x, y, w, h)) {
+                                    d.current_line = 0;
+                                    const a = this.other_state_data;
+                                    this.other_state_data.closeDialogueWindow(this);
+                                    d.other_data.other_state = null;
+                                    d.other_data.state_data = null;
+                                    a.active_dialogue = o.route;
+                                    a.onClick(this)
+                                }
+                            });
+                            return;
+                        } else {
+                            d.progress(this, this.other_state_data);
+                            return;
+                        }
                     }
                 }
 
-                let mx = e.clientX; let my = e.clientY;
                 let m = this.hero.map;
                 let tsize = m.tsize;
                 let tx = Math.floor((mx + this.camera.x) / tsize);
@@ -890,8 +919,8 @@ export class Engine {
         this.camera.update();
 
         document.body.style.cursor = "default"; 
+        let mx = this.keyboard.mouseX; let my = this.keyboard.mouseY;
         if(this.settings.settings.ce) {
-            let mx = this.keyboard.mouseX; let my = this.keyboard.mouseY;
             let m = this.hero.map;
             let tsize = m.tsize;
             let tx = Math.floor((mx + this.camera.x) / tsize);
@@ -899,25 +928,54 @@ export class Engine {
             if(tx >= m.cols || ty >= m.rows || tx < 0 || ty < 0) {
                 return;
             }
-    
-            m.getObjects().filter(o => o instanceof NPC).forEach(o => {
-                if(o.x == tx && o.y == ty) {
-                    const dx = this.hero.x - (o.x * tsize);
-                    const dy = this.hero.y - (o.y * tsize);
-                    let dist = Math.hypot(dx, dy);
-    
-                    if (dist < 250) {
-                        o.hovered = true;
-                        document.body.style.cursor = "pointer";
+
+            if(this.other_state != "dialogue") {
+                m.getObjects().filter(o => o instanceof NPC).forEach(o => {
+                    if(o.x == tx && o.y == ty) {
+                        const dx = this.hero.x - (o.x * tsize);
+                        const dy = this.hero.y - (o.y * tsize);
+                        let dist = Math.hypot(dx, dy);
+        
+                        if (dist < 200) {
+                            o.hovered = true;
+                            document.body.style.cursor = "pointer";
+                        } else {
+                            o.hovered = false;
+                        }
                     } else {
                         o.hovered = false;
                     }
-                } else {
-                    o.hovered = false;
-                }
-            });
+                });
+            }
+    
+            
         }
-        if(this.other_state == "dialogue") document.body.style.cursor = "pointer"; 
+        if(this.other_state == "dialogue") {
+            const d = this.other_state_data.getDialogue();
+            const in_conditonal = d.other_data.other_state == "conditional"
+            if(!in_conditonal) { document.body.style.cursor = "pointer"; return; }
+            else if(this.settings.settings.ce) {
+                const cW = this.renderer.camera.width;
+                const cH = this.renderer.camera.height;
+                if(!d.other_data.state_data) return;
+                const options = d.other_data.state_data.options;
+
+                const centerX = cW / 2;
+                const w = cW * 0.3;
+                const h = cH * 0.15;
+                const spacing = w * 1.1;
+
+                options.forEach((o, index) => {
+                    const offset = index - (options.length - 1) / 2;
+                    const x = centerX + offset * spacing - w / 2;
+                    const y = cH - (h * 1.1);
+
+                    if(Engine.rectanglesIntersect(mx-5, my-5, 10, 10, x, y, w, h)) {
+                        document.body.style.cursor = "pointer";
+                    }
+                });
+            }
+        }
     };
 }
 
@@ -1214,6 +1272,10 @@ export class Dialogue {
         this.name = name;
         this.current_line = -1;
         this.block_progress = false;
+        this.other_data = {
+            "other_state": null,
+            "state_data": null
+        }
     }
 
     setLine(index, engine, owner) {
@@ -1237,12 +1299,16 @@ export class Dialogue {
                     "operation": "all"
                 }));
             }
+            case "conditional": {
+                this.other_data.other_state = "conditional";
+                this.other_data.state_data = data;
+            }
             default: return;
         }
     }
 
     progress(engine, owner) { 
-        if(this.block_progress) return;
+        if(this.block_progress || this.other_data.other_state == "conditional") return;
         if(this.current_line == this.lines) {
             this.current_line = 0;
             engine.other_state_data.closeDialogueWindow(engine);
@@ -1390,6 +1456,54 @@ export class NPC extends _Object {
             this.closeDialogueWindow(engine);
             return;
         }
+
+        function fillTextWrap(ctx, text, boxX, boxY, boxWidth, boxHeight, maxFontSize, fontFace) {
+            let fontSize = maxFontSize;
+            let lines = [];
+            let lineHeight;
+        
+            // 1. Calculate font size and text wrap lines
+            while (fontSize > 1) {
+                ctx.font = `${fontSize}px ${fontFace}`;
+                lineHeight = fontSize * 1.2; // Standard proportional line spacing
+                
+                const words = text.split(' ');
+                let currentLine = '';
+                lines = [];
+        
+                for (let i = 0; i < words.length; i++) {
+                    let testLine = currentLine + words[i] + ' ';
+                    if (ctx.measureText(testLine).width > boxWidth && i > 0) {
+                        lines.push(currentLine.trim());
+                        currentLine = words[i] + ' ';
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                lines.push(currentLine.trim());
+        
+                // Stop shrinking if the block height fits inside the box height
+                if (lines.length * lineHeight <= boxHeight) {
+                    break;
+                }
+                fontSize--; 
+            }
+        
+            // 2. Calculate vertical alignment offset
+            const totalTextHeight = lines.length * lineHeight;
+            const boxCenterY = boxY + (boxHeight / 2);
+            // Start drawing here so the entire block centers vertically
+            let startY = boxCenterY - (totalTextHeight / 2);
+        
+            // 3. Render the centered text
+            ctx.textBaseline = 'top'; 
+            ctx.textAlign = 'center'; // Centers individual text rows horizontally
+            const centerX = boxX + (boxWidth / 2); // Midpoint of the box width
+        
+            for (let i = 0; i < lines.length; i++) {
+                ctx.fillText(lines[i], centerX, startY + (i * lineHeight));
+            }
+        }
         
         ctx.fillStyle = "white";
         ctx.fillRect(pos.x, pos.y, pos.w, pos.h)
@@ -1398,14 +1512,43 @@ export class NPC extends _Object {
         ctx.strokeRect(pos.x, pos.y, pos.w, pos.h)
 
         ctx.fillStyle = "black";
-        ctx.font = "21px monospace";
+        const t = line.text || "";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(
-            line.text || "",
-            pos.x-(25/2)+pos.w/2,
-            pos.y+pos.h/2
-        );
+        fillTextWrap(ctx, t, pos.x-(25/2)+(pos.w*.04), pos.y+pos.h*.1, pos.w-10, pos.h-10, 21, "monospace")
+
+        switch(dialogue.other_data.other_state) {
+            case "conditional": {
+                const cW = engine.renderer.camera.width;
+                const cH = engine.renderer.camera.height;
+                if(!dialogue.other_data.state_data) return;
+                const options = dialogue.other_data.state_data.options;
+
+                const centerX = cW / 2;
+                const w = cW * 0.3;
+                const h = cH * 0.15;
+                const spacing = w * 1.1;
+
+                options.forEach((o, index) => {
+                    const offset = index - (options.length - 1) / 2;
+                    const x = centerX + offset * spacing - w / 2;
+                    const y = cH - (h * 1.1);
+
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(x, y, w, h)
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = "black";
+                    ctx.strokeRect(x, y, w, h)
+
+                    const t = o.text || "";
+                    ctx.fillStyle = "black";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    fillTextWrap(ctx, t, x, y, w, h, 21, "monospace")
+                });
+                break;
+            }
+        }
     }
 }
 
