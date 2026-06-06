@@ -174,6 +174,14 @@ export class Keybinds {
                 "code": "KeyG"
             }
         },
+        {
+            "id": "openInventory",
+            "name": "Open Inventory",
+            "bind": {
+                "name": "Tab",
+                "code": "Tab"
+            }
+        },
     ];
 
     constructor(data, settings) {

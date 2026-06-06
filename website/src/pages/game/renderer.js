@@ -738,7 +738,7 @@ export class MenuUIElement {
             }
             case "text": {
                 this.ctx.font = `${ts}px monospace`;
-                this.ctx.fillStyle = "black";
+                this.ctx.fillStyle = `${this.data.fontColor ?? "black"}`;
                 this.ctx.textAlign = "center";
                 this.ctx.textBaseline = "middle";
                 this.ctx.fillText(
@@ -817,6 +817,16 @@ export class MenuUIElement {
                     rx + pos.x + (pos.w / 2),
                     ry + pos.y + (pos.h / 2)
                 );
+                break;
+            }
+            case "line": {
+                this.ctx.strokeStyle = this.data.strokeColor;
+                this.ctx.lineWidth = this.data.size;
+                this.ctx.beginPath();       
+                this.ctx.moveTo(pos.x, pos.y);    
+                this.ctx.lineTo(pos.w, pos.h); 
+                this.ctx.stroke(); 
+                break;
             }
         }
     }
@@ -964,7 +974,8 @@ export class MenuRegistry {
             "keybinds_menu": new Menu(renderer),
             "visual_settings_menu": new Menu(renderer),
             "main_menu": new Menu(renderer),
-            "debug_settings_menu": new Menu(renderer)
+            "debug_settings_menu": new Menu(renderer),
+            "inventory": new Menu(renderer)
         }
         this.setup();
     }
@@ -982,6 +993,22 @@ export class MenuRegistry {
     }
 
     _setup() {
+        const im = this.MENUS.inventory;
+        im.settings = {
+            "color": {
+                "bg": "white",
+                "border": "black",
+                "border_weight": 2
+            },
+            "x": 0.1,
+            "y": 0.1,
+            "space": "screen",
+            "width": 0.8,
+            "height": 0.8,
+            "hide_game": false,
+            "rotation": 0 // degrees
+        };
+
         const em = this.MENUS.escape_menu;
         const close_menu = () => {
             em.submenus.forEach(m => m.visible = false);
@@ -1293,6 +1320,10 @@ export class MenuRegistry {
         }))};
         let sp = dsm.createUIElement(0.05, 0.72, 0.9, 0.07, "textbutton", {"text":"send packet"});
         sp.onclick = () => { em.renderer.engine.conn.send(em.renderer.engine.conn.newPacket(prompt("packet name"), JSON.parse(prompt("data"))))};
+        let gi = dsm.createUIElement(0.05, 0.82, 0.9, 0.07, "textbutton", {"text":"give item"});
+        gi.onclick = () => { em.renderer.engine.inventory.giveItems([{"type": prompt("type"), "data": JSON.parse(prompt("data"))}])};
+        let wc = dsm.createUIElement(0.05, 0.92, 0.9, 0.05, "textbutton", {"text":"win combat"});
+        wc.onclick = () => { em.renderer.engine.combat.onWin()};
         
         const mm = this.MENUS.main_menu;
         mm.settings = {

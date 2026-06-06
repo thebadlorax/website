@@ -22,11 +22,36 @@ export class InventoryItem {
 }
 
 export class Inventory {
-    constructor() {
-        this.items = [];
+    static countDigitsInNumber(num) {
+        return num.toString().length;
+      }
+
+    constructor(menu, engine) {
+        this.items = []; this.engine = engine;
+        this.menu = menu;
+        this.menu_data = {
+            "tab": 1
+        }
     }
 
-    giveItem(item) { this.items.push(item); }
+    giveItems(items) { 
+        this.engine.conn.send(this.engine.conn.newPacket("addItems", {
+            "items": items
+        }))
+        items.forEach(item => {
+            if(item.type == "money") {
+                let i = this.items.find(i => i.type == "money")
+                if(!i) {
+                    this.items.push(item);
+                } else {
+                    i.data.amount += item.data.amount
+                }
+            } else {
+                this.items.push(item); 
+            }
+        })
+        this.resetMenu();
+    }
 
     getAllCardIds() { 
         const cards = this.items.filter(i => i.type == "card");
@@ -49,6 +74,46 @@ export class Inventory {
     getCardCount(card_id) { return this.getCardCounts().find(c => c.id == card_id); }
 
     getItems() { return this.items }
+
+    resetMenu() {
+        this.menu.UIElements = [];
+        this.menu.createUIElement(0.45, 0.01, 0.1, 0.1, "text", {"text":"inventory","fontSize":"25"});
+        /*let d = this.menu.createUIElement(0.6, 0.01, 0.1, 0.1, "textbutton", {"text":"debug","fontSize":"10"});
+        d.onclick = () => {
+            console.log(this)
+        }*/
+
+        let b1 = this.menu.createUIElement(0.12, 0.01, 0.1, 0.1, "textbutton", {"text":"items","strokeColor": this.menu_data.tab == 0 ? "cyan" : "black"});
+        b1.onclick = () => { this.menu_data.tab = 0; this.resetMenu(); }
+        let b2 = this.menu.createUIElement(0.01, 0.01, 0.1, 0.1, "textbutton", {"text":"deck","strokeColor":  this.menu_data.tab == 1 ? "cyan" : "black"});
+        b2.onclick = () => { this.menu_data.tab = 1; this.resetMenu(); }
+        let skipped = 0;
+
+        switch(this.menu_data.tab) {
+            case 0: {
+                this.items.filter(i => i.type == "item").forEach((i, index) => {
+                    this.menu.createUIElement((0.01)+0.125*((index-skipped)-(8*Math.floor(index/7))), 0.15+(0.33*Math.floor(index/7)), 0.1, 0.1, "textbutton", {"text": `item:${i.data.id}`});
+                });
+                break;
+            }
+            case 1: {
+                let seen = {};
+                this.items.filter(i => i.type == "card").forEach(i => {
+                    if(seen[i.data.id] == undefined) seen[i.data.id] = 1;
+                    else seen[i.data.id] += 1
+                });
+                Object.keys(seen).forEach((i, index) => {
+                    const c = this.engine.combat.cardManager.getCardFromID(i);
+                    this.menu.createUIElement((0.01)+0.125*((index-skipped)-(8*Math.floor(index/7))), 0.15, 0.1, 0.25, "image", {"image":c.image});
+                    this.menu.createUIElement((0.01)+0.125*((index-skipped)-(8*Math.floor(index/7))), 0.38, 0.1, 0.1, "text", {"text":`${seen[i]}x ${c.name}`,"fontSize":"12"});
+                });
+                break;
+            }
+        };
+
+        const money = this.items.find(i => i.type == "money") ?? {"data": {"amount": 0}}
+        this.menu.createUIElement(0.92-(Inventory.countDigitsInNumber(money.data.amount)*0.005), 0.01, 0.1, 0.1, "text", {"text":`$${money.data.amount}`,"fontSize":"25","fontColor": "green"});
+    }
 }
 
 export class Engine {
@@ -160,7 +225,6 @@ export class Engine {
         this.state = "main";
         this.other_state = null;
         this.other_state_data = null;
-        this.inventory = new Inventory();
         this.has_setup_handlers = false;
     };
 
@@ -172,6 +236,7 @@ export class Engine {
 
     run(context) {
         this.ctx = context;
+        this.ctx.imageSmoothingEnabled = false; 
         this._previousElapsed = 0;
     
         document.title = "loading assets"
@@ -657,7 +722,14 @@ export class Engine {
             this.debug.level_editor.layer_subwindow.visible = false;
             this.debug.level_editor.info_subwindow.visible = false;
             this.debug.level_editor.tile_settings_subwindow.visible = false;
-        });  
+        }); this.keyboard.setFunctionOnKeyPress(this.settings.binds.getBind("openInventory").bind.code, () => {
+            if(this.other_state != "menu") {
+                this.inventory.resetMenu();
+                this.renderer.openMenu(this.renderer.menus.inventory);
+            } else {
+                if(this.renderer.active_menu == this.renderer.menus.inventory) this.renderer.closeMenu();
+            }
+        });
 
         if(this.combat.in_combat) this.combat.resetKeybinds();
     };
@@ -667,12 +739,11 @@ export class Engine {
         if(!this.settings.isRecent() && this.data.player_data.settings != undefined) {
             alert("your settings will be reset because of a new update");
             await this.settings._fullReset();
-        }
+        };
+        this.conn = new SinglePlayerServerConnection(this);
+        await this.conn.start();
         this.combat = new CombatManager(this.cards, this);
         this.resetControls();
-
-        this.conn = new SinglePlayerServerConnection(this);
-        this.conn.start();
 
         const starting_area_data = this.map.getMapData(`home`);
     
@@ -687,6 +758,8 @@ export class Engine {
         this.camera = new Camera(starting_area_data, canvas.width, canvas.height);
         this.renderer = new Renderer(this.ctx, this.camera, this);
         this._resize();
+
+        this.inventory = new Inventory(this.renderer.menus.inventory, this);
 
         this.setupLevelEditor();
 
@@ -711,12 +784,14 @@ export class Engine {
         this.data.cards.forEach(c => this.cards.cards.push(Card.fromJSON(c, this.loader)));
 
         this.data.player_data.inventory.items.forEach(i => {
-            this.inventory.giveItem(i);
+            this.inventory.items.push(i);
         });
 
         this.data.player_data.deck.forEach(c => {
             this.cards.addToDeck(c);
         });
+
+        this.inventory.resetMenu();
 
         if(!this.settings.settings.smm) {
             this.renderer.openMenu(this.renderer.menus.main_menu);
@@ -1155,7 +1230,6 @@ export class Dialogue {
                 engine.conn.send(engine.conn.newPacket("clearData", {
                     "operation": "all"
                 }));
-                setTimeout(location.reload(), 500);
             }
             default: return;
         }
@@ -1211,7 +1285,8 @@ export class NPC extends _Object {
     constructor(data, engine, x, y, z) {
         super(data, engine, x, y, z); this.dialogues = data.dialogue;
         this.flags.speak_counter = 0;
-
+        
+        if(this.engine.data.player_data.flags == undefined) this.engine.data.player_data.flags = {};
         const f = (this.engine.data.player_data.flags.objects ?? {})[this.data.id];
         if(f != undefined) {
             Object.entries(f).forEach(([k, v]) => {
@@ -1238,8 +1313,8 @@ export class NPC extends _Object {
         const f = this.anims.getAnimation(this.flags.active_anim);
         engine.ctx.drawImage(
             f.getFrame(),
-            wp.x,
-            wp.y
+            Math.floor(wp.x),
+            Math.floor(wp.y)
         )
     }
 

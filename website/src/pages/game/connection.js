@@ -58,9 +58,38 @@ export class SinglePlayerServerConnection {
         `${location.protocol}//${location.host}/subdomain=api/game/live` : 
         `${location.protocol}//api.${location.host}/game/live`);
 
-        this.ws.addEventListener("open", () => { this.onopen(); });
-        this.ws.addEventListener("close", () => { this.onclose(); });
         this.ws.addEventListener("message", (m) => { this._onrecieve(m.data); });
+
+        const ws = this.ws;
+
+        return new Promise((resolve, reject) => {
+            if (ws.readyState === WebSocket.OPEN) {
+                resolve();
+                return;
+            }
+
+            if (ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+                reject(new Error("WebSocket is closed or closing."));
+                return;
+            }
+
+            const handleOpen = () => {
+                this.onopen();
+                cleanup();
+                resolve();
+            };
+            const handleError = () => {
+                cleanup();
+                resolve();
+            };
+            function cleanup() {
+                ws.removeEventListener('open', handleOpen);
+                ws.removeEventListener('error', handleError);
+            }
+
+            ws.addEventListener('open', handleOpen);
+            ws.addEventListener('error', handleError);
+        });
     }
     _onrecieve(message) {
         const packet = Packet.fromFormatted(message, this.context);
@@ -69,6 +98,12 @@ export class SinglePlayerServerConnection {
         };
         if(this.engine.settings.settings.lp) {
             console.log(`Recieved packet: \ntype:${packet.type}\ndata:${JSON.stringify(packet.data)}`);
+        }
+
+        switch(packet.type) {
+            case "clearData": {
+                location.reload();
+            }
         }
     }
     send(packet) { this.ws.send(packet.getFormatted()); }

@@ -26,15 +26,18 @@ type Packet = {
 export class GameWizard {
     public static defaultGameData = {"player_data": {}, "analytics": {}}
     public static defaultPlayerData = {
-        "inventory": { "items": [{ "type": "card", "data": { "id": 0 } }] },
+        "inventory": { "items": [
+            { "type": "card", "data": { "id": 2 } },
+            { "type": "item", "data": { "id": 0 } },
+            { "type": "money","data": { "amount": 100 } },
+        ] },
         "deck": [0, 0, 1, 1, 2],
-        "flags": {
+        "flags": {  
             "objects": {},
             "global": {}
         },
         "settings": null
     }
-
 
     protected singleplayerConnections: Map<ServerWebSocket<{ source: string }>, SingleplayerConnection> = new Map();
     protected db: Database;
@@ -174,6 +177,45 @@ export class SingleplayerConnection {
                         } as Packet);
                     }
                 };
+                break;
+            }
+            case "addItems": {
+                if(this.user == null) {
+                    this.send({
+                        type: "addItems",
+                        data: {
+                            "status": "fail",
+                            "reason": "invalid credentials"
+                        }
+                    } as Packet);
+                    return;
+                };
+
+                const a = await this.db.fetch("game") ?? GameWizard.defaultGameData;
+                let x = a.player_data[this.user.account.id] ?? GameWizard.defaultPlayerData;
+                if(x.inventory.items == undefined) x.inventory.items = [];
+
+                // @ts-expect-error
+                packet.data.items.forEach(i => {
+                    if(i.type == "money") {
+                        // @ts-expect-error
+                        const i2 = x.inventory.items.find(i => i.type == "money");
+                        if(i2 == undefined) {
+                            x.inventory.items.push(i);
+                        } else {
+                            i2.data.amount += i.data.amount;
+                        }
+                    } else {
+                        x.inventory.items.push(i);
+                    }
+                })
+                await this.db.modify("game", a);
+                this.send({
+                    type: "addItem",
+                    data: {
+                        "status": "success"
+                    }
+                } as Packet);
                 break;
             }
         }

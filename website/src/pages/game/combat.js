@@ -1125,14 +1125,13 @@ export class CombatManager {
         const cb = this.getCombatBox();
     
         const rewards = this.scenario.rewards || [];
+        this.engine.inventory.giveItems(rewards);
     
         rewards.forEach((reward, i) => {
 
             if(reward.type == "card") {
                 if(this.combatVariables.victory_status != 0) return;
                 const angle = (Math.PI * 2) * (i / rewards.length);
-
-                this.engine.inventory.giveItem(reward);
         
                 this.combatVariables.reward_cards.push({
                     reward,
@@ -1162,8 +1161,6 @@ export class CombatManager {
                     cb.h / 2,
                     Math.floor(reward.data.amount/10)
                 );
-
-                this.engine.inventory.giveItem(reward);
             }
     
             
@@ -2132,6 +2129,7 @@ export class CombatManager {
         this.engine.state = "main";
         document.title = "game name"
         this.engine.setKeybinds();
+        this.engine.resetControls();
     }
 }
 
