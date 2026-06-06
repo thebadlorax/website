@@ -82,6 +82,7 @@ export class Inventory {
         d.onclick = () => {
             console.log(this)
         }*/
+        const card_size = Card.getSize();
 
         let b1 = this.menu.createUIElement(0.12, 0.01, 0.1, 0.1, "textbutton", {"text":"items","strokeColor": this.menu_data.tab == 0 ? "cyan" : "black"});
         b1.onclick = () => { this.menu_data.tab = 0; this.resetMenu(); }
@@ -104,8 +105,8 @@ export class Inventory {
                 });
                 Object.keys(seen).forEach((i, index) => {
                     const c = this.engine.combat.cardManager.getCardFromID(i);
-                    this.menu.createUIElement((0.01)+0.125*((index-skipped)-(8*Math.floor(index/7))), 0.15, 0.1, 0.25, "image", {"image":c.image});
-                    this.menu.createUIElement((0.01)+0.125*((index-skipped)-(8*Math.floor(index/7))), 0.38, 0.1, 0.1, "text", {"text":`${seen[i]}x ${c.name}`,"fontSize":"12"});
+                    this.menu.createUIElement(0.01+(0.125*((index-skipped))-(8*Math.floor(index/7))), 0.15, 0.1, 0.25, "image", {"image":c.image});
+                    this.menu.createUIElement(0.01+(0.125*((index-skipped))-(8*Math.floor(index/7))), 0.37, 0.1, 0.1, "text", {"text":`${seen[i]}x ${c.name}`,"fontSize":"10"});
                 });
                 break;
             }
@@ -905,9 +906,14 @@ export class Engine {
                     const dy = this.hero.y - (o.y * tsize);
                     let dist = Math.hypot(dx, dy);
     
-                    if (dist < 200) {
+                    if (dist < 250) {
+                        o.hovered = true;
                         document.body.style.cursor = "pointer";
+                    } else {
+                        o.hovered = false;
                     }
+                } else {
+                    o.hovered = false;
                 }
             });
         }
@@ -1284,7 +1290,7 @@ export class _Object {
 export class NPC extends _Object {
     constructor(data, engine, x, y, z) {
         super(data, engine, x, y, z); this.dialogues = data.dialogue;
-        this.flags.speak_counter = 0;
+        this.flags.speak_counter = 0; this.hovered = false;
         
         if(this.engine.data.player_data.flags == undefined) this.engine.data.player_data.flags = {};
         const f = (this.engine.data.player_data.flags.objects ?? {})[this.data.id];
@@ -1316,6 +1322,16 @@ export class NPC extends _Object {
             Math.floor(wp.x),
             Math.floor(wp.y)
         )
+
+        if(this.hovered || this.draw_dialogue) {
+            engine.ctx.fillStyle = "rgba(0, 0, 0, 0.5)"
+            engine.ctx.fillRect(Math.floor(wp.x)-10, Math.floor(wp.y)-32, 82, 28)
+            engine.ctx.font = "13px monospace";
+            engine.ctx.fillStyle = "white";
+            engine.ctx.textAlign = "center";
+            engine.ctx.textBaseline = "middle";
+            engine.ctx.fillText(`${this.data.name}`, Math.floor(wp.x)+30, Math.floor(wp.y)-17, 82, 28)
+        }
     }
 
     openDialogueWindow(engine) {

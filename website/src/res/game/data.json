@@ -128,7 +128,7 @@
                         "y": 12,
                         "data": {
                             "id": "test_npc",
-                            "name": "test npc",
+                            "name": "happy guy",
                             "sprite": "test_npc",
                             "dialogue": {
                                 "interact0": [

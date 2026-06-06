@@ -723,17 +723,17 @@ export class MenuUIElement {
                         pos.h-2 // target height
                     );
                 } else {
-                    this.ctx.drawImage(this.data.image, (rx+pos.x)+1, (ry+pos.y)+1, pos.w-2, pos.h-2)
+                    this.ctx.drawImage(this.data.image, Math.floor((rx+pos.x)+1), Math.floor((ry+pos.y)+1), pos.w-2, pos.h-2)
                 }
 
                 if(this.data.overlayColor != null) {
                     this.ctx.fillStyle = this.data.overlayColor;
-                    this.ctx.fillRect((rx + pos.x), (ry + pos.y), pos.w, pos.h);
+                    this.ctx.fillRect(Math.floor((rx + pos.x)), Math.floor((ry + pos.y)), pos.w, pos.h);
                 }
                 
                 this.ctx.strokeStyle = this.data.strokeColor || "black";
                 this.ctx.lineWidth = 2;
-                this.ctx.strokeRect(rx + pos.x, ry + pos.y, pos.w, pos.h);
+                this.ctx.strokeRect(Math.floor(rx + pos.x), Math.floor(ry + pos.y), pos.w, pos.h);
                 break;
             }
             case "text": {

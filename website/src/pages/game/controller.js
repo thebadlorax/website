@@ -199,7 +199,11 @@ export class Keybinds {
     }
 
     getBind(id) {
-        return this.binds.find(b => b.id == id);
+        const b = this.binds.find(b => b.id == id)
+        if(!b) {
+            this.settings._fullReset();
+        }
+        return b;
     }
 
     async updateStorage() {
