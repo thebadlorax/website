@@ -6,7 +6,6 @@
 */
 
 import { Engine, EngineSettings } from "./engine.js";
-import { Packet } from "./connection.js";
 import { getApiLink } from "../common.js";
 
 export class Loader {

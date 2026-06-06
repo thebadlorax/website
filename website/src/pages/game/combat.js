@@ -1124,7 +1124,20 @@ export class CombatManager {
     spawnRewards() {
         const cb = this.getCombatBox();
     
-        const rewards = this.scenario.rewards || [];
+        let rewards = this.scenario.rewards || [];
+        if(this.combatVariables.victory_status == 1) {
+            rewards = rewards.filter(r => r.type != "card")
+            let m = rewards.find(r => r.type == "money");
+            if(m != undefined) {
+                m.data.amount = m.data.amount * .5
+            }
+        } else if(this.combatVariables.victory_status == 2) {
+            rewards = rewards.filter(r => r.type != "card")
+            let m = rewards.find(r => r.type == "money");
+            if(m != undefined) {
+                m.data.amount = m.data.amount = 10;
+            }
+        }
         this.engine.inventory.giveItems(rewards);
     
         rewards.forEach((reward, i) => {
@@ -1154,7 +1167,7 @@ export class CombatManager {
                     fadeSpeed: 2.5
                 });
             } else if(reward.type == "money") {
-                if(this.combatVariables.victory_status != 0) reward.data.amount /= 2;
+                if(this.combatVariables.victory_status == 1) reward.data.amount /= 2;
                 if(this.combatVariables.victory_status == 2) reward.data.amount = 10;
                 this.spawnRewardPellets(
                     cb.w / 2,
@@ -1238,6 +1251,7 @@ export class CombatManager {
             );
 
             ctx.strokeStyle = "white";
+            ctx.lineWidth = 2;
             ctx.strokeRect(
                 -card_size.w / 2,
                 -card_size.h / 2,
@@ -1332,7 +1346,7 @@ export class CombatManager {
             const dy = py - p.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
     
-            if (dist < 200) {
+            if (dist < ((this.combatVariables.mousePressed ?? false) ? 400 : 200)) {
                 p.vx += (dx / dist) * 500 * delta;
                 p.vy += (dy / dist) * 500 * delta;
             }
@@ -1633,6 +1647,7 @@ export class CombatManager {
     onRelease() {
         const box = this.getCombatBox();
         const card_size = Card.getSize();
+        this.combatVariables.mousePressed = false;
         if(this.turn == 1) {
             if(this.card_rendering.dragged_card_in_box) {
                 let x = Math.floor(this.engine.keyboard.mouseX - this.card_rendering.drag_point[0]);
@@ -1708,6 +1723,8 @@ export class CombatManager {
     onClick() {
         const x = this.engine.keyboard.mouseX;
         const y = this.engine.keyboard.mouseY;
+
+        this.combatVariables.mousePressed = true;
 
         if(this.debug.editor) {
             this.handleEditorClick();
