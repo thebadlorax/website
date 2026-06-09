@@ -13,6 +13,8 @@ document.getElementById("files-link").addEventListener("click", () => { redirect
 document.getElementById("chat-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`) })
 document.getElementById("gambling-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/gambling`) })
 document.getElementById("game-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/game`) })
+document.getElementById("particles-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/mini/particles.html`) })
+
 
 const ad_positions = {
     "btm": [83, 22, 60, 5]

@@ -1911,7 +1911,6 @@ export class CombatManager {
                 this.exitCombat();
             }
 
-            
             return;
         }
         delta *= this.combatVariables.timescale

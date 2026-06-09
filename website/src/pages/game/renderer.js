@@ -618,6 +618,7 @@ export class MenuUIElement {
         this.x = x; this.y = y; this.w = w; this.h = h; this.type = type;
         this.onclick = null; this.visible = true; this.ctx = ctx; this.data = data;
         this.menu = menu; this.dragging = false; this.onchange = null;
+        this.children = []; this.parent = null;
     }
 
     destroy() {
@@ -661,7 +662,16 @@ export class MenuUIElement {
         }
     }
 
+    appendChild(ele) {
+        this.children.push(ele);
+        ele.parent = this;
+    }
+
     render() {
+        this.children.forEach(ele => {
+            ele.render();
+        });
+
         const rx = this.menu.getRenderX();
         const ry = this.menu.getRenderY();
         const mw = this.menu.getWidth();
@@ -674,7 +684,23 @@ export class MenuUIElement {
             "y": mh * this.y,
             "w": mw * this.w,
             "h": mh * this.h
+        };
+
+        if(this.parent != null) {
+            if(this.parent.data.dragPoint != null) {
+                pos.x = Math.floor(this.menu.renderer.engine.keyboard.mouseX - this.parent.data.dragPoint[0]);
+                pos.y = Math.floor(this.menu.renderer.engine.keyboard.mouseY - this.parent.data.dragPoint[1]);
+            } else {
+                pos.x = (mw*(this.parent.x + this.x));
+                pos.y = (mh*(this.parent.y + this.y));
+            }
         }
+
+        if(this.data.dragPoint != null) {
+            pos.x = Math.floor(this.menu.renderer.engine.keyboard.mouseX - this.data.dragPoint[0]);
+            pos.y = Math.floor(this.menu.renderer.engine.keyboard.mouseY - this.data.dragPoint[1]);
+        }
+
         switch(this.type) {
             case "button": {
                 this.ctx.fillStyle = "gray";
@@ -716,23 +742,25 @@ export class MenuUIElement {
                         0, // source y
                         this.data.tileSize, // source width
                         this.data.tileSize, // source height
-                        (rx + pos.x)+1,
-                        (ry + pos.y)+1,
+                        this.data.dragPoint != null ? pos.x : (rx + pos.x)+1,
+                        this.data.dragPoint != null ? pos.y : (ry + pos.y)+1,
                         pos.w-2, // target width
                         pos.h-2 // target height
                     );
                 } else {
-                    this.ctx.drawImage(this.data.image, Math.floor((rx+pos.x)+1), Math.floor((ry+pos.y)+1), pos.w-2, pos.h-2)
+                    this.ctx.drawImage(this.data.image, this.data.dragPoint != null ? pos.x : Math.floor((rx+pos.x)+1), this.data.dragPoint != null ? pos.y : Math.floor((ry+pos.y)+1), pos.w-2, pos.h-2)
                 }
 
                 if(this.data.overlayColor != null) {
                     this.ctx.fillStyle = this.data.overlayColor;
-                    this.ctx.fillRect(Math.floor((rx + pos.x)), Math.floor((ry + pos.y)), pos.w, pos.h);
+                    this.ctx.fillRect(this.data.dragPoint != null ? pos.x : Math.floor((rx+pos.x)), this.data.dragPoint != null ? pos.y : Math.floor((ry+pos.y)), pos.w, pos.h);
                 }
                 
-                this.ctx.strokeStyle = this.data.strokeColor || "black";
-                this.ctx.lineWidth = 2;
-                this.ctx.strokeRect(Math.floor(rx + pos.x), Math.floor(ry + pos.y), pos.w, pos.h);
+                if(this.data.strokeColor != null) {
+                    this.ctx.strokeStyle = this.data.strokeColor;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(this.data.dragPoint != null ? pos.x : Math.floor(rx + pos.x), this.data.dragPoint != null ? pos.y : Math.floor(ry + pos.y), pos.w, pos.h);
+                }
                 break;
             }
             case "text": {
@@ -827,7 +855,7 @@ export class MenuUIElement {
                 this.ctx.stroke(); 
                 break;
             }
-        }
+        };
     }
 };
 
@@ -899,7 +927,7 @@ export class Menu {
         ctx.lineWidth = this.settings.color.border_weight;
         ctx.strokeRect(rx, ry, this.getWidth(), this.getHeight());
 
-        this.UIElements.forEach(e => {
+        this.UIElements.filter(e => e.parent == null).forEach(e => {
             if(e.visible) e.render();
         });
 
@@ -947,13 +975,17 @@ export class Menu {
                     "w": mw * e.w,
                     "h": mh * e.h
                 }
-                if(!e.visible || (e.onclick == null && e.type != "slider")) return;
+                if(!e.visible || (e.onclick == null && e.type != "slider" && !e.data.draggable)) return;
                 if(Engine.rectanglesIntersect(mx-5, my-5, 10, 10, rx+pos.x,ry+pos.y, pos.w, pos.h)) {
                     if(e.type == "slider") {
                         e.dragging = true;
                         e.setSliderFromMouse(mx);
                     } else {
-                        e.onclick();
+                        if(e.data.draggable) {
+                            e.dragging = true;
+                            e.data.dragPoint = [mx-(rx+pos.x) , my-(ry+pos.y)];
+                        }
+                        if(e.onclick != null) e.onclick();
                     }
                     
                 }
@@ -961,7 +993,7 @@ export class Menu {
             menu.submenus.filter(m => m.visible).forEach(m => handleClick(m));
         };
         handleClick(this);
-    }
+    };
 };
 
 export class MenuRegistry {

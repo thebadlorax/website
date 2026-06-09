@@ -105,8 +105,10 @@ export class Inventory {
                 });
                 Object.keys(seen).forEach((i, index) => {
                     const c = this.engine.combat.cardManager.getCardFromID(i);
-                    this.menu.createUIElement(0.01+(0.125*((index-skipped))-(8*Math.floor(index/7))), 0.15, 0.1, 0.25, "image", {"image":c.image});
-                    this.menu.createUIElement(0.01+(0.125*((index-skipped))-(8*Math.floor(index/7))), 0.37, 0.1, 0.1, "text", {"text":`${seen[i]}x ${c.name}`,"fontSize":"10"});
+                    let ele = this.menu.createUIElement(0.01+(0.125*((index-skipped))-(8*Math.floor(index/7))), 0.15, 0.1, 0.25, "image", {"image":c.image});
+                    ele.data.draggable = true;
+                    let t = this.menu.createUIElement(0, 0.225, 0.1, 0.1, "text", {"text":`${seen[i]}x ${c.name}`,"fontSize":"10"});
+                    ele.appendChild(t);
                 });
                 break;
             }
@@ -615,7 +617,7 @@ export class Engine {
     
             window.addEventListener("mouseup", (e) => {
                 if(this.other_state == "menu") {
-                    this.renderer.active_menu.getAllUIElements().forEach(e => e.dragging = false);
+                    this.renderer.active_menu.getAllUIElements().forEach(e => { e.dragging = false; e.data.dragPoint = null; });
                     return;
                 }
                 if(this.combat.in_combat) {
