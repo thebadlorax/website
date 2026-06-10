@@ -5,23 +5,137 @@
  * copyright 2026
 */
 
+import { Maths } from "./maths.js";
+
+class UIElement {
+    constructor(type, x, y, w, h, d, renderer) {
+        this.type = type; this.x = x; this.y = y; this.w = w; this.h = h; this.data = d;
+        this.renderer = renderer; this.onclick = () => {}; this.onchange = () => {};
+        this.dragging = false;
+    }
+
+    getPos() {
+        return {
+            x: this.renderer.ctx.canvas.width  * this.x,
+            y: this.renderer.ctx.canvas.height * this.y,
+            w: this.renderer.ctx.canvas.width  * this.w,
+            h: this.renderer.ctx.canvas.height * this.h
+        };
+    }
+
+    setSliderFromMouse() {
+        const mouseX = this.renderer.engine.mousePos[0];
+        const mw = this.renderer.ctx.canvas.width;
+    
+        const x = (mw * this.x);
+        const w = mw * this.w;
+    
+        let t = (mouseX - x) / w;
+        t = Math.max(0, Math.min(1, t));
+    
+        let value =
+            this.data.min +
+            t * (this.data.max - this.data.min);
+    
+        value =
+            Math.round(value / this.data.step) *
+            this.data.step;
+
+        if(this.data.progress != value) { 
+            this.data.progress = value;
+            if(this.onchange != null) this.onchange(this); 
+        }
+    }
+}
+
 class Renderer {
-    constructor(ctx) {
-        this.ctx = ctx;
+    constructor(ctx, engine) {
+        this.ctx = ctx; this.engine = engine;
+
+        this.UIElements = [];
     }
 
     clear() {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height); 
     }
 
-    drawParticles(particles) {
+    createUIElement(type, x, y, w, h, d) {
+        let ele = new UIElement(type, x, y, w, h, d, this);
+        this.UIElements.push(ele);
+        return ele;
+    }
+
+    drawUI() {
+        const ctx = this.ctx;
+        this.UIElements.forEach(ele => {
+            const pos = ele.getPos();
+            switch(ele.type) {
+                case "slider": {
+                    const value = ele.data.progress;
+                    const min = ele.data.min;
+                    const max = ele.data.max;
+                
+                    const percent = (value - min) / (max - min);
+                
+                    // Track
+                    ctx.fillStyle = "#888";
+                    ctx.fillRect(
+                        pos.x,
+                        pos.y + pos.h/2 - 3,
+                        pos.w,
+                        6
+                    );
+                
+                    // Thumb
+                    const thumbX = pos.x + (percent * pos.w);
+                
+                    ctx.fillStyle = "#ddd";
+                    ctx.beginPath();
+                    ctx.arc(
+                        thumbX,
+                        pos.y + pos.h/2,
+                        pos.h*0.15,
+                        0,
+                        Math.PI * 2
+                    );
+                    ctx.fill();
+                
+                    ctx.strokeStyle = "grey";
+                    ctx.stroke();
+    
+                    ctx.font = `13px monospace`;
+                    ctx.fillStyle = "black";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillStyle = "grey"
+                    if(ele.data.showVal) {
+                        ctx.fillText(
+                            ele.data.progress.toFixed(2),
+                            pos.x + (pos.w*.9),
+                            pos.y + (pos.h*.75)
+                        );
+                    }
+                    if(ele.data.title != undefined) {
+                        ctx.fillText(
+                            ele.data.title,
+                            pos.x + (pos.w*.5),
+                            pos.y + (pos.h * 0.1)
+                        );
+                    }
+                    break;
+                }
+            }
+        })
+    }
+
+    drawParticles(particles, radius) {
         particles.forEach(p => {
-            this.ctx.fillStyle = `rgba(128, 128, 128, 1)`;
+            this.ctx.fillStyle = p.color;
             this.ctx.beginPath();
             this.ctx.arc(
                 p.x,
                 p.y,
-                p.r,
+                radius,
                 0,
                 Math.PI * 2
             );
@@ -46,77 +160,7 @@ class Renderer {
     drawFPS(avg) {
         this.ctx.fillStyle = "grey";
         this.ctx.font = "20px monospace";
-        this.ctx.fillText(`${avg.toFixed(0)} fps`, 25, 35)
-    }
-}
-
-class Maths {
-    static rectRect(x1, y1, w1, h1, x2, y2, w2, h2) {
-        if (x1 + w1 <= x2 || x2 + w2 <= x1) return false;
-        if (y1 + h1 <= y2 || y2 + h2 <= y1) return false;
-        return true;
-    };
-    
-    static rectRectOverlap(x1, y1, w1, h1, x2, y2, w2, h2) {
-        const left   = Math.max(x1, x2);
-        const top    = Math.max(y1, y2);
-        const right  = Math.min(x1 + w1, x2 + w2);
-        const bottom = Math.min(y1 + h1, y2 + h2);
-
-        const width  = right - left;
-        const height = bottom - top;
-
-        if (width <= 0 || height <= 0) { return null; }
-    
-        return {
-            x: left,
-            y: top,
-            w: width,
-            h: height
-        };
-    };
-
-    static circleCircle(x1, y1, r1, x2, y2, r2) {
-        const dx = x1 - x2;
-        const dy = y1 - y2;
-        const distance = Math.hypot(dx, dy);
-        
-        // true if circs overlap, touch, or one inside the other
-        return distance <= r1 + r2;
-    };
-
-    static circleCircleIntersectionPoints(x1, y1, r1, x2, y2, r2) {
-        const dx = x2 - x1;
-        const dy = y2 - y1;
-        const d = Math.hypot(dx, dy);
-    
-        // too far apart, one inside the other, or identical
-        if (d > r1 + r2 || d < Math.abs(r1 - r2) || d === 0) {
-            return []; 
-        }
-    
-        const a = (r1 * r1 - r2 * r2 + d * d) / (2 * d);
-        const h = Math.sqrt(Math.max(0, r1 * r1 - a * a));
-    
-        // midpoint of the chord connecting the intersection points
-        const mx = x1 + a * (dx / d);
-        const my = y1 + a * (dy / d);
-
-        return [
-            { x: mx + h * (dy / d), y: my - h * (dx / d) },
-            { x: mx - h * (dy / d), y: my + h * (dx / d) }
-        ];
-    };
-    
-    static circleRect(x1, y1, r, x2, y2, w, h) {
-        const closestX = Math.max(x2, Math.min(x1, x2 + w));
-        const closestY = Math.max(y2, Math.min(y1, y2 + h));
-    
-        const distanceX = x1 - closestX;
-        const distanceY = y1 - closestY;
-    
-        const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
-        return distanceSquared <= (r * r);
+        this.ctx.fillText(`${avg.toFixed(0)} fps`, 55, 35)
     }
 }
 
@@ -127,10 +171,10 @@ class Particle {
         this.velx = 0; this.vely = 0;
         this.accx = 0; this.accy = 0;
 
-        this.color = "red"; this.r = 10;
+        this.color = `rgba(${Math.floor(100+Math.random()*155)}, ${Math.floor(100+Math.random()*155)}, ${Math.floor(100+Math.random()*155)}, 0.5)`;
     }
 
-    update(delta, bounds) {
+    update(delta, bounds, radius) {
         const GRAVITATIONAL_CONSTANT = 500;
         const BOUNCINESS = .95;
 
@@ -149,17 +193,17 @@ class Particle {
         this.x += this.velx * delta;
         this.y += this.vely * delta;
 
-        if (this.x - this.r < bounds.x) {
-            this.x = bounds.x + this.r;
+        if (this.x - radius < bounds.x) {
+            this.x = bounds.x + radius;
             this.velx *= -BOUNCINESS;
-        } if (this.x + this.r > bounds.x + bounds.w) {
-            this.x = bounds.x + bounds.w - this.r;
+        } if (this.x + radius > bounds.x + bounds.w) {
+            this.x = bounds.x + bounds.w - radius;
             this.velx *= -BOUNCINESS;
-        } if (this.y - this.r < bounds.y) {
-            this.y = bounds.y + this.r;
+        } if (this.y - radius < bounds.y) {
+            this.y = bounds.y + radius;
             this.vely *= -BOUNCINESS;
-        } if (this.y + this.r > bounds.y + bounds.h) {
-            this.y = bounds.y + bounds.h - this.r;
+        } if (this.y + radius > bounds.y + bounds.h) {
+            this.y = bounds.y + bounds.h - radius;
             this.vely *= -BOUNCINESS;
         };
 
@@ -167,13 +211,13 @@ class Particle {
         this.accy = 0;
     }
 
-    particleCollision(other) {
+    particleCollision(other, radius) {
         if (other === this) return;
     
         const dx = other.x - this.x;
         const dy = other.y - this.y;
 
-        const minDist = this.r + other.r;
+        const minDist = radius + radius;
         const distSq = dx * dx + dy * dy;
 
         if (distSq >= minDist * minDist) return;
@@ -199,7 +243,7 @@ class Particle {
     
         if (velAlongNormal > 0) return;
     
-        const restitution = 0.1; // bounciness
+        const restitution = 0.005; // bounciness
     
         const impulse = -(1 + restitution) * velAlongNormal / 2;
     
@@ -217,25 +261,28 @@ class Particle {
 class Engine {
     constructor(ctx) {
         this.particles = new Array();
-        this.renderer = new Renderer(ctx);
+        this.renderer = new Renderer(ctx, this);
         this._previousElapsed = null;
 
         this.fps_data = [];
 
+        this.keys_down = [];
+
         this.mousePressed = false;
         this.rightMousePressed = false;
         this.mousePos = [0, 0];
+        this.pullPos = [0, 0];
 
-        this.bounds_offset = [0, 0];
-        this.bounds_target = [0, 0];
-        this.pullPos = [0, 0]
-        this.bound_offset_decay = .95
+        this.SUBSTEPS = 6;
+        this.ITERATIONS = 4;
+        this.PARTICLERADIUS = 10;
+        this.PULL_STRENGTH = 3000;
     }
 
     getBounds() {
         return {
-            x: 10+this.bounds_offset[0],
-            y: 10+this.bounds_offset[1],
+            x: 10,
+            y: 10,
             w: (this.renderer.ctx.canvas.width-15),
             h: (this.renderer.ctx.canvas.height-15)
         }
@@ -253,7 +300,7 @@ class Engine {
     }
 
     drawParticles() {
-        this.renderer.drawParticles(this.particles)
+        this.renderer.drawParticles(this.particles, this.PARTICLERADIUS)
     }
 
     drawBounds() {
@@ -265,7 +312,7 @@ class Engine {
 
     render() {
         this.renderer.clear();
-        this.drawBounds();
+        //this.drawBounds();
         this.drawParticles();
         let avg = 0;
         this.fps_data.forEach(f => {
@@ -273,63 +320,82 @@ class Engine {
         });
         avg /= this.fps_data.length
         this.renderer.drawFPS(1/avg);
+
+        const ctx = this.renderer.ctx;
+        ctx.fillStyle = "grey"
+        ctx.font = `15px monospace`;
+        ctx.fillText(`${this.particles.length} particles`, 60, 70)
+
+        this.renderer.drawUI();
     }
 
     physicsStep(delta) {
         const bounds = this.getBounds();
-
-        this.particles.forEach(p => {
-            p.update(delta, bounds);
-        });
     
-        const grid = this.buildGrid();
+        for (const p of this.particles) {
+            p.update(delta, bounds, this.PARTICLERADIUS);
+        }
     
-        for (let iteration = 0; iteration < 4; iteration++) {
-            this.solveCollisions(grid);
+        this.buildGrid();
+    
+        for (let iteration = 0; iteration < this.ITERATIONS; iteration++) {
+            this.solveCollisions();
         }
     }
 
     buildGrid() {
-        const CELL_SIZE = 20; // r * 2
-        const grid = new Map();
+        const CELL_SIZE = this.PARTICLERADIUS*2;
+    
+        const canvas = this.renderer.ctx.canvas;
+        this.GRID_W = Math.ceil(canvas.width / CELL_SIZE);
+        this.GRID_H = Math.ceil(canvas.height / CELL_SIZE);
+        const GRID_SIZE = this.GRID_W * this.GRID_H;
+    
+        this.grid = new Array(GRID_SIZE);
+    
+        for (let i = 0; i < GRID_SIZE; i++) {
+            this.grid[i] = [];
+        }
+    
         for (let i = 0; i < this.particles.length; i++) {
             const p = this.particles[i];
-        
-            const gx = Math.floor(p.x / CELL_SIZE);
-            const gy = Math.floor(p.y / CELL_SIZE);
-        
-            const key = `${gx},${gy}`;
-        
-            if (!grid.has(key))
-                grid.set(key, []);
-        
-            grid.get(key).push(i);
+    
+            const gx = (p.x / CELL_SIZE) | 0;
+            const gy = (p.y / CELL_SIZE) | 0;
+    
+            if (gx < 0 || gy < 0 || gx >= this.GRID_W || gy >= this.GRID_H) continue;
+    
+            const idx = gx + gy * this.GRID_W;
+    
+            this.grid[idx].push(i);
         }
-
-        return grid;
     }
 
-    solveCollisions(grid) {
-        const CELL_SIZE = 20; // r * 2
+    solveCollisions() {
+        const CELL_SIZE = this.PARTICLERADIUS*2;
+    
         for (let i = 0; i < this.particles.length; i++) {
             const p = this.particles[i];
-        
-            const gx = Math.floor(p.x / CELL_SIZE);
-            const gy = Math.floor(p.y / CELL_SIZE);
-        
+    
+            const gx = (p.x / CELL_SIZE) | 0;
+            const gy = (p.y / CELL_SIZE) | 0;
+    
             for (let oy = -1; oy <= 1; oy++) {
                 for (let ox = -1; ox <= 1; ox++) {
-        
-                    const bucket = grid.get(
-                        `${gx + ox},${gy + oy}`
-                    );
-        
-                    if (!bucket) continue;
-        
-                    for (const j of bucket) {
+    
+                    const x = gx + ox;
+                    const y = gy + oy;
+    
+                    if (x < 0 || y < 0 || x >= this.GRID_W || y >= this.GRID_H) continue;
+    
+                    const idx = x + y * this.GRID_W;
+                    const bucket = this.grid[idx];
+    
+                    for (let k = 0; k < bucket.length; k++) {
+                        const j = bucket[k];
                         if (j <= i) continue;
-        
-                        p.particleCollision(this.particles[j]);
+    
+                        p.particleCollision(this.particles[j], this.PARTICLERADIUS);
                     }
                 }
             }
@@ -337,34 +403,22 @@ class Engine {
     }
 
     updateParticles(delta) {
-        const SUBSTEPS = 6;
-        const dt = delta / SUBSTEPS;
+        const dt = delta / this.SUBSTEPS;
 
-        for(let x = 0; x < SUBSTEPS; x++) {
+        for(let x = 0; x < this.SUBSTEPS; x++) {
             this.physicsStep(dt);
         }
     }
 
     update(delta) {
-        const smoothness = 12; 
-        this.bounds_offset[0] +=
-            (this.bounds_target[0] - this.bounds_offset[0]) *
-            smoothness * delta;
-
-        this.bounds_offset[1] +=
-            (this.bounds_target[1] - this.bounds_offset[1]) *
-            smoothness * delta;
-
-        this.bounds_target[0] *= 0.95;
-        this.bounds_target[1] *= 0.95;
         if(this.mousePressed) {
-            for(let x = 0; x < 3; x++) {
+            for(let x = 0; x < 5; x++) {
                 this.createParticle(this.mousePos[0]+(Math.random()*20), this.mousePos[1]+(Math.random()*20))
             }
         }
         if (this.rightMousePressed) {
             const pullRadius = 300;
-            const pullStrength = 3000;
+            const pullStrength = this.keys_down.includes(" ") ? (this.PULL_STRENGTH*-1) : this.PULL_STRENGTH;
         
             for (const p of this.particles) {
                 this.pullPos[0] += (this.mousePos[0] - this.pullPos[0]) * 0.2;
@@ -396,6 +450,10 @@ class Engine {
                 //p.vely +=  nx * strength * 0.3 * delta;
             }
         }
+
+        this.renderer.UIElements.filter(ele => ele.type == "slider" && ele.dragging).forEach(ele => {
+            ele.setSliderFromMouse()
+        })
         this.updateParticles(delta);
     }
 
@@ -406,10 +464,10 @@ class Engine {
             return;
         }
     
-        const delta = Math.min(
-            (elapsed - this._previousElapsed) / 1000,
-            0.12
-        );
+        const delta = /*Math.min(*/
+            (elapsed - this._previousElapsed) / 1000//,
+            /*0.12
+        );*/
     
         this._previousElapsed = elapsed;
 
@@ -447,14 +505,28 @@ class Engine {
         }
 
         this.renderer.ctx.canvas.addEventListener("mousedown", (e) => {
-            if(e.button === 0) this.mousePressed = true;
-            if(e.button === 2) this.rightMousePressed = true;
+            let clicked = false;
+            this.renderer.UIElements.forEach(ele => {
+                const pos = ele.getPos();
+                if(Maths.rectRect(this.mousePos[0]-5, this.mousePos[1]-5, 10, 10, pos.x, pos.y, pos.w, pos.h)) {
+                    clicked = true;
+                    if(ele.type == "slider") {
+                        ele.dragging = true;
+                        ele.setSliderFromMouse();
+                    }
+                }
+            })
+            if(!clicked) {
+                if(e.button === 0) this.mousePressed = true;
+                if(e.button === 2) this.rightMousePressed = true;
+            }
         })
-        this.renderer.ctx.canvas.addEventListener("mouseup", (e) => {
+        window.addEventListener("mouseup", (e) => {
+            this.renderer.UIElements.forEach(ele => { ele.dragging = false; });
             if(e.button === 0) this.mousePressed = false;
             if(e.button === 2) this.rightMousePressed = false;
         })
-        this.renderer.ctx.canvas.addEventListener("mousemove", (e) => {
+        window.addEventListener("mousemove", (e) => {
             this.mousePos = [e.clientX, e.clientY]
         })
         window.addEventListener("resize", () => {
@@ -463,26 +535,48 @@ class Engine {
         window.addEventListener("contextmenu", (e) => {
             e.preventDefault();
         })
+        window.addEventListener("keydown", (e) => {
+            this.keys_down.push(e.key);
+        })
+        window.addEventListener("keyup", (e) => {
+            this.keys_down.splice(this.keys_down.indexOf(e.key));
+        })
 
         window.addEventListener('windowmove', (event) => {
-            const amp = 1;
-            this.bounds_target[0] = event.detail.deltaX * amp;
-            this.bounds_target[1] = event.detail.deltaY * amp;
+            const amp = 5;
+
+            const fx = event.detail.deltaX * amp;
+            const fy = event.detail.deltaY * amp;
+
+            for (const p of this.particles) {
+                p.velx += fx;
+                p.vely += fy;
+            }
         });
+
+        window.addEventListener("blur", () => {
+            this.mousePressed = false;
+            this.rightMousePressed = false;
+        }); window.addEventListener("visibilitychange", () => {
+            this.mousePressed = false;
+            this.rightMousePressed = false;
+        });
+
+        this.renderer.createUIElement("slider", 0.1, 0.03, 0.1, 0.1, {"step": 1, "max": 20, "min": 1, "progress": this.PARTICLERADIUS, "title": "particle size", "showVal": true}).onchange = (t) => { this.PARTICLERADIUS = t.data.progress; }
+        this.renderer.createUIElement("slider", 0.1, 0.13, 0.1, 0.1, {"step": 1, "max": 7, "min": 1, "progress": this.SUBSTEPS, "title": "simulation substeps", "showVal": true}).onchange = (t) => { this.SUBSTEPS = t.data.progress; }
+        this.renderer.createUIElement("slider", 0.1, 0.23, 0.1, 0.1, {"step": 1, "max": 7, "min": 1, "progress": this.ITERATIONS, "title": "simulation iterations", "showVal": true}).onchange = (t) => { this.ITERATIONS = t.data.progress; }
+        this.renderer.createUIElement("slider", 0.25, 0.03, 0.1, 0.1, {"step": 1000, "max": 30000, "min": 1000, "progress": this.PULL_STRENGTH, "title": "right click strength", "showVal": true}).onchange = (t) => { this.PULL_STRENGTH = t.data.progress; }
     }
 }
 
 (function() {
-    // Store initial browser coordinates
     let lastX = window.screenX !== undefined ? window.screenX : window.screenLeft;
     let lastY = window.screenY !== undefined ? window.screenY : window.screenTop;
 
     function checkWindowPosition() {
-        // Fetch current positions across multiple browsers
         const currentX = window.screenX !== undefined ? window.screenX : window.screenLeft;
         const currentY = window.screenY !== undefined ? window.screenY : window.screenTop;
 
-        // Fire custom event if coordinates changed
         if (currentX !== lastX || currentY !== lastY) {
             const moveEvent = new CustomEvent('windowmove', {
                 detail: {
@@ -497,16 +591,13 @@ class Engine {
             
             window.dispatchEvent(moveEvent);
 
-            // Update tracked state
             lastX = currentX;
             lastY = currentY;
         }
 
-        // Re-poll on the next repaint cycle
         requestAnimationFrame(checkWindowPosition);
     }
 
-    // Initialize tracking loop
     requestAnimationFrame(checkWindowPosition);
 })();
 
@@ -515,5 +606,10 @@ c.width = window.innerWidth;
 c.height = window.innerHeight;
 const e = new Engine(c.getContext("2d"))
 e.init();
+
+if(window.localStorage.getItem("f") == undefined) {
+    alert("left click to spawn, right click to grab (if you hold space it repulses instead), resize and drag the window around to manipulate them further")
+    window.localStorage.setItem("f", true);
+}
 
 window.requestAnimationFrame(e.tick.bind(e));

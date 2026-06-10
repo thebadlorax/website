@@ -126,19 +126,19 @@ export async function openMenu() {
     }
     main_container.style.display = "none"
     account_menu.style.display = "block"
-    account_button.textContent = "Go Back"
-    account_button.style.left = "87vw"
+    account_button.textContent = "Homepage"
+    account_button.style.left = "85vw"
     menu_is_open = true;
 }
 
 function hideMenu() {
     main_container.style.display = "flex"
     account_menu.style.display = "none"
-    account_button.style.left = "87vw"
-    account_button.textContent = "Settings"
+    account_button.style.left = "80vw"
+    account_button.textContent = "Account Settings"
     menu_is_open = false;
     settings_open = false;
-    website_settings_open_button.textContent = "Settings"
+    website_settings_open_button.textContent = "Website Settings"
 }
 
 async function handleSignIn() {
@@ -334,11 +334,11 @@ website_settings_open_button.addEventListener("click", () => {
     if(settings_open) {
         main_am_div.style.display = "block";
         settings_am_div.style.display = "none";
-        website_settings_open_button.textContent = "Settings"
+        website_settings_open_button.textContent = "Website Settings"
     } else {
         main_am_div.style.display = "none";
         settings_am_div.style.display = "block";
-        website_settings_open_button.textContent = "Account"
+        website_settings_open_button.textContent = "Account Settings"
     };
     settings_open = !settings_open;
 })

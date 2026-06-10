@@ -91,20 +91,18 @@ export function formatBytes(bytes, decimals = 2) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
   
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
-  }
+}
 
-export function formatNumber(number) {
-    let text = `${number}`
-    if(number >= 1000) { // thousand
-        text = `${(number/1000).toFixed(2)}k`;
-    } if(number >= 10000000) { // million
-        text = `${(number/1000).toFixed(3)}m`;
-    } if(number >= 1000000000) { // billion
-        text = `${(number/1000).toFixed(4)}b`;
-    } if(number >= 1000000000000) { // trillion
-        text = `${(number/1000).toFixed(4)}t`;
-    }
-    return text;
+export function formatNumber(number, decimals = 2) {
+    if (number === 0) return "0";
+  
+    const k = 1000;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ["", "k", "m", "b", "t", "qd", "qn", "sx", "sp", "oc", "no", "de", "ude", "dde", "tde"];
+  
+    const i = Math.floor(Math.log(number) / Math.log(k));
+  
+    return parseFloat((number / Math.pow(k, i)).toFixed(dm)) +  sizes[i];
 }
 
 export async function getPoints() {
