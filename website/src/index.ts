@@ -6,19 +6,19 @@
  *    would need to host my own webrtc though
  * ------
  * finish gambling ring (roulette, poker, etc.), and abstract away everything possible from blackjack like cards and turns w/ a gameinstance
- *      create a scratch clone to make card games
+ *      create a scratch clone to make and share multiplayer card games
  * -----
  * visual update on things like ui elements and upscale things like the bg
  * refactor all clientside js to not make 1000000 requests and also look nicer w switches and classes
- * more user to user interaction (friends, online dates, etc)
- * make the snail races be the same for every viewer (and sync up start times)
+ * more user to user interaction (friends, etc)
+ * make the snail races be the same for every viewer (sync up start times)
  * meowl shrine
  * finish webring
  * make an actual dev portfolio on professional.thebadlorax.dev
  *      maybe the website itself is the portfolio in a way, but def have this for my resume and stuff
  * ------
- * improve website hosting experience
- * run a newspaper 
+ * improve website hosting experience (neocities)
+ * newspaper 
  * FISHING MULTIPLAYER GAME
  *      folded into normal game
  * ------
@@ -29,11 +29,11 @@
  *    long walk simulation
  *    sand simulation
  *    pet ownership simulation
- *    physics engine
+ *        pet playdates
+ *        superautopets battles (permadeath)
  *    garden simulation
  *        maybe fold pet ownership and garden into a life simulation
- *    atom simulation (universe simulation)
- *    military simulator (really complicated and long term)
+ *    military simulator (really complicated and long term (1 week+ runtime))
  * -------
  * make a toggle to make protected folders public but immutable
  *    also if you have the url protected is useless
@@ -48,7 +48,7 @@
  * do something about the guestbook on the home screen
  * refactor api code
  * port desktop app to windows & linux + autoupdater
- * link google account functionality
+ * sign in w/ google
 */
 
 import { Glob, $, type ServerWebSocket } from "bun";
@@ -892,6 +892,16 @@ const server = Bun.serve({
             if(success) return undefined;
             return corsResponse("WebSocket upgrade failed", { status: 400 });
           }
+
+          case "/mini/longwalk/win": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let wishes = await db.fetch("longwalk_wishes") || new Array();
+            wishes.push(`${json.name}: ${json.wish} ||| username: ${json.user.account.name}`);
+            await db.modify("longwalk_wishes", wishes);
+            return corsResponse(null, { status: 200 });
+            break;
+          }
           case "/health":
             return corsResponse("OK"); 
           default: // dynamic route endpoints
@@ -935,6 +945,9 @@ const server = Bun.serve({
           }
           case "/mini/logclicker": { 
             return corsResponse(Bun.file("src/pages/mini/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
+          }
+          case "/mini/thelongwalk": { 
+            return corsResponse(Bun.file("src/pages/mini/walk.html"), { headers: { "Content-Type": "text/html" } }); 
           }
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
       

@@ -98,7 +98,7 @@ export function formatNumber(number, decimals = 2) {
   
     const k = 1000;
     const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ["", "k", "m", "b", "t", "qd", "qn", "sx", "sp", "oc", "no", "de", "ude", "dde", "tde"];
+    const sizes = ["", "k", "m", "b", "t", "qd", "qn", "sx", "sp", "oc", "no", "de", "ude", "dde", "tde", "vg", "tg", "qa", "qi", "se", "sg", "og", "ng", "ce", "uce", "dce"];
   
     const i = Math.floor(Math.log(number) / Math.log(k));
   

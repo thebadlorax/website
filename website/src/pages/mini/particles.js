@@ -277,6 +277,8 @@ class Engine {
         this.ITERATIONS = 4;
         this.PARTICLERADIUS = 10;
         this.PULL_STRENGTH = 3000;
+        this.SPAWN_RATE = 3;
+        this.WINDOW_SHAKE_AMP = 3;
     }
 
     getBounds() {
@@ -403,16 +405,16 @@ class Engine {
     }
 
     updateParticles(delta) {
-        const dt = delta / this.SUBSTEPS;
+        const dt = delta / Math.max(1, this.SUBSTEPS);
 
-        for(let x = 0; x < this.SUBSTEPS; x++) {
+        for(let x = 0; x < Math.max(1, this.SUBSTEPS); x++) {
             this.physicsStep(dt);
         }
     }
 
     update(delta) {
         if(this.mousePressed) {
-            for(let x = 0; x < 5; x++) {
+            for(let x = 0; x < this.SPAWN_RATE; x++) {
                 this.createParticle(this.mousePos[0]+(Math.random()*20), this.mousePos[1]+(Math.random()*20))
             }
         }
@@ -543,7 +545,7 @@ class Engine {
         })
 
         window.addEventListener('windowmove', (event) => {
-            const amp = 5;
+            const amp = this.WINDOW_SHAKE_AMP;
 
             const fx = event.detail.deltaX * amp;
             const fy = event.detail.deltaY * amp;
@@ -563,9 +565,11 @@ class Engine {
         });
 
         this.renderer.createUIElement("slider", 0.1, 0.03, 0.1, 0.1, {"step": 1, "max": 20, "min": 1, "progress": this.PARTICLERADIUS, "title": "particle size", "showVal": true}).onchange = (t) => { this.PARTICLERADIUS = t.data.progress; }
-        this.renderer.createUIElement("slider", 0.1, 0.13, 0.1, 0.1, {"step": 1, "max": 7, "min": 1, "progress": this.SUBSTEPS, "title": "simulation substeps", "showVal": true}).onchange = (t) => { this.SUBSTEPS = t.data.progress; }
-        this.renderer.createUIElement("slider", 0.1, 0.23, 0.1, 0.1, {"step": 1, "max": 7, "min": 1, "progress": this.ITERATIONS, "title": "simulation iterations", "showVal": true}).onchange = (t) => { this.ITERATIONS = t.data.progress; }
+        this.renderer.createUIElement("slider", 0.1, 0.13, 0.1, 0.1, {"step": 1, "max": 20, "min": 0, "progress": this.SUBSTEPS, "title": "simulation substeps (expensive)", "showVal": true}).onchange = (t) => { this.SUBSTEPS = t.data.progress; }
+        this.renderer.createUIElement("slider", 0.1, 0.23, 0.1, 0.1, {"step": 1, "max": 20, "min": 0, "progress": this.ITERATIONS, "title": "simulation iterations (expensive)", "showVal": true}).onchange = (t) => { this.ITERATIONS = t.data.progress; }
         this.renderer.createUIElement("slider", 0.25, 0.03, 0.1, 0.1, {"step": 1000, "max": 30000, "min": 1000, "progress": this.PULL_STRENGTH, "title": "right click strength", "showVal": true}).onchange = (t) => { this.PULL_STRENGTH = t.data.progress; }
+        this.renderer.createUIElement("slider", 0.25, 0.13, 0.1, 0.1, {"step": 1, "max": 30, "min": 1, "progress": this.SPAWN_RATE, "title": "particle spawn rate", "showVal": true}).onchange = (t) => { this.SPAWN_RATE = t.data.progress; }
+        this.renderer.createUIElement("slider", 0.25, 0.23, 0.1, 0.1, {"step": 1, "max": 10, "min": 0, "progress": this.WINDOW_SHAKE_AMP, "title": "window shake multiplier", "showVal": true}).onchange = (t) => { this.WINDOW_SHAKE_AMP = t.data.progress; }
     }
 }
 

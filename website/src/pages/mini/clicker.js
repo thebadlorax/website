@@ -7,42 +7,7 @@
 
 import { Maths } from "./maths.js";
 import { formatNumber } from "../common.js";
-
-const generateRandomString = (length) => {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      const randomIndex = Math.floor(Math.random() * characters.length);
-      result += characters.charAt(randomIndex);
-    }
-    return result;
-}
-
-export class Loader {
-    images;
-
-    constructor() { this.images = {}; }; 
-
-    loadImage(key, src) {
-        var img = new Image();
-    
-        var d = new Promise(function (resolve, reject) {
-            img.onload = function () {
-                this.images[key] = img;
-                resolve(img);
-            }.bind(this);
-    
-            img.onerror = function () {
-                reject('Could not load image: ' + src);
-            };
-        }.bind(this));
-    
-        img.src = src;
-        return d;
-    };
-
-    getImage(key) { return (key in this.images) ? this.images[key] : null; };
-};
+import { Loader, generateRandomString } from "./mini-common.js";
 
 class Renderer {
     constructor(ctx, engine, loader) {
@@ -78,7 +43,7 @@ class Renderer {
 class Save {
     constructor() {
         this.data = {
-            "money": 0
+            "money": 50000
         }
     }
 
@@ -96,19 +61,25 @@ class Upgrade {
     static INDEX = [
         new Upgrade("onclick", 0, "better axe", "+1 money per click", (a) => {
             return a+1;
-        }, 100, 1.15, 0),
+        }, 50, 1.15, 0),
         new Upgrade("pps", 1, "hire employee", "+1 money per tick", (a) => {
             return a+1;
         }, 100, 1.15, 0),
         new Upgrade("tickspeed", 2, "automatic log cutter", "*1.1 tickspeed", (a) => {
             return a*0.9
-        }, 200, 1.15, 0),
-        new Upgrade("pps", 3, "employ contractor", "*1.2 mpt", (a) => {
-            return a*1.2
+        }, 200, 10, 0),
+        new Upgrade("treemoney", 3, "taller trees", "+250 money from trees", (a) => {
+            return a+250
         }, 200, 1.15, 1),
+        new Upgrade("treegrid", 4, "more acres", "+plots", (a) => {
+            return a+1
+        }, 500, 50, 1),
+        new Upgrade("pps", 5, "employ contractor", "*1.05 mpt", (a) => {
+            return a*1.05
+        }, 400, 3, 1),
         new Upgrade("level", 100, "get a promotion", "unlock new things", (a) => {
             return a+1
-        }, 500, 3.25, 0),
+        }, 500, 100, 0),
     ]
 
     constructor(type, id, name, desc, fn, cost, costGrowth, level) {
@@ -278,6 +249,18 @@ class UpgradeManager {
         return v;
     }
 
+    getTreeBonus() {
+        let v = 0;
+        this.upgradesAsList().filter(u => u.type == "treemoney").map(u => u.fn).forEach(u => v = u(v));
+        return v;
+    }
+
+    getTreeGridSize() {
+        let v = 2;
+        this.upgradesAsList().filter(u => u.type == "treegrid").map(u => u.fn).forEach(u => v = u(v));
+        return Math.floor(v);
+    }
+
     getOwned(id) {
         return this.owned_upgrades.find(u => u.id === id);
     }
@@ -329,12 +312,17 @@ class UpgradeManager {
                     this.engine.misc.holograms.push({
                         "x": p.x+(30-Math.random()*60),
                         "y": p.y+(30-Math.random()*60),
-                        "text": `-${cost}`,
+                        "text": `-${formatNumber(cost)}`,
                         "color": "255, 0, 0",
                         "size": 15,
                         "lifespan": .8,
                         "timealive": 0
-                    })
+                    });
+                    switch(u.type) {
+                        case "treegrid": {
+                            this.engine.minigames.forest.refreshMenu();
+                        }
+                    }
                 }
             }
         });
@@ -369,18 +357,31 @@ class Minigame {
 }
 
 class ForestMinigame extends Minigame {
+    static SEED_DATA = {
+        "oak": {
+            "cost": 250,
+            "reward": 1000
+        },
+        "maple": {
+            "cost": 1000,
+            "reward": 5000
+        }
+    };
+
+    static BASE_GROWTH_SPEED = 30000;
     constructor(engine) {
         super(engine, 0.245, 0.495, 0.45, 0.5, 1);
         this.menu.color = "#9b7653"
 
         this.growth_data = {}
-        this.growth_interval = 2000
         this.last_growth_tick = null;
+
+        this.selected_tree = "oak";
     }
 
     refreshMenu() {
-        const COLS = 2;
-        const ROWS = 2;
+        const COLS = this.engine.upgradeManager.getTreeGridSize();
+        const ROWS = this.engine.upgradeManager.getTreeGridSize()-1;
     
         const rpos = this.menu.getPerToScreen();
     
@@ -405,24 +406,24 @@ class ForestMinigame extends Minigame {
                     cellH / rpos.h,
                     {
                         "c": `${64+(-15+Math.random()*30)}, ${41+(-10+Math.random()*20)}, ${5+(-5+Math.random()*10)}`,
-                        renderFn: (t, rpos, ctx) => {
+                        renderFn: (t, rpos2, ctx) => {
                             ctx.fillStyle = `rgba(${t.data.c}, 1)`
-                            ctx.fillRect(rpos.x, rpos.y, rpos.w, rpos.h)
+                            ctx.fillRect(rpos2.x, rpos2.y, rpos2.w, rpos2.h)
                             ctx.strokeStyle = "black";
-                            ctx.strokeRect(rpos.x, rpos.y, rpos.w, rpos.h);
+                            ctx.strokeRect(rpos2.x, rpos2.y, rpos2.w, rpos2.h);
 
                             const d = this.growth_data[`${x};${y}`];
                             if(d != undefined) {
                                 ctx.drawImage(
-                                    this.engine.renderer.loader.getImage("oak_tree_growth"),
+                                    this.engine.renderer.loader.getImage(`${d.seed}_tree_growth`),
                                     d.growth_stage*128,
                                     0,
                                     128,
                                     128,
-                                    (rpos.x+rpos.w/2)-64,
-                                    (rpos.y+rpos.h/2)-64,
-                                    cellW*.5,
-                                    cellW*.5
+                                    (rpos2.x+rpos2.w/2)-64,
+                                    (rpos2.y+rpos2.h/2)-64,
+                                    128,
+                                    128
                                 )
                             };
                         }
@@ -431,7 +432,7 @@ class ForestMinigame extends Minigame {
 
                 t.onclick = () => {
                     if(this.growth_data[`${x};${y}`] == undefined) {
-                        this.placeTree(x, y, "oak")
+                        this.placeTree(x, y, this.selected_tree)
                     } else {
                         this.harvestTree(x, y);
                     }
@@ -443,17 +444,39 @@ class ForestMinigame extends Minigame {
             ctx.font = "20px monospace";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
-            ctx.fillText(`next growth tick: ${((this.growth_interval-(Date.now()-this.last_growth_tick))/1000).toFixed(1)}s`, rpos2.x, rpos2.y)
+            ctx.fillText(`next growth tick: ${((this.getGrowthTime()-(Date.now()-this.last_growth_tick))/1000).toFixed(1)}s`, rpos2.x, rpos2.y)
         }});
+
+        let ob = this.menu.createUIElement("textbutton", 0.835, 0.1, 0.15, 0.1, {"text": "oak seeds", "bgColor": "darkgrey", "fontSize": 10, "cost": ForestMinigame.SEED_DATA.oak.cost});
+        ob.onclick = () => {
+            this.menu.UIElements.filter(u => u.data.cost != undefined).forEach(u => { u.data.bgColor = "black"});
+            ob.data.bgColor = "darkgrey"
+            this.selected_tree = "oak";
+        }
+        let mb = this.menu.createUIElement("textbutton", 0.835, 0.23, 0.15, 0.1, {"text": "maple seeds", "bgColor": "black", "fontSize": 10, "cost": ForestMinigame.SEED_DATA.maple.cost});
+        mb.onclick = () => {
+            this.menu.UIElements.filter(u => u.data.cost != undefined).forEach(u => { u.data.bgColor = "black"});
+            mb.data.bgColor = "darkgrey"
+            this.selected_tree = "maple";
+        }
+    }
+
+    getGrowthTime() {
+        return ForestMinigame.BASE_GROWTH_SPEED
     }
 
     placeTree(x, y, seed) {
-        this.growth_data[`${x};${y}`] = {
-            "seed": seed,
-            "last_growth": Date.now(),
-            "growth_stage": 0,
-            "decay_stage": 0
+        const cost = ForestMinigame.SEED_DATA[seed].cost
+        if(this.engine.save.data.money >= cost) {
+            this.growth_data[`${x};${y}`] = {
+                "seed": seed,
+                "last_growth": Date.now(),
+                "growth_stage": 0,
+                "decay_stage": 0
+            }
+            this.engine.save.modifyValue("money", this.engine.save.data.money-cost);
         }
+        
     }
 
     activate() {
@@ -468,7 +491,7 @@ class ForestMinigame extends Minigame {
             if(t.growth_stage == 5) {
                 // too late
             } else {
-                await this.engine.save.modifyValue("money", this.engine.save.data.money + 500);
+                await this.engine.save.modifyValue("money", this.engine.save.data.money + ForestMinigame.SEED_DATA[t.seed].reward + this.engine.upgradeManager.getTreeBonus());
             }
             delete this.growth_data[`${x};${y}`];
         };
@@ -494,7 +517,7 @@ class ForestMinigame extends Minigame {
     
             setTimeout(
                 loop,
-                this.growth_interval
+                this.getGrowthTime()
             );
         };
     
@@ -516,6 +539,9 @@ class Engine {
         this.minigames = {
             "forest": new ForestMinigame(this)
         }
+
+        this.cps = 0;
+        this.cps_timer = 0;
 
         this.fps_data = []
         this.mousePos = [0, 0]
@@ -606,8 +632,8 @@ class Engine {
 
         ctx.font = `30px monospace`
         ctx.fillStyle = "grey"
-        ctx.fillText(`${(1/this.upgradeManager.getTickCooldown()).toFixed(1)} tps`, p.x+90, p.y+60);
-        ctx.fillText(`${this.upgradeManager.getPointsPerSecond().toFixed(0)} mpt`, p.x-90, p.y+60);
+        ctx.fillText(`${formatNumber((1/this.upgradeManager.getTickCooldown()))} tps`, p.x+90, p.y+60);
+        ctx.fillText(`${formatNumber(this.upgradeManager.getPointsPerSecond())} mpt`, p.x-90, p.y+60);
 
         // draw holograms
         this.misc.holograms.forEach(h => {
@@ -629,7 +655,22 @@ class Engine {
     }
 
     async passiveTick() {
-        await this.save.modifyValue("money", (this.save.data.money || 0)+this.upgradeManager.getPointsPerSecond());
+        const pps = this.upgradeManager.getPointsPerSecond();
+        const m = (this.save.data.money || 0)+pps;
+        if(pps > 0) {
+            let p = this.perToScreenPos(0.5, 0.1, 50, 50);
+            this.misc.holograms.push({
+                "x": p.x+(30-Math.random()*60),
+                "y": p.y+(30-Math.random()*60),
+                "text": `+${formatNumber(pps)}`,
+                "color": "0, 255, 0",
+                "size": 15,
+                "lifespan": .8,
+                "timealive": 0
+            })
+        }
+        
+        await this.save.modifyValue("money", m);
     }
 
     startPassiveLoop() {
@@ -666,6 +707,7 @@ class Engine {
 
         document.body.style.cursor = "default"
         let hoveredUpgrade = null;
+        let hovered_cost = null;
         Object.values(this.renderer.MENUS).filter(m => m.visible).forEach(m => {
             m.UIElements.forEach(u => {
                 const hovering = u.isHovering(this.mousePos[0], this.mousePos[1]);
@@ -680,20 +722,36 @@ class Engine {
                     hoveredUpgrade = u.data.upgrade;
                     document.body.style.cursor = "pointer";
                 }
+
+                if(hovering && u.data.cost != null) {
+                    hovered_cost = u.data.cost
+                    document.body.style.cursor = "pointer";
+                }
             });
         });
         if (hoveredUpgrade) {
             const owned = this.upgradeManager.getOwned(hoveredUpgrade.id)?.count ?? 0;
             const cost = hoveredUpgrade.getCost(owned);
 
-            this.misc.appendToMoneyText = `-${cost}`;
+            this.misc.appendToMoneyText = `-${formatNumber(cost)}`;
             this.misc.appendToMoneyColor = "red";
         } else {
             this.misc.appendToMoneyText = "";
         }
+
+        if(hovered_cost != undefined) {
+            this.misc.appendToMoneyText = `-${formatNumber(hovered_cost)}`;
+            this.misc.appendToMoneyColor = "red";
+        } 
         if(is_hovering) document.body.style.cursor = "pointer"
 
         Object.values(this.minigames).filter(m => m.activated).forEach(m => m.update(delta));
+
+        this.cps_timer += delta;
+        if(this.cps_timer >= 1) {
+            this.cps_timer = 0;
+            this.cps = 0;
+        }
     }
 
     tick(elapsed) {
@@ -728,12 +786,26 @@ class Engine {
         })
         if(this.isHoveringClicker()) {
             const cv = this.upgradeManager.getClickValue()
+            this.cps += 1;
+            if(this.cps > 16) {
+                this.misc.clickScale = 1.2
+                this.misc.holograms.push({
+                    "x": this.mousePos[0]+(15-Math.random()*30),
+                    "y": this.mousePos[1],
+                    "text": `too fast!`,
+                    "color": "255, 0, 0",
+                    "size": 15,
+                    "lifespan": .8,
+                    "timealive": 0
+                })
+                return;
+            }
             await this.save.modifyValue("money", (this.save.data.money ?? 0)+cv);
             this.misc.clickScale = 1.2
             this.misc.holograms.push({
                 "x": this.mousePos[0]+(15-Math.random()*30),
                 "y": this.mousePos[1],
-                "text": `+${cv}`,
+                "text": `+${formatNumber(cv)}`,
                 "color": "255, 255, 255",
                 "size": 15,
                 "lifespan": .8,
@@ -765,6 +837,7 @@ class Engine {
 const l = new Loader();
 await l.loadImage("log", "../res/mini/clicker/log.png");
 await l.loadImage("oak_tree_growth", "../res/mini/clicker/oak_tree_growth.png");
+await l.loadImage("maple_tree_growth", "../res/mini/clicker/maple_tree_growth.png");
 
 const c = document.getElementById("canvas");
 c.width = window.innerWidth;
