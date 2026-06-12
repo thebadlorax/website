@@ -58,6 +58,12 @@ const render = (progress) => {
     ctx.fillRect((bar_pos.x+bar_pos.w/3)-5, bar_pos.y-90, td.width+10, 40)
     ctx.fillStyle = "white";
     ctx.fillText(t, bar_pos.x+bar_pos.w/3, bar_pos.y-60);
+    let t2 = `eta: ${endTimeString}`
+    let td2 = ctx.measureText(t2);
+    ctx.fillStyle = "black"
+    ctx.fillRect((bar_pos.x+bar_pos.w/3)-5, bar_pos.y+90, td2.width+10, 40)
+    ctx.fillStyle = "white";
+    ctx.fillText(t2, bar_pos.x+bar_pos.w/3, bar_pos.y+120);
 };
 
 let has_won = false;
@@ -96,7 +102,8 @@ const daysToMs = (days) => {
 }
 
 const startTime = Date.now();
-const walkLength = 5000//daysToMs(1); // ms
+const walkLength = daysToMs(2); // ms
+const endTimeString = new Date(Date.now() + walkLength).toLocaleString();
 
 setInterval(() => {
     update()
