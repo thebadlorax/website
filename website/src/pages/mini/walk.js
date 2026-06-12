@@ -37,20 +37,38 @@ const scalePos = (x, y, w, h) => {
         "h": h*c.height,
     }
 }
+
+const drawText = (text, x, y) => {
+    ctx.font = "30px monospace";
+    let td = ctx.measureText(text);
+    const text_pos = scalePos(x, y, 0.1, 0.1);
+    ctx.fillStyle = "black"
+    ctx.fillRect(text_pos.x, text_pos.y, td.width+10, 40)
+    ctx.fillStyle = "white";
+    ctx.fillText(text, text_pos.x+7, text_pos.y+30);
+}
+
 const render = (progress) => {
     ctx.clearRect(0, 0, c.width, c.height);
 
     let img = l.getImage(`maine-${clamp(Math.floor(progress/9), 1, 10)}`);
     ctx.drawImage(img, 0, 0, c.width, c.height);
 
+    /*
     const bar_pos = scalePos(0.1, 0.5, 0.8, 0.03);
     ctx.fillStyle = "grey";
     ctx.fillRect(bar_pos.x, bar_pos.y, bar_pos.w, bar_pos.h);
     ctx.strokeStyle = "darkgrey";
     ctx.strokeRect(bar_pos.x, bar_pos.y, bar_pos.w, bar_pos.h);
     ctx.fillStyle = "red";
-    ctx.fillRect(bar_pos.x, bar_pos.y, bar_pos.w*(progress/100), bar_pos.h)
+    ctx.fillRect(bar_pos.x, bar_pos.y, bar_pos.w*(progress/100), bar_pos.h)*/
 
+    
+
+    drawText("stay on this page!", 0.01, 0.01)
+    drawText(`day ${1+Math.floor((Date.now()/startTime)/dayInMs())}`, 0.93, 0.01)
+
+    /*
     ctx.font = "30px monospace";
     let t = `${progress.toFixed(5)}% to the end of the walk`
     let td = ctx.measureText(t);
@@ -63,7 +81,7 @@ const render = (progress) => {
     ctx.fillStyle = "black"
     ctx.fillRect((bar_pos.x+bar_pos.w/3)-5, bar_pos.y+90, td2.width+10, 40)
     ctx.fillStyle = "white";
-    ctx.fillText(t2, bar_pos.x+bar_pos.w/3, bar_pos.y+120);
+    ctx.fillText(t2, bar_pos.x+bar_pos.w/3, bar_pos.y+120);*/
 };
 
 let has_won = false;
@@ -97,13 +115,20 @@ const onWin = async () => {
     location.href = "/";
 }
 
+const dayInMs = () => {
+    return 24*60*60*1000
+}
 const daysToMs = (days) => {
-    return days*24*60*60*1000
+    return days*dayInMs()
 }
 
 const startTime = Date.now();
-const walkLength = daysToMs(2); // ms
-const endTimeString = new Date(Date.now() + walkLength).toLocaleString();
+const walkLength = daysToMs(3); // ms
+
+window.addEventListener('beforeunload', (event) => {
+    event.preventDefault();
+    event.returnValue = ''; 
+});
 
 setInterval(() => {
     update()

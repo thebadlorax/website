@@ -26,7 +26,6 @@
  *      allow making your own board games
  * --------
  * mini projects page
- *    long walk simulation
  *    sand simulation
  *    pet ownership simulation
  *        pet playdates
