@@ -74,3 +74,39 @@ export class Maths {
         return distanceSquared <= (r * r);
     }
 }
+
+export class Vector2 {
+    constructor(x, y) { this.x = x; this.y = y; }
+
+    addIp(vector) { this.x += vector.x; this.y += vector.y }
+    add(vector) { return new Vector2(this.x + vector.x, this.y + vector.y) }
+    sAddIp(scalar) { this.x += scalar; this.y += scalar }
+    sAdd(scalar) { return new Vector2(this.x + scalar, this.y + scalar) }
+
+    subIp(vector) { this.x -= vector.x; this.y -= vector.y }
+    sub(vector) { return new Vector2(this.x - vector.x, this.y - vector.y) }
+    sSubIp(scalar) { this.x -= scalar; this.y -= scalar }
+    sSub(scalar) { return new Vector2(this.x - scalar, this.y - scalar) }
+
+    divIp(vector) { this.x /= vector.x; this.y /= vector.y }
+    div(vector) { return new Vector2(this.x / vector.x, this.y / vector.y) }
+    sDivIp(scalar) { this.x /= scalar; this.y /= scalar }
+    sDiv(scalar) { return new Vector2(this.x / scalar, this.y / scalar) }
+
+    mulIp(vector) { this.x *= vector.x; this.y *= vector.y }
+    mul(vector) { return new Vector2(this.x * vector.x, this.y * vector.y) }
+    sMulIp(scalar) { this.x *= scalar; this.y *= scalar }
+    sMul(scalar) { return new Vector2(this.x * scalar, this.y * scalar) }
+
+    setIp(vector) { this.x = vector.x; this.y = vector.y }
+    set(vector) { return new Vector2(vector.x, vector.y) }
+
+    normalizeIp() { this.sDivIp(Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2))) }
+    normalize() { return new Vector2(this.x, this.y).sDiv(Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2))) }
+
+    dist(vector) { return Math.sqrt(Math.pow(vector.x-this.x,2) + Math.pow(vector.y-this.y,2)) }
+
+    isZero() { return (this.x < 0.0001 && this.y < 0.0001) }
+
+    isNull() { return (this.x == null || this.y == null) }
+}

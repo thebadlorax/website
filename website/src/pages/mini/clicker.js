@@ -43,7 +43,7 @@ class Renderer {
 class Save {
     constructor() {
         this.data = {
-            "money": 50000
+            "money": 0
         }
     }
 

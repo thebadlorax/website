@@ -26,7 +26,6 @@
  *      allow making your own board games
  * --------
  * mini projects page
- *    sand simulation
  *    pet ownership simulation
  *        pet playdates
  *        superautopets battles (permadeath)
@@ -44,7 +43,6 @@
  * create custom file editors/viewers for types like .txt & .mp4
  *    maybe make these seperate tools and then have like a /editor?src=api.thebadlorax.dev/...
  * -----
- * do something about the guestbook on the home screen
  * refactor api code
  * port desktop app to windows & linux + autoupdater
  * sign in w/ google
@@ -950,6 +948,9 @@ const server = Bun.serve({
           }
           case "/mini/sand": { 
             return corsResponse(Bun.file("src/pages/mini/sand.html"), { headers: { "Content-Type": "text/html" } }); 
+          }
+          case "/mini/milsim": { 
+            return corsResponse(Bun.file("src/pages/mini/milsim.html"), { headers: { "Content-Type": "text/html" } }); 
           }
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
       

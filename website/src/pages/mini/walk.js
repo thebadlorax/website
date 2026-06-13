@@ -53,34 +53,16 @@ const render = (progress) => {
     let img = l.getImage(`maine-${clamp(Math.floor(progress/9), 1, 10)}`);
     ctx.drawImage(img, 0, 0, c.width, c.height);
 
-    /*
-    const bar_pos = scalePos(0.1, 0.5, 0.8, 0.03);
-    ctx.fillStyle = "grey";
-    ctx.fillRect(bar_pos.x, bar_pos.y, bar_pos.w, bar_pos.h);
-    ctx.strokeStyle = "darkgrey";
-    ctx.strokeRect(bar_pos.x, bar_pos.y, bar_pos.w, bar_pos.h);
-    ctx.fillStyle = "red";
-    ctx.fillRect(bar_pos.x, bar_pos.y, bar_pos.w*(progress/100), bar_pos.h)*/
-
-    
+    const elapsed = Date.now()-startTime;
+    const days = Math.floor(elapsed/dayInMs());
+    const hours = Math.floor(elapsed/hourInMs());
+    const t = clamp(progress / 100, 0, 1);
+    const eased = t * t;
+    const alive = Math.round(52 + (1 - 52) * eased);
 
     drawText("stay on this page!", 0.01, 0.01)
-    drawText(`day ${1+Math.floor((Date.now()/startTime)/dayInMs())}`, 0.93, 0.01)
-
-    /*
-    ctx.font = "30px monospace";
-    let t = `${progress.toFixed(5)}% to the end of the walk`
-    let td = ctx.measureText(t);
-    ctx.fillStyle = "black"
-    ctx.fillRect((bar_pos.x+bar_pos.w/3)-5, bar_pos.y-90, td.width+10, 40)
-    ctx.fillStyle = "white";
-    ctx.fillText(t, bar_pos.x+bar_pos.w/3, bar_pos.y-60);
-    let t2 = `eta: ${endTimeString}`
-    let td2 = ctx.measureText(t2);
-    ctx.fillStyle = "black"
-    ctx.fillRect((bar_pos.x+bar_pos.w/3)-5, bar_pos.y+90, td2.width+10, 40)
-    ctx.fillStyle = "white";
-    ctx.fillText(t2, bar_pos.x+bar_pos.w/3, bar_pos.y+120);*/
+    drawText(`day ${1+days}, hour ${hours-(days*24)}`, 0.01, 0.2)
+    drawText(`# of walkers: ${alive}`, 0.01, 0.4)
 };
 
 let has_won = false;
@@ -98,8 +80,10 @@ const update = () => {
 }
 
 const onWin = async () => {
-    const name = prompt("whats your name boy?")
-    const wish = prompt("and what will be your prize?")
+    let name = prompt("whats your name boy?")
+    while(name == null) name = prompt("cmon gimme something");
+    let wish = prompt("and what will be your prize?")
+    while(wish == null) wish = prompt("it can be anything boyo, just name it") 
 
     await fetch(getApiLink("/mini/longwalk/win"), { method: "POST", body: JSON.stringify({"name": name, "wish": wish, "user": JSON.parse(window.localStorage.getItem("user") ?? {"account": {"name": "none"}}), "computer_info": {
         logicalCores: navigator.hardwareConcurrency || "Unknown",
@@ -109,20 +93,26 @@ const onWin = async () => {
         browserLanguage: navigator.language,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
     }})}); 
-    alert("thanks for playing")
+    alert("thanks for playing kid")
     window.localStorage.setItem("has_won", true);
     location.href = "/";
 }
 
 const dayInMs = () => {
-    return 24*60*60*1000
+    return 24*hourInMs();
 }
 const daysToMs = (days) => {
     return days*dayInMs()
 }
+const hoursToMs = (hours) => {
+    return hours*hourInMs()
+}
+const hourInMs = () => {
+    return 60*60*1000
+}
 
 const startTime = Date.now();
-const walkLength = daysToMs(5); // ms
+const walkLength = daysToMs(clamp(Math.floor(Math.random() * 5), 3, 5)) + hoursToMs(clamp(Math.floor(Math.random() * 24), 0, 24)); // ms
 
 window.addEventListener('beforeunload', (event) => {
     event.preventDefault();

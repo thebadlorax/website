@@ -140,19 +140,6 @@ class Renderer {
                 Math.PI * 2
             );
             this.ctx.fill();
-
-            /*
-            this.ctx.strokeStyle = "white";
-            this.ctx.lineWidth = .5;
-            this.ctx.beginPath();
-            this.ctx.arc(
-                p.x,
-                p.y,
-                p.r,
-                0,
-                Math.PI * 2
-            );
-            this.ctx.stroke();*/
         })
         
     }
