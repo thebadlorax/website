@@ -948,6 +948,9 @@ const server = Bun.serve({
           case "/mini/thelongwalk": { 
             return corsResponse(Bun.file("src/pages/mini/walk.html"), { headers: { "Content-Type": "text/html" } }); 
           }
+          case "/mini/sand": { 
+            return corsResponse(Bun.file("src/pages/mini/sand.html"), { headers: { "Content-Type": "text/html" } }); 
+          }
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
       
           default:

@@ -18,7 +18,6 @@ for(let x = 1; x <= 10; x++) {
     await l.loadImage(`maine-${x}`, `../res/mini/longwalk/maine-${x}.jpg`)
 }
 
-
 const c = document.getElementById("canvas");
 c.width = window.innerWidth;
 c.height = window.innerHeight;
@@ -123,7 +122,7 @@ const daysToMs = (days) => {
 }
 
 const startTime = Date.now();
-const walkLength = daysToMs(3); // ms
+const walkLength = daysToMs(5); // ms
 
 window.addEventListener('beforeunload', (event) => {
     event.preventDefault();
