@@ -114,16 +114,33 @@ class Unit {
         this.controller = uc; this.selected = false;
         this.exists = true;
         this.mergeTarget = null;
+        this.lockedFromMerging = false;
+        this.hasMoved = false;
     }
 
     update(delta) {
         if(!this.exists) return;
         const speed = UnitTypes.TypeData[this.type].speed * delta;
         if(!this.targetPos.isNull()) {
+            if(!this.hasMoved) this.hasMoved = true;
+            let bounds = this.controller.engine.camera.bounds;
+            let size = this.getSize();
+            this.targetPos.x = clamp(
+                this.targetPos.x,
+                size,
+                bounds.x - size
+            );
+        
+            this.targetPos.y = clamp(
+                this.targetPos.y,
+                size,
+                bounds.y - size
+            );
             let dir = this.targetPos.sub(this.pos).normalize().sMul(speed);
             this.pos.addIp(dir);
+            this.pos.x = clamp(this.pos.x, size, bounds.x); this.pos.y = clamp(this.pos.y, size, bounds.y);
 
-            if(this.pos.dist(this.targetPos) < 1) {
+            if(this.pos.dist(this.targetPos) < 1 || (bounds.x-this.pos.x < 2 && bounds.y-this.pos.y < 2)) {
                 this.targetPos.setIp(new Vector2(null, null));
                 this.onReachDestination();
             }
@@ -210,6 +227,8 @@ class UnitController {
         this.createUnit("infantry", 1, 100, 100);
         this.createUnit("infantry", 50, 200, 200);
         this.createUnit("infantry", 200, 300, 300);
+        this.createUnit("infantry", 100, 1000, 1000);
+        this.createUnit("infantry", 5, 500, 500);
     }
 
     createUnit(type, count, x, y) {
@@ -260,14 +279,34 @@ class UnitController {
             u.update(delta);
         }
     
-        for (const [a, b] of this.pendingMerges) {
-            a.mergeTarget = null;
-            b.mergeTarget = null;
-        
-            this.merge(a, b);
-        }
+        let merged;
     
-        this.pendingMerges.length = 0;
+        do {
+            merged = false;
+    
+            outer:
+            for (let i = 0; i < this.units.length; i++) {
+                const a = this.units[i];
+    
+                for (let j = i + 1; j < this.units.length; j++) {
+                    const b = this.units[j];
+    
+                    if (
+                        a.exists &&
+                        b.exists &&
+                        a.type === b.type &&
+                        a.pos.dist(b.pos) <= Math.max(a.getSize(), b.getSize()) &&
+                        a.targetPos.isNull() && b.targetPos.isNull() &&
+                        !a.lockedFromMerging && !b.lockedFromMerging &&
+                        a.hasMoved && b.hasMoved
+                    ) {
+                        this.merge(b, a);
+                        merged = true;
+                        break outer;
+                    }
+                }
+            }
+        } while (merged);
     }
 
     merge(unit1, unit2) {
@@ -277,55 +316,195 @@ class UnitController {
         this.destroyUnit(unit2);
 
     }
-    split(unit, count1, count2) {}
+    split(unit, count) {
+        if(count > unit.count) {
+            count = unit.count
+        }
+        const perGroup = Math.floor(unit.count/count)
+        for(let x = 0; x < Math.max(0, count-1); x++) {
+            this.createUnit(unit.type, perGroup, unit.pos.x + -(unit.getSize()*1.5) + (Math.random()*(unit.getSize()*1.5)), unit.pos.y + -(unit.getSize()*1.5) + (Math.random()*(unit.getSize()*1.5)))
+        }
+        let needs_extra = (perGroup * count != unit.count)
+        this.createUnit(unit.type, needs_extra ? perGroup+1 : perGroup, unit.pos.x + (Math.random()*unit.getSize()*1.5), unit.pos.y + (Math.random()*unit.getSize()*1.5))
+        this.destroyUnit(unit);
+    }
+
+    createFormation(units, formation) {
+        if (units.length === 0) return;
+    
+        // center formation on average position
+        let center = new Vector2(0, 0);
+    
+        for (const u of units) {
+            center.addIp(u.pos);
+        }
+    
+        center.sDivIp(units.length);
+    
+        const positions = [];
+    
+        switch (formation) {
+            case "horizontal line": {
+                const spacing = 50;
+    
+                const startX =
+                    center.x - ((units.length - 1) * spacing) / 2;
+    
+                for (let i = 0; i < units.length; i++) {
+                    positions.push(
+                        new Vector2(
+                            startX + i * spacing,
+                            center.y
+                        )
+                    );
+                }
+    
+                break;
+            }
+    
+            case "vertical line": {
+                const spacing = 50;
+    
+                const startY =
+                    center.y - ((units.length - 1) * spacing) / 2;
+    
+                for (let i = 0; i < units.length; i++) {
+                    positions.push(
+                        new Vector2(
+                            center.x,
+                            startY + i * spacing
+                        )
+                    );
+                }
+    
+                break;
+            }
+    
+            case "circle": {
+                const radius = Math.max(
+                    50,
+                    units.length * 8
+                );
+    
+                for (let i = 0; i < units.length; i++) {
+                    const angle =
+                        (i / units.length) * Math.PI * 2;
+    
+                    positions.push(
+                        new Vector2(
+                            center.x + Math.cos(angle) * radius,
+                            center.y + Math.sin(angle) * radius
+                        )
+                    );
+                }
+    
+                break;
+            }
+        }
+    
+        // assign closest unit to each position
+        const remaining = [...units];
+    
+        for (const p of positions) {
+            let best = 0;
+            let bestDist = Infinity;
+    
+            for (let i = 0; i < remaining.length; i++) {
+                const d = remaining[i].pos.dist(p);
+    
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = i;
+                }
+            }
+    
+            const unit = remaining.splice(best, 1)[0];
+    
+            unit.targetPos.setIp(p);
+        }
+    }
 }
 
 class Map {
     constructor() {}
 }
 class Camera {
-    constructor() {
+    constructor(engine) {
         this.pos = new Vector2(0, 0);
+        this.engine = engine;
         this.scale = 1;
-        this.speed = 500;
+        this.speed = 1;
 
         this.uiOffset = new Vector2(0, 0);
 
-        this.bounds = new Vector2(1000, 1000)
+        this.bounds = new Vector2(3000, 2000)
     }
 
     worldToScreen(worldPos) {
+        const cx = this.engine.ctx.canvas.width / 2;
+        const cy = this.engine.ctx.canvas.height / 2;
+    
         return worldPos
             .sub(this.pos)
-            .sMul(this.scale);
+            .sMul(this.scale)
+            .add(new Vector2(cx, cy));
     }
 
     screenToWorld(screenPos) {
+        const cx = this.engine.ctx.canvas.width / 2;
+        const cy = this.engine.ctx.canvas.height / 2;
+    
         return screenPos
-            .sMul(1 / this.scale)
+            .sub(new Vector2(cx, cy))
+            .sDiv(this.scale)
             .add(this.pos);
     }
 
     zoomAt(mx, my, zoom) {
-        const world = this.screenToWorld(
-            new Vector2(mx, my)
-        );
-
+        const mouse = new Vector2(mx, my);
+    
+        const before = this.screenToWorld(mouse);
+    
+        const minScaleX = this.engine.ctx.canvas.width / this.bounds.x;
+        const minScaleY = this.engine.ctx.canvas.height / this.bounds.y;
+    
         this.scale = clamp(
             this.scale * zoom,
-            0.1,
+            Math.max(minScaleX, minScaleY),
             5
         );
-        this.pos.x = world.x - mx / this.scale;
-        this.pos.y = world.y - my / this.scale;
+    
+        const after = this.screenToWorld(mouse);
+    
+        this.pos.addIp(before.sub(after));
+    
+        const halfW = (this.engine.ctx.canvas.width / 2) / this.scale;
+        const halfH = (this.engine.ctx.canvas.height / 2) / this.scale;
+    
+        this.pos.x = clamp(
+            this.pos.x,
+            halfW,
+            this.bounds.x - halfW
+        );
+    
+        this.pos.y = clamp(
+            this.pos.y,
+            halfH,
+            this.bounds.y - halfH
+        );
     }
 
-    move(dir, delta) {
-        let npos = this.pos.add(dir.sMul((this.speed / this.scale) * delta)); 
-        npos.x = clamp(npos.x, 0, this.bounds.x);
-        npos.y = clamp(npos.y, 0, this.bounds.y);
+    move(dir) {
+        const halfW = (this.engine.ctx.canvas.width / 2) / this.scale;
+        const halfH = (this.engine.ctx.canvas.height / 2) / this.scale;
+    
+        let npos = this.pos.add(dir.sMul((this.speed / this.scale)));
+    
+        npos.x = clamp(npos.x, halfW, this.bounds.x - halfW);
+        npos.y = clamp(npos.y, halfH, this.bounds.y - halfH);
+    
         this.pos.setIp(npos);
-    } 
+    }
 }
 
 class Server {
@@ -417,6 +596,7 @@ class Engine {
 
         this.mousePressed = [false, false]
         this.mousePos = new Vector2(0, 0);
+        this.lastMousePos = new Vector2(0, 0);
         this.keyboard = new Keyboard();
 
         this.menus = {
@@ -430,12 +610,20 @@ class Engine {
             "end": new Vector2(0, 0)
         }
 
+        this.data = {
+            "mode": null,
+            "last_mode": null,
+            "mode_data": {
+                "inputted_data": ""
+            }
+        }
+
         this.selected_units = new Array();
 
         this.units = new UnitController(this);
         this.units.init();
 
-        this.camera = new Camera();
+        this.camera = new Camera(this);
     }
 
     getPos(x, y, w, h) {
@@ -452,6 +640,14 @@ class Engine {
         this.ctx.canvas.height = window.innerHeight;
     }
     onLClick() {
+        if(this.data.mode == "move") {
+            this.selected_units.forEach(u => {
+                u.targetPos.setIp(this.camera.screenToWorld(this.mousePos));
+            })
+            this.data.mode = null;
+            this.data.mode_data.inputted_data = ""
+            return;
+        }
         let clicked_unit = null;
         this.units.units.forEach(u => {
             let size = u.getSize()
@@ -463,6 +659,8 @@ class Engine {
         })
         this.selected_units.forEach(u => { u.selected = false })
         this.selected_units = [];
+        this.data.mode = null;
+        this.data.mode_data.inputted_data = ""
         if(clicked_unit == null) {
             this.selection.active = true;
             this.selection.start.setIp(this.camera.screenToWorld(this.mousePos));
@@ -471,24 +669,7 @@ class Engine {
             clicked_unit.selected = true;
         }
     }
-    onRClick() {
-        let clicked_unit = null;
-        this.units.units.forEach(u => {
-            let size = u.getSize()
-            const pos = this.camera.worldToScreen(u.pos);
-
-            if (Maths.rectRect(this.mousePos.x - 5, this.mousePos.y - 5, 10, 10, pos.x - size/2, pos.y - size/2, size, size)) { 
-                clicked_unit = u; 
-            }
-        })
-        if(clicked_unit == null) {
-            this.selected_units.forEach(u => {
-                u.targetPos.setIp(this.camera.screenToWorld(this.mousePos));
-            })
-        } else {
-            console.log("yo")
-        }
-    }
+    onRClick() {}
     onLRelease() {
         if(this.selection.active) {
             const x = Math.min(this.selection.start.x, this.selection.end.x);
@@ -508,18 +689,156 @@ class Engine {
     }
     onRRelease() {}
     setupMenus() {}
+    getPossibleKeybinds() {
+        let names = [];
+
+        names.push(["a", "select all"])
+        if(this.selected_units.length > 0) {
+            names.push(["m", `(click) move unit${this.selected_units.length > 1 ? "s" : ""}`])
+            names.push(["s", `(input numbers) split unit${this.selected_units.length > 1 ? "s" : ""} into groups`])
+            names.push(["n", "(input number) select nearby units"])
+        }
+        if(this.selected_units.length > 1) {
+            names.push(["f", "(input shortcut) assemble formation"])
+        }
+        if(this.data.mode == "split") {
+            names.push(["1-0", "select number of groups"])
+        }
+        if(this.data.mode == "nearby") {
+            names.push(["1-0", "select distance"])
+        }
+        if(this.data.mode == "formation") {
+            names.push(["h", "horizontal line formation"])
+            names.push(["v", "vertical line formation"])
+            names.push(["c", "circle formation"])
+        }
+
+        return names;
+    }
     init() {
-        this.keyboard.listenForEvents(["KeyW", "KeyS", "KeyA", "KeyD"]);
+        this.keyboard.listenForEvents(["KeyA", "KeyM", "KeyS", 
+            "Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9", "Digit0", 
+            "KeyF", "KeyH", "KeyV", "KeyC", "KeyN", "Backspace", "KeyL"]);
+        this.keyboard.setFunctionOnKeyPress("KeyA", () => {
+            this.selection.active = false;
+            if(this.units.units.length != this.selected_units.length) {
+                this.data.mode_data.inputted_data = ""
+                this.data.mode = null;
+            }
+
+            this.selected_units = [];
+            this.units.units.forEach(u => { this.selected_units.push(u); u.selected = true; });
+        });
+
+        // selected unit modes
+        const switchMode = (mode) => {
+            this.data.last_mode = this.data.mode;
+            this.data.mode = this.data.mode == mode ? null : mode;
+            if(this.data.last_mode == mode) {
+                activate(mode);
+            }
+            this.data.mode_data.inputted_data = "";
+        }
+        const activate = (mode) => {
+            switch(mode) {
+                case "split": {
+                    const groups = parseInt(this.data.mode_data.inputted_data);
+                    
+                    if(groups == NaN) return;
+                    this.selected_units.forEach(u => {
+                        this.units.split(u, groups);
+                    })
+                }
+                case "formation": {
+                    this.units.createFormation(this.selected_units, this.data.mode_data.inputted_data)
+                }
+                case "nearby": {
+                    const max_dist = parseInt(this.data.mode_data.inputted_data);
+                    let avg_pos = new Vector2(0, 0);
+                    this.selected_units.forEach(u => avg_pos.addIp(u.pos));
+                    avg_pos.sDivIp(this.selected_units.length);
+                    let founds = this.units.getUnitsWithinDist(avg_pos, max_dist).filter(u => u != this.selected_units[0]);
+                    founds.forEach(u => {
+                        u.selected = true;
+                        this.selected_units.push(u);
+                    })
+                }
+            }
+        }
+        this.keyboard.setFunctionOnKeyPress("KeyM", () => {
+            if(this.selected_units.length > 0) {
+                switchMode("move");
+            }
+        });
+        this.keyboard.setFunctionOnKeyPress("KeyL", () => {
+            if(this.selected_units.length > 0) {
+                this.selected_units.forEach(u => u.lockedFromMerging = !u.lockedFromMerging)
+            }
+        });
+        this.keyboard.setFunctionOnKeyPress("Backspace", () => {
+            if(["nearby", "split"].includes(this.data.mode)) {
+                this.data.mode_data.inputted_data = this.data.mode_data.inputted_data.slice(0, -1) ?? ""
+            }
+        })
+        this.keyboard.setFunctionOnKeyPress("KeyN", () => {
+            if(this.selected_units.length > 0) {
+                switchMode("nearby");
+            }
+        })
+        this.keyboard.setFunctionOnKeyPress("KeyS", () => {
+            if(this.selected_units.length > 0) {
+                switchMode("split");
+            }
+        })
+        this.keyboard.setFunctionOnKeyPress("KeyF", () => {
+            if(this.selected_units.length > 1) {
+                switchMode("formation");
+            }
+        })
+        this.keyboard.setFunctionOnKeyPress("KeyH", () => {
+            if(this.data.mode == "formation") {
+                this.data.mode_data.inputted_data = "horizontal line"
+            }
+        })
+        this.keyboard.setFunctionOnKeyPress("KeyV", () => {
+            if(this.data.mode == "formation") {
+                this.data.mode_data.inputted_data = "vertical line"
+            }
+        })
+        this.keyboard.setFunctionOnKeyPress("KeyC", () => {
+            if(this.data.mode == "formation") {
+                this.data.mode_data.inputted_data = "circle"
+            }
+        })
+        const getNumberFunction = (code) => {
+            return () => {
+                switch(this.data.mode) {
+                    case "split": {
+                        if(this.data.mode_data.inputted_data.length < 2) {
+                            this.data.mode_data.inputted_data = this.data.mode_data.inputted_data.concat(code.split("Digit")[1]);
+                        }
+                        break;
+                    }
+                    case "nearby": {
+                        if(this.data.mode_data.inputted_data.length < 4) {
+                            this.data.mode_data.inputted_data = this.data.mode_data.inputted_data.concat(code.split("Digit")[1]);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        for(let x = 0; x <= 9; x++) {
+            this.keyboard.setFunctionOnKeyPress(`Digit${x}`, getNumberFunction(`Digit${x}`));
+        }
+
         window.addEventListener("resize", () => { this._resize(); })
         window.addEventListener("mousedown", (e) => { this.mousePressed = [e.button == 0 ? true : this.mousePressed[0], e.button == 2 ? true : this.mousePressed[1]]; if(e.button == 0 ){ this.onLClick() } else if(e.button == 2) { this.onRClick() }})
         window.addEventListener("mouseup", (e) => { this.mousePressed = [e.button == 0 ? false : this.mousePressed[0], e.button == 2 ? false : this.mousePressed[1]]; if(e.button == 0 ){ this.onLRelease() } else if(e.button == 2) { this.onRRelease() }})
         window.addEventListener("contextmenu", (e) => { e.preventDefault() })
-        window.addEventListener("mousemove", (e) => { this.mousePos.x = e.clientX; this.mousePos.y = e.clientY; });
-        window.addEventListener("wheel", e => {
-            e.preventDefault();
-            const zoom = e.deltaY < 0 ? 1.1 : 0.9;
-            this.camera.zoomAt(e.clientX, e.clientY, zoom);
-        });
+        window.addEventListener("mousemove", (e) => { this.lastMousePos.setIp(this.mousePos); this.mousePos.x = e.clientX; this.mousePos.y = e.clientY; });
+        window.addEventListener("wheel", e => { this.camera.zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.1 : 0.9); });
         this.menus.unit_menu.opacity = 0.7
         this.menus.unit_menu.createUIElement("custom", new Vector2(0.5, 0.5), 0, 0, {"renderFn": (ctx, e, rp) => {
             ctx.fillStyle = "black";
@@ -543,8 +862,16 @@ class Engine {
         }})
     }
     update(delta) {
+        this.selected_units.filter(u => !u.exists).forEach((u, index) => {
+            this.selected_units.splice(index, 1);
+        })
+        document.body.style.cursor = "default"
+        switch(this.data.mode) {
+            case "move": document.body.style.cursor = "alias"
+        }
         if(this.selection.active) {
             this.selection.end.setIp(this.camera.screenToWorld(this.mousePos));
+            document.body.style.cursor = "crosshair"
         }
         this.menus.unit_menu.visible = this.selected_units.length > 0;
         this.menus.hover_menu.pos.setIp(this.mousePos.add(new Vector2(10, 10)));
@@ -556,16 +883,17 @@ class Engine {
             if(Maths.rectRect(this.mousePos.x-5, this.mousePos.y-5, 10, 10, pos.x-size/2, pos.y-size/2, size, size)) {
                 this.menus.hover_menu.visible = true;
                 this.menus.hover_menu.UIElements[0].data.unit = u;
+                document.body.style.cursor = "pointer"
             }
         })
 
-        var dir = new Vector2(0, 0)
-        if (this.keyboard.isDown("KeyA")) { dir.x += -1; }
-        if (this.keyboard.isDown("KeyD")) { dir.x += 1; }
-        if (this.keyboard.isDown("KeyW")) { dir.y += -1; }
-        if (this.keyboard.isDown("KeyS")) { dir.y += 1; }
-
-        this.camera.move(dir, delta);
+        if(this.mousePressed[1]) {
+            document.body.style.cursor = "move"
+            let d = this.mousePos.sub(this.lastMousePos).invert();
+            this.camera.move(d);
+        } else {
+            this.camera.move(new Vector2(0, 0))
+        }
         
         this.units.update(delta);
     }
@@ -626,6 +954,76 @@ class Engine {
         let avg = 0; for(let x = 0; x < this.fps_data.length; x++) { avg += this.fps_data[x]; }; avg /= this.fps_data.length;
         ctx.fillText(`${(1/avg).toFixed(0)} fps`, pos.x, pos.y);
         draw_topbar_seperator(0.065)
+
+        // mode shower
+        ctx.textAlign = "left";
+        let pos2 = this.getPos(0.08, 0.025, 0.1, 0.1);
+        ctx.fillText(`mode: ${this.data.mode ?? "none"}`, pos2.x, pos2.y);
+        draw_topbar_seperator(0.2)
+
+        // mode data
+        if(this.data.mode_data.inputted_data.length != 0) {
+            ctx.fillStyle = "rgba(128, 128, 128, 0.3)";
+            ctx.font = "50px monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            let dpos = this.getPos(0.5, 0.5, 0, 0);
+            ctx.fillText(this.data.mode_data.inputted_data, dpos.x, dpos.y);
+        }
+
+        // draw keybinds
+        const binds = this.getPossibleKeybinds();
+
+        ctx.fillStyle = "rgba(128,128,128,1)";
+        ctx.font = `${Math.max(12, this.ctx.canvas.height * 0.015)}px monospace`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        const startX = 0.01;
+        const startY = 0.90;
+
+        const rowHeight = 0.025;
+        const colWidth  = 0.3;
+
+        const maxRows = Math.floor((1 - startY) / rowHeight);
+
+        binds.forEach((b, i) => {
+            const row = i % maxRows;
+            const col = Math.floor(i / maxRows);
+
+            const p = this.getPos(
+                startX + col * colWidth,
+                startY + row * rowHeight,
+                0,
+                0
+            );
+
+            ctx.fillText(
+                `[${b[0]}] ${b[1]}`,
+                p.x,
+                p.y
+            );
+        });
+
+        switch(this.data.mode) {
+            case "nearby": {
+                let avg_pos = new Vector2(0, 0);
+                this.selected_units.forEach(u => avg_pos.addIp(u.pos));
+                avg_pos.sDivIp(this.selected_units.length);
+                avg_pos = this.camera.worldToScreen(avg_pos);
+                ctx.strokeStyle = "grey";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(
+                    avg_pos.x,
+                    avg_pos.y,
+                    (parseInt(this.data.mode_data.inputted_data) ?? 0) * this.camera.scale,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.stroke();
+            }
+        }
+            
     }
     tick(elapsed) {
         if(this._previousElapsed === null) {

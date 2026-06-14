@@ -5,6 +5,8 @@
  * copyright 2026
 */
 
+import { clamp } from "../common.js";
+
 export class Maths {
     static rectRect(x1, y1, w1, h1, x2, y2, w2, h2) {
         if (x1 + w1 <= x2 || x2 + w2 <= x1) return false;
@@ -78,33 +80,36 @@ export class Maths {
 export class Vector2 {
     constructor(x, y) { this.x = x; this.y = y; }
 
-    addIp(vector) { this.x += vector.x; this.y += vector.y }
-    add(vector) { return new Vector2(this.x + vector.x, this.y + vector.y) }
+    addIp(vector)  { this.x += vector.x; this.y += vector.y }
+    add(vector)    { return new Vector2(this.x + vector.x, this.y + vector.y) }
     sAddIp(scalar) { this.x += scalar; this.y += scalar }
-    sAdd(scalar) { return new Vector2(this.x + scalar, this.y + scalar) }
+    sAdd(scalar)   { return new Vector2(this.x + scalar, this.y + scalar) }
 
-    subIp(vector) { this.x -= vector.x; this.y -= vector.y }
-    sub(vector) { return new Vector2(this.x - vector.x, this.y - vector.y) }
+    subIp(vector)  { this.x -= vector.x; this.y -= vector.y }
+    sub(vector)    { return new Vector2(this.x - vector.x, this.y - vector.y) }
     sSubIp(scalar) { this.x -= scalar; this.y -= scalar }
-    sSub(scalar) { return new Vector2(this.x - scalar, this.y - scalar) }
+    sSub(scalar)   { return new Vector2(this.x - scalar, this.y - scalar) }
 
-    divIp(vector) { this.x /= vector.x; this.y /= vector.y }
-    div(vector) { return new Vector2(this.x / vector.x, this.y / vector.y) }
+    divIp(vector)  { this.x /= vector.x; this.y /= vector.y }
+    div(vector)    { return new Vector2(this.x / vector.x, this.y / vector.y) }
     sDivIp(scalar) { this.x /= scalar; this.y /= scalar }
-    sDiv(scalar) { return new Vector2(this.x / scalar, this.y / scalar) }
+    sDiv(scalar)   { return new Vector2(this.x / scalar, this.y / scalar) }
 
-    mulIp(vector) { this.x *= vector.x; this.y *= vector.y }
-    mul(vector) { return new Vector2(this.x * vector.x, this.y * vector.y) }
+    mulIp(vector)  { this.x *= vector.x; this.y *= vector.y }
+    mul(vector)    { return new Vector2(this.x * vector.x, this.y * vector.y) }
     sMulIp(scalar) { this.x *= scalar; this.y *= scalar }
-    sMul(scalar) { return new Vector2(this.x * scalar, this.y * scalar) }
+    sMul(scalar)   { return new Vector2(this.x * scalar, this.y * scalar) }
 
-    setIp(vector) { this.x = vector.x; this.y = vector.y }
-    set(vector) { return new Vector2(vector.x, vector.y) }
+    setIp(vector)  { this.x = vector.x; this.y = vector.y }
+    set(vector)    { return new Vector2(vector.x, vector.y) }
 
-    normalizeIp() { this.sDivIp(Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2))) }
-    normalize() { return new Vector2(this.x, this.y).sDiv(Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2))) }
+    normalizeIp()  { this.sDivIp(Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2))) }
+    normalize()    { return new Vector2(this.x, this.y).sDiv(Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2))) }
 
-    dist(vector) { return Math.sqrt(Math.pow(vector.x-this.x,2) + Math.pow(vector.y-this.y,2)) }
+    dist(vector)   { return Math.sqrt(Math.pow(vector.x-this.x,2) + Math.pow(vector.y-this.y,2)) }
+
+    invertIp() { this.x *= -1; this.y *= -1;}
+    invert()   { return new Vector2(this.x * -1, this.y * -1) };
 
     isZero() { return (this.x < 0.0001 && this.y < 0.0001) }
 
