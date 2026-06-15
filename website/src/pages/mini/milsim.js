@@ -7,6 +7,9 @@
 
 import { Maths, Vector2 } from "./maths.js";
 import { clamp } from "../common.js";
+import { generateRandomString, Loader } from "./mini-common.js";
+
+import { createNoise2D } from "./noise.js";
 
 export class Keyboard {
     _keys = {};
@@ -115,7 +118,9 @@ class Unit {
         this.exists = true;
         this.mergeTarget = null;
         this.lockedFromMerging = false;
-        this.hasMoved = false;
+        this.hasMoved = true;
+
+        this.id = generateRandomString(5);
     }
 
     update(delta) {
@@ -157,31 +162,20 @@ class Unit {
         return size * this.controller.engine.camera.scale;
     }
 
+    getSizeUnscaled() {
+        const d = UnitTypes.TypeData[this.type].visual;
+        let size = d.size+(this.count*0.1);
+        return size;
+    }
+
     render(ctx) {
         const camera = this.controller.engine.camera;
-        const d = UnitTypes.TypeData[this.type].visual;
         let size = this.getSize();
-
+        const d = UnitTypes.TypeData[this.type].visual;
         let pos = camera.worldToScreen(this.pos);
-        let tpos = camera.worldToScreen(this.targetPos);
-        if(!this.targetPos.isNull()) {
-            ctx.strokeStyle = "cyan";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(
-                tpos.x,
-                tpos.y,
-                size*0.2,
-                0,
-                Math.PI * 2
-            );
-            ctx.moveTo(pos.x, pos.y);
-            ctx.lineTo(tpos.x, tpos.y);
-            ctx.stroke();
-        }
+
         ctx.fillStyle = d.color;
         ctx.fillRect(pos.x-(size/2), pos.y-(size/2), size, size);
-
         if(this.selected) {
             ctx.strokeStyle = "cyan";
             ctx.lineWidth = 2;
@@ -207,6 +201,28 @@ class Unit {
         }
     }
 
+    renderPath(ctx) {
+        const camera = this.controller.engine.camera;
+        let size = this.getSize();
+        let tpos = camera.worldToScreen(this.targetPos);
+        let pos = camera.worldToScreen(this.pos);
+        if(!this.targetPos.isNull()) {
+            ctx.strokeStyle = "cyan";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(
+                tpos.x,
+                tpos.y,
+                size*0.2,
+                0,
+                Math.PI * 2
+            );
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(tpos.x, tpos.y);
+            ctx.stroke();
+        }
+    }
+
     onReachDestination() {
         let size = this.getSize();
         let eligible_mergers = this.controller.getUnitsWithinDist(this.pos, size).filter(u => u.type == this.type && u != this);
@@ -224,11 +240,13 @@ class UnitController {
     }
 
     init() {
+        for(let x = 0; x < 20; x++) {
+            let pos = new Vector2(Math.floor(Math.random() * this.engine.camera.bounds.x), Math.floor(Math.random() * this.engine.camera.bounds.y));
+            let count = Math.floor(Math.random()*200);
+            this.createUnit("infantry", count, pos.x, pos.y);
+        }
         this.createUnit("infantry", 1, 100, 100);
-        this.createUnit("infantry", 50, 200, 200);
-        this.createUnit("infantry", 200, 300, 300);
-        this.createUnit("infantry", 100, 1000, 1000);
-        this.createUnit("infantry", 5, 500, 500);
+        this.createUnit("infantry", 100, 200, 200);
     }
 
     createUnit(type, count, x, y) {
@@ -239,13 +257,14 @@ class UnitController {
 
     render(ctx) {
         this.units.forEach(u => u.render(ctx));
+        this.units.forEach(u => u.renderPath(ctx));
     }
 
     getUnitsInRect(x, y, w, h) {
         let units = []
         this.units.forEach(u => {
             let size = u.getSize()
-            if(Maths.rectRect(u.pos.x, u.pos.y, size, size, x, y, w, h)) {
+            if(Maths.rectRect(u.pos.x - size/2, u.pos.y - size/2, size, size, x, y, w, h)) {
                 units.push(u)
             }
         });
@@ -263,7 +282,9 @@ class UnitController {
     }
 
     destroyUnit(unit) {
+        if(!this.units.includes(unit)) return;
         unit.exists = false;
+        if(this.engine.selected_units.includes(unit)) this.engine.selected_units.splice(this.engine.selected_units.indexOf(unit), 1);
         this.units.splice(this.units.indexOf(unit), 1);
     }
 
@@ -313,20 +334,27 @@ class UnitController {
         if (!unit1.exists || !unit2.exists) return;
         if (unit1 === unit2) return;
         unit1.count += unit2.count;
+        unit1.hasMoved ||= unit2.hasMoved;
         this.destroyUnit(unit2);
+        this.engine.selected_units = [...new Set(
+            this.engine.selected_units.filter(u => u.exists)
+        )];
 
     }
     split(unit, count) {
-        if(count > unit.count) {
-            count = unit.count
+        const random_spread = 2;
+        let new_units = []
+        if(count > unit.count || count == 1) {
+            return [];
         }
         const perGroup = Math.floor(unit.count/count)
         for(let x = 0; x < Math.max(0, count-1); x++) {
-            this.createUnit(unit.type, perGroup, unit.pos.x + -(unit.getSize()*1.5) + (Math.random()*(unit.getSize()*1.5)), unit.pos.y + -(unit.getSize()*1.5) + (Math.random()*(unit.getSize()*1.5)))
+            new_units.push(this.createUnit(unit.type, perGroup, unit.pos.x + -(unit.getSize()*random_spread) + (Math.random()*(unit.getSize()*random_spread)), unit.pos.y + -(unit.getSize()*random_spread) + (Math.random()*(unit.getSize()*random_spread))))
         }
         let needs_extra = (perGroup * count != unit.count)
-        this.createUnit(unit.type, needs_extra ? perGroup+1 : perGroup, unit.pos.x + (Math.random()*unit.getSize()*1.5), unit.pos.y + (Math.random()*unit.getSize()*1.5))
-        this.destroyUnit(unit);
+        unit.count = needs_extra ? perGroup + 1 : perGroup;
+        new_units.forEach(u => u.hasMoved = false);
+        return new_units;
     }
 
     createFormation(units, formation) {
@@ -425,9 +453,6 @@ class UnitController {
     }
 }
 
-class Map {
-    constructor() {}
-}
 class Camera {
     constructor(engine) {
         this.pos = new Vector2(0, 0);
@@ -438,26 +463,34 @@ class Camera {
         this.uiOffset = new Vector2(0, 0);
 
         this.bounds = new Vector2(3000, 2000)
+
+        this.tmp = new Vector2(0, 0);
     }
 
     worldToScreen(worldPos) {
         const cx = this.engine.ctx.canvas.width / 2;
-        const cy = this.engine.ctx.canvas.height / 2;
+        const topOffset = this.engine.getTopbarHeightPx();
+        const cy = (this.engine.ctx.canvas.height - topOffset) / 2 + topOffset;
     
-        return worldPos
-            .sub(this.pos)
-            .sMul(this.scale)
-            .add(new Vector2(cx, cy));
+        return this.tmp
+            .setIp(worldPos)
+            .subIp(this.pos)
+            .sMulIp(this.scale)
+            .xyAddIp(cx, cy)
+            .copy();
     }
 
     screenToWorld(screenPos) {
         const cx = this.engine.ctx.canvas.width / 2;
-        const cy = this.engine.ctx.canvas.height / 2;
-    
-        return screenPos
+        const topOffset = this.engine.getTopbarHeightPx();
+        const cy = (this.engine.ctx.canvas.height - topOffset) / 2 + topOffset;
+
+        return this.tmp
+            .setIp(screenPos)
             .sub(new Vector2(cx, cy))
             .sDiv(this.scale)
-            .add(this.pos);
+            .add(this.pos)
+            .copy();
     }
 
     zoomAt(mx, my, zoom) {
@@ -476,7 +509,9 @@ class Camera {
     
         const after = this.screenToWorld(mouse);
     
-        this.pos.addIp(before.sub(after));
+        this.tmp.setIp(before);
+        this.tmp.subIp(after);
+        this.pos.addIp(this.tmp);
     
         const halfW = (this.engine.ctx.canvas.width / 2) / this.scale;
         const halfH = (this.engine.ctx.canvas.height / 2) / this.scale;
@@ -588,16 +623,257 @@ class Menu {
     }
 }
 
+class Nation {
+    constructor() {
+        this.points = [];
+    }
+}
+const Terrain = {
+    WATER: 0,
+    LAND: 1,
+    FOREST: 2,
+    MOUNTAIN: 3
+};
+const COLORS = [
+    "#3a6fff", // water
+    "#66bb55", // land
+    "#2c7a2c", // forest
+    "#777777"  // mountain
+];
+class map {
+    constructor(w,h,tileSize) {
+        this.width = w;
+        this.height = h;
+
+        this.tileSize = tileSize;
+
+        this.chunkSize = 200;
+        this.pendingRebakes = [];
+        this.rebakesPerFrame = 20;
+
+        this.chunks = {};
+        this.terrain_grid = new Uint8Array(w * h);
+
+        for(let i = 0; i < this.terrain_grid.length; i++) {
+            this.terrain_grid[i] = Terrain.WATER;
+        }
+
+        this.debugChunks = true;
+
+        this.noise = createNoise2D(() => Math.random());
+    }
+
+    getChunk(cx,cy) {
+        let chunk = this.chunks[`${cx},${cy}`];
+        if (!chunk) return null;
+        return chunk;
+    }
+
+    update(delta) {
+        for (let i = 0; i < this.rebakesPerFrame; i++) {
+            const job = this.pendingRebakes.shift();
+            if (job) {
+                this.rebakeChunk(job[0], job[1]);
+                this.getChunk(job[0], job[1]).dirty = false;
+            }
+            
+        }
+    }
+
+    generate(options = {}) {
+        const {
+            scale = 10,          // larger = smoother continents
+            octaves = 12,         // detail layers
+            persistence = 0.6,   // amplitude drop per octave
+            lacunarity = 2.5,    // frequency increase per octave
+            seaLevel = 0.35,
+            mountainLevel = 0.45
+        } = options;
+    
+        const width = this.width;
+        const height = this.height;
+    
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+    
+                // normalized coords (important)
+                const nx = x / width;
+                const ny = y / height;
+    
+                // --- FBM SIMPLEX NOISE ---
+                let amplitude = 1;
+                let frequency = 1;
+                let value = 0;
+                let max = 0;
+    
+                for (let i = 0; i < octaves; i++) {
+                    const sampleX = nx * scale * frequency;
+                    const sampleY = ny * scale * frequency;
+    
+                    value += this.noise(sampleX, sampleY) * amplitude;
+    
+                    max += amplitude;
+                    amplitude *= persistence;
+                    frequency *= lacunarity;
+                }
+    
+                value /= max;
+    
+                // normalize to [0,1]
+                value = (value + 1) * 0.5;
+    
+                const dx = nx - 0.5;
+                const dy = ny - 0.5;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+    
+                const falloff = 1 - dist; // island/continent center bias
+                value = value * (0.18) + falloff * 0.42;
+    
+                let tile;
+    
+                if (value < seaLevel) {
+                    tile = Terrain.WATER;
+                } else if (value > mountainLevel) {
+                    tile = Terrain.MOUNTAIN;
+                } else if (value < 0.6) {
+                    tile = Terrain.LAND;
+                } else {
+                    tile = Terrain.FOREST;
+                }
+    
+                this.terrain_grid[x + y * this.width] = tile;
+            }
+        }
+    
+        // mark all chunks dirty once
+        for (const key in this.chunks) {
+            this.chunks[key].dirty = true;
+        }
+    }
+
+    initChunks() {
+        this.generate();
+        const cs = this.chunkSize;
+    
+        const chunksX = Math.ceil(this.width / cs);
+        const chunksY = Math.ceil(this.height / cs);
+    
+        for (let cy = 0; cy < chunksY; cy++) {
+            for (let cx = 0; cx < chunksX; cx++) {
+                this.createChunk(cx, cy);
+            }
+        }
+    }
+
+    rebakeChunk(cx,cy) {
+        const chunk = this.getChunk(cx, cy);
+    
+        const ctx = chunk.ctx;
+
+        ctx.clearRect(0, 0, chunk.canvas.width, chunk.canvas.height);
+
+        const startX = cx * this.chunkSize;
+
+        const startY = cy * this.chunkSize;
+
+        const endX = Math.min(startX + this.chunkSize, this.width);
+
+        const endY = Math.min(startY + this.chunkSize, this.height);
+
+        for (let y = startY; y < endY; y++) {
+          for (let x = startX; x < endX; x++) {
+            const tile = this.getTile(x, y);
+
+            ctx.fillStyle = COLORS[tile];
+
+            ctx.fillRect((x - startX) * this.tileSize, (y - startY) * this.tileSize, this.tileSize, this.tileSize);
+          }
+        }
+
+        chunk.dirty = false;
+    }
+
+    createChunk(cx,cy) {
+        const c = document.createElement("canvas");
+        const ctx = c.getContext("2d");
+
+        c.width = this.chunkSize * this.tileSize;
+        c.height = this.chunkSize * this.tileSize;
+
+        const chunk = {
+            canvas: c,
+            ctx,
+            dirty: true
+        };
+    
+        this.chunks[`${cx},${cy}`] = chunk
+    
+        return chunk;
+    }
+
+    getTile(x, y) {
+        if ( x < 0 || y < 0 || x >= this.width || y >= this.height ) { return Terrain.WATER }
+        return this.terrain_grid[
+            x + y * this.width
+        ];
+    }
+    
+    setTile(x, y, tile) {
+        if ( x < 0 || y < 0 || x >= this.width || y >= this.height ) return;
+        this.terrain_grid[x + y * this.width] = tile;
+        const cx = Math.floor(x / this.chunkSize);
+        const cy = Math.floor(y / this.chunkSize);
+        this.getChunk(cx, cy).dirty = true;
+    }
+
+    rebakeTerrain() {
+        const ctx = this.terrainCtx;
+    
+        ctx.clearRect(0, 0, this.terrainCanvas.width, this.terrainCanvas.height);
+    
+        for(let x = 0; x < this.width; x++) {
+            for(let y = 0; y < this.height; y++) {
+                const tile = this.getTile(x, y);
+
+                ctx.fillStyle = COLORS[tile];
+
+                ctx.fillRect(
+                    x * this.tileSize,
+                    y * this.tileSize,
+                    this.tileSize,
+                    this.tileSize
+                );
+            }
+        }
+    }
+}
+
 class Engine {
     constructor(ctx) {
         this.ctx = ctx;
         this.fps_data = new Array();
         this._previousElapsed = null;
+        this.loader = new Loader();
 
         this.mousePressed = [false, false]
         this.mousePos = new Vector2(0, 0);
         this.lastMousePos = new Vector2(0, 0);
         this.keyboard = new Keyboard();
+        this.camera = new Camera(this);
+
+        this.map = new map(500, 250, 32);
+        this.map.initChunks();
+
+        this.camera.bounds = new Vector2(
+            this.map.width * this.map.tileSize,
+            this.map.height * this.map.tileSize
+        );
+
+        this.state = "game";
+
+        this.ui = {
+            topbarHeight: 0.05
+        };
 
         this.menus = {
             "unit_menu": new Menu(new Vector2(0.01, 0.07), 0.12, 0.07, "rgba(188, 188, 188, 1)", this),
@@ -623,7 +899,7 @@ class Engine {
         this.units = new UnitController(this);
         this.units.init();
 
-        this.camera = new Camera(this);
+        this.tmp = new Vector2(0, 0)
     }
 
     getPos(x, y, w, h) {
@@ -640,12 +916,36 @@ class Engine {
         this.ctx.canvas.height = window.innerHeight;
     }
     onLClick() {
+        if(this.state == "editor") {
+            return;
+        }
+        if(this.state != "game") return;
+        if (this.mousePos.y < this.getTopbarHeightPx()) {
+            return;
+        }
         if(this.data.mode == "move") {
             this.selected_units.forEach(u => {
                 u.targetPos.setIp(this.camera.screenToWorld(this.mousePos));
             })
             this.data.mode = null;
             this.data.mode_data.inputted_data = ""
+            return;
+        }
+        if (this.data.mode == "moveformation") {
+            const target = this.camera.screenToWorld(this.mousePos);
+            let avg_pos = new Vector2(0, 0);
+            this.selected_units.forEach(u => avg_pos.addIp(u.pos));
+            avg_pos.sDivIp(this.selected_units.length);
+        
+            const center = avg_pos;
+
+            this.selected_units.forEach(u => {
+                const offset = u.pos.sub(center);
+                u.targetPos.setIp(target.add(offset));
+            });
+        
+            this.data.mode = null;
+            this.data.mode_data.inputted_data = "";
             return;
         }
         let clicked_unit = null;
@@ -657,20 +957,23 @@ class Engine {
                 clicked_unit = u; 
             }
         })
-        this.selected_units.forEach(u => { u.selected = false })
-        this.selected_units = [];
+        if(!this.keyboard.isDown("ShiftLeft")) {
+            this.selected_units.forEach(u => { u.selected = false })
+            this.selected_units = [];
+        }
         this.data.mode = null;
         this.data.mode_data.inputted_data = ""
         if(clicked_unit == null) {
             this.selection.active = true;
             this.selection.start.setIp(this.camera.screenToWorld(this.mousePos));
         } else {
-            this.selected_units.push(clicked_unit);
+            if(!this.selected_units.includes(clicked_unit)) this.selected_units.push(clicked_unit);
             clicked_unit.selected = true;
         }
     }
     onRClick() {}
     onLRelease() {
+        if(this.state != "game") return;
         if(this.selection.active) {
             const x = Math.min(this.selection.start.x, this.selection.end.x);
             const y = Math.min(this.selection.start.y, this.selection.end.y);
@@ -678,7 +981,8 @@ class Engine {
             const w = Math.abs(this.selection.end.x - this.selection.start.x);
             const h = Math.abs(this.selection.end.y - this.selection.start.y);
         
-            this.selected_units = this.units.getUnitsInRect(x, y, w, h);
+            if(!this.keyboard.isDown("ShiftLeft")) this.selected_units = this.units.getUnitsInRect(x, y, w, h);
+            else this.selected_units = this.selected_units.concat(this.units.getUnitsInRect(x, y, w, h).filter(u => !this.selected_units.includes(u)));
         
             this.selected_units.forEach(u => {
                 u.selected = true;
@@ -693,13 +997,19 @@ class Engine {
         let names = [];
 
         names.push(["a", "select all"])
+        if(this.selected_units.length == 0) {
+            names.push(["m", "regenerate map"])
+        }
         if(this.selected_units.length > 0) {
-            names.push(["m", `(click) move unit${this.selected_units.length > 1 ? "s" : ""}`])
-            names.push(["s", `(input numbers) split unit${this.selected_units.length > 1 ? "s" : ""} into groups`])
-            names.push(["n", "(input number) select nearby units"])
+            names.push(["m", `converge unit${this.selected_units.length > 1 ? "s" : ""}`])
+            names.push(["q", `move unit${this.selected_units.length > 1 ? "s" : ""} relative`])
+            names.push(["s", `(split unit${this.selected_units.length > 1 ? "s" : ""} into groups`])
+            names.push(["n", `select nearby unit${this.selected_units.length > 1 ? "s" : ""}`])
+            names.push(["l", `lock selected unit${this.selected_units.length > 1 ? "s" : ""} from merging`])
+            if(this.data.mode != "formation" && this.selected_units.some(u => !u.targetPos.isNull())) names.push(["c", `cancel unit${this.selected_units.length > 1 ? "s" : ""} destination`])
         }
         if(this.selected_units.length > 1) {
-            names.push(["f", "(input shortcut) assemble formation"])
+            names.push(["f", "assemble formation"])
         }
         if(this.data.mode == "split") {
             names.push(["1-0", "select number of groups"])
@@ -715,11 +1025,14 @@ class Engine {
 
         return names;
     }
-    init() {
-        this.keyboard.listenForEvents(["KeyA", "KeyM", "KeyS", 
-            "Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9", "Digit0", 
-            "KeyF", "KeyH", "KeyV", "KeyC", "KeyN", "Backspace", "KeyL"]);
+    async init() {
+        this.keyboard.listenForEvents(
+            ["KeyA", "KeyM", "KeyS", "Digit1", "Digit2", "Digit3", "Digit4", 
+                "Digit5", "Digit6", "Digit7", "Digit8", "Digit9", "Digit0", 
+                "KeyF", "KeyH", "KeyV", "KeyC", "KeyN", "Backspace", "KeyL", "KeyQ",
+                "KeyC", "KeyN", "ShiftLeft"]);
         this.keyboard.setFunctionOnKeyPress("KeyA", () => {
+            if(this.state != "game") return;
             this.selection.active = false;
             if(this.units.units.length != this.selected_units.length) {
                 this.data.mode_data.inputted_data = ""
@@ -743,17 +1056,19 @@ class Engine {
             switch(mode) {
                 case "split": {
                     const groups = parseInt(this.data.mode_data.inputted_data);
-                    
-                    if(groups == NaN) return;
-                    this.selected_units.forEach(u => {
-                        this.units.split(u, groups);
-                    })
+                    if(!groups) return;
+                    let n = []
+                    this.selected_units.forEach((u, index) => { n = n.concat(this.units.split(u, groups));})
+                    n.forEach(u => {u.selected = true; });
+                    this.selected_units = this.selected_units.concat(n);
+                    console.log(this.selected_units)
                 }
                 case "formation": {
                     this.units.createFormation(this.selected_units, this.data.mode_data.inputted_data)
                 }
                 case "nearby": {
                     const max_dist = parseInt(this.data.mode_data.inputted_data);
+                    if(!max_dist) return;
                     let avg_pos = new Vector2(0, 0);
                     this.selected_units.forEach(u => avg_pos.addIp(u.pos));
                     avg_pos.sDivIp(this.selected_units.length);
@@ -768,49 +1083,51 @@ class Engine {
         this.keyboard.setFunctionOnKeyPress("KeyM", () => {
             if(this.selected_units.length > 0) {
                 switchMode("move");
+            } else {
+                this.map.noise = createNoise2D(() => Math.random());
+                this.map.generate();
             }
-        });
-        this.keyboard.setFunctionOnKeyPress("KeyL", () => {
+        }); this.keyboard.setFunctionOnKeyPress("KeyL", () => {
             if(this.selected_units.length > 0) {
                 this.selected_units.forEach(u => u.lockedFromMerging = !u.lockedFromMerging)
             }
-        });
-        this.keyboard.setFunctionOnKeyPress("Backspace", () => {
+        }); this.keyboard.setFunctionOnKeyPress("Backspace", () => {
             if(["nearby", "split"].includes(this.data.mode)) {
                 this.data.mode_data.inputted_data = this.data.mode_data.inputted_data.slice(0, -1) ?? ""
             }
-        })
-        this.keyboard.setFunctionOnKeyPress("KeyN", () => {
+        }); this.keyboard.setFunctionOnKeyPress("KeyN", () => {
             if(this.selected_units.length > 0) {
                 switchMode("nearby");
+            } else if(this.state == "editor") {
+                this.editor_data.selectedNation = this.map.createNation();
             }
-        })
-        this.keyboard.setFunctionOnKeyPress("KeyS", () => {
+        }); this.keyboard.setFunctionOnKeyPress("KeyS", () => {
             if(this.selected_units.length > 0) {
                 switchMode("split");
             }
-        })
-        this.keyboard.setFunctionOnKeyPress("KeyF", () => {
+        }); this.keyboard.setFunctionOnKeyPress("KeyF", () => {
             if(this.selected_units.length > 1) {
                 switchMode("formation");
             }
-        })
-        this.keyboard.setFunctionOnKeyPress("KeyH", () => {
+        }); this.keyboard.setFunctionOnKeyPress("KeyH", () => {
             if(this.data.mode == "formation") {
                 this.data.mode_data.inputted_data = "horizontal line"
             }
-        })
-        this.keyboard.setFunctionOnKeyPress("KeyV", () => {
+        }); this.keyboard.setFunctionOnKeyPress("KeyV", () => {
             if(this.data.mode == "formation") {
                 this.data.mode_data.inputted_data = "vertical line"
             }
-        })
-        this.keyboard.setFunctionOnKeyPress("KeyC", () => {
+        }); this.keyboard.setFunctionOnKeyPress("KeyQ", () => {
+            if(this.selected_units.length > 0) {
+                switchMode("moveformation")
+            }
+        }); this.keyboard.setFunctionOnKeyPress("KeyC", () => {
             if(this.data.mode == "formation") {
                 this.data.mode_data.inputted_data = "circle"
+            } else if(this.selected_units.length > 0) {
+                this.selected_units.forEach(u => u.targetPos.setIp(new Vector2(null, null)))
             }
-        })
-        const getNumberFunction = (code) => {
+        }); const getNumberFunction = (code) => {
             return () => {
                 switch(this.data.mode) {
                     case "split": {
@@ -827,18 +1144,25 @@ class Engine {
                     }
                 }
             }
-        }
-
-        for(let x = 0; x <= 9; x++) {
+        }; for(let x = 0; x <= 9; x++) {
             this.keyboard.setFunctionOnKeyPress(`Digit${x}`, getNumberFunction(`Digit${x}`));
         }
 
         window.addEventListener("resize", () => { this._resize(); })
-        window.addEventListener("mousedown", (e) => { this.mousePressed = [e.button == 0 ? true : this.mousePressed[0], e.button == 2 ? true : this.mousePressed[1]]; if(e.button == 0 ){ this.onLClick() } else if(e.button == 2) { this.onRClick() }})
-        window.addEventListener("mouseup", (e) => { this.mousePressed = [e.button == 0 ? false : this.mousePressed[0], e.button == 2 ? false : this.mousePressed[1]]; if(e.button == 0 ){ this.onLRelease() } else if(e.button == 2) { this.onRRelease() }})
+        window.addEventListener("mousedown", (e) => { 
+            this.mousePressed = [e.button == 0 ? true : this.mousePressed[0], e.button == 2 ? true : this.mousePressed[1]]; 
+            if(e.button == 0 ) { this.onLClick() } else if(e.button == 2) { this.onRClick() } 
+            if(event.button === 1) { event.preventDefault() }
+        })
+        window.addEventListener("mouseup", (e) => { 
+            this.mousePressed = [e.button == 0 ? false : this.mousePressed[0], e.button == 2 ? false : this.mousePressed[1]]; 
+            if(e.button == 0 ){ this.onLRelease() } else if(e.button == 2) { this.onRRelease() }
+        })
         window.addEventListener("contextmenu", (e) => { e.preventDefault() })
         window.addEventListener("mousemove", (e) => { this.lastMousePos.setIp(this.mousePos); this.mousePos.x = e.clientX; this.mousePos.y = e.clientY; });
         window.addEventListener("wheel", e => { this.camera.zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.1 : 0.9); });
+        window.addEventListener("auxclick", (event) => { if (event.button === 1) { event.preventDefault() }});
+          
         this.menus.unit_menu.opacity = 0.7
         this.menus.unit_menu.createUIElement("custom", new Vector2(0.5, 0.5), 0, 0, {"renderFn": (ctx, e, rp) => {
             ctx.fillStyle = "black";
@@ -846,7 +1170,7 @@ class Engine {
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             let c = 0;
-            this.selected_units.filter(u => u.exists).forEach(u => c += u.count);
+            this.selected_units.map(u => u.count).forEach(u => c += u);
             ctx.fillText(`${c} units`, rp.x, rp.y);
         }})
 
@@ -859,22 +1183,30 @@ class Engine {
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(`${unit.count} ${unit.type} unit${unit.count > 1 ? "s" : ""}`, rp.x, rp.y);
+            ctx.fillStyle = "red"
+            ctx.font = "13px monospace";
+            ctx.fillText(`${unit.lockedFromMerging ? "LOCKED" : ""}`, rp.x, rp.y+20);
         }})
     }
     update(delta) {
-        this.selected_units.filter(u => !u.exists).forEach((u, index) => {
-            this.selected_units.splice(index, 1);
-        })
+        if(this.state != "game") return;
+        this.map.update(delta);
+        this.selected_units = this.selected_units.filter(u => u.exists);
+        this.selected_units = [...new Map(
+            this.selected_units.map(u => [u.id, u])
+        ).values()];
         document.body.style.cursor = "default"
         switch(this.data.mode) {
-            case "move": document.body.style.cursor = "alias"
+            case "move": document.body.style.cursor = "alias"; break;
+            case "moveformation": document.body.style.cursor = "alias"; break;
         }
         if(this.selection.active) {
             this.selection.end.setIp(this.camera.screenToWorld(this.mousePos));
             document.body.style.cursor = "crosshair"
         }
         this.menus.unit_menu.visible = this.selected_units.length > 0;
-        this.menus.hover_menu.pos.setIp(this.mousePos.add(new Vector2(10, 10)));
+        this.tmp.setIp(this.mousePos).xyAddIp(10, 10)
+        this.menus.hover_menu.pos.setIp(this.tmp);
         this.menus.hover_menu.visible = false;
         this.menus.hover_menu.UIElements[0].data.unit = null;
         this.units.units.forEach(u => {
@@ -891,19 +1223,103 @@ class Engine {
             document.body.style.cursor = "move"
             let d = this.mousePos.sub(this.lastMousePos).invert();
             this.camera.move(d);
+            this.lastMousePos.setIp(this.mousePos);
         } else {
             this.camera.move(new Vector2(0, 0))
         }
         
         this.units.update(delta);
     }
+    getTopbarHeightPx() {
+        return this.ctx.canvas.height * this.ui.topbarHeight;
+    }
+    renderTerrain(ctx) {
+        const tl = this.camera.screenToWorld(new Vector2(0, 0));
+
+        this.tmp.xySetIp(ctx.canvas.width, ctx.canvas.height)
+        const br = this.camera.screenToWorld(this.tmp);
+
+        const ts = this.map.tileSize;
+        const cs = this.chunkSize;
+        const chunkPixelSize = this.map.chunkSize * this.map.tileSize;
+
+        let startCX = Math.floor(tl.x / chunkPixelSize);
+        let startCY = Math.floor(tl.y / chunkPixelSize);
+        let endCX = Math.ceil(br.x / chunkPixelSize);
+        let endCY = Math.ceil(br.y / chunkPixelSize);
+
+        if (startCX > endCX) [startCX, endCX] = [endCX, startCX];
+        if (startCY > endCY) [startCY, endCY] = [endCY, startCY];
+
+        startCX -= 1;
+        startCY -= 1;
+        endCX += 1;
+        endCY += 1;
+
+        const maxCX = Math.ceil(this.map.width / cs);
+        const maxCY = Math.ceil(this.map.height / cs);
+
+        ctx.imageSmoothingEnabled = false;
+        for (let cy = startCY; cy <= endCY; cy++) {
+            if (cy < 0 || cy >= maxCY) continue;
+
+            for (let cx = startCX; cx <= endCX; cx++) {
+                if (cx < 0 || cx >= maxCX) continue;
+                const chunk = this.map.getChunk(cx, cy);
+                if (!chunk) continue;
+        
+                if(chunk.dirty) this.map.pendingRebakes.push([cx, cy]);
+        
+                const worldPos = new Vector2(
+                    cx * chunkPixelSize,
+                    cy * chunkPixelSize
+                );
+        
+                const screenPos = this.camera.worldToScreen(worldPos);
+        
+                const w = Math.ceil(chunk.canvas.width * this.camera.scale);
+                const h = Math.ceil(chunk.canvas.height * this.camera.scale);
+        
+                ctx.drawImage(
+                    chunk.canvas,
+                    screenPos.x,
+                    screenPos.y,
+                    w,
+                    h
+                );
+            }
+        }
+        ctx.imageSmoothingEnabled = true;
+    }
     render() {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        if(this.state != "game") return;
 
+        this.renderTerrain(ctx);
         // units
         this.units.render(ctx);
 
+        switch(this.data.mode) {
+            case "nearby": {
+                let avg_pos = new Vector2(0, 0);
+                this.selected_units.forEach(u => avg_pos.addIp(u.pos));
+                avg_pos.sDivIp(this.selected_units.length);
+                avg_pos = this.camera.worldToScreen(avg_pos);
+                ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(
+                    avg_pos.x,
+                    avg_pos.y,
+                    (parseInt(this.data.mode_data.inputted_data) ?? 0) * this.camera.scale,
+                    0,
+                    Math.PI * 2
+                );
+                ctx.stroke();
+            }
+        }
+        
         // selection box
         if(this.selection.active) {
             const p1 = this.camera.worldToScreen(this.selection.start);
@@ -921,6 +1337,9 @@ class Engine {
             ctx.strokeStyle = "cyan";
             ctx.strokeRect(x, y, w, h);
         }
+
+        // menus
+        Object.values(this.menus).filter(m => m.visible).forEach(m => m.render(ctx));
 
         // topbar
         const topbar_pos = this.getPos(0, 0, 1, 0.05);
@@ -942,9 +1361,6 @@ class Engine {
         ctx.lineTo(topbar_pos.x+topbar_pos.w, topbar_pos.y+topbar_pos.h)
         ctx.stroke();
 
-        // menus
-        Object.values(this.menus).filter(m => m.visible).forEach(m => m.render(ctx));
-
         // fps
         ctx.fillStyle = "black";
         ctx.font = "15px monospace";
@@ -955,15 +1371,9 @@ class Engine {
         ctx.fillText(`${(1/avg).toFixed(0)} fps`, pos.x, pos.y);
         draw_topbar_seperator(0.065)
 
-        // mode shower
-        ctx.textAlign = "left";
-        let pos2 = this.getPos(0.08, 0.025, 0.1, 0.1);
-        ctx.fillText(`mode: ${this.data.mode ?? "none"}`, pos2.x, pos2.y);
-        draw_topbar_seperator(0.2)
-
         // mode data
         if(this.data.mode_data.inputted_data.length != 0) {
-            ctx.fillStyle = "rgba(128, 128, 128, 0.3)";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
             ctx.font = "50px monospace";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
@@ -973,16 +1383,24 @@ class Engine {
 
         // draw keybinds
         const binds = this.getPossibleKeybinds();
+        const drawText = (text, x, y) => {
+            let s = Math.max(12, this.ctx.canvas.height * 0.015)
+            ctx.font = `${s}px monospace`;
+            let td = ctx.measureText(text);
+            ctx.fillStyle = "black"
+            ctx.fillRect(x, y, td.width, s*1.5)
+            ctx.fillStyle = "white";
+            ctx.fillText(text, x, y+10);
+        }
 
-        ctx.fillStyle = "rgba(128,128,128,1)";
-        ctx.font = `${Math.max(12, this.ctx.canvas.height * 0.015)}px monospace`;
+        ctx.fillStyle = "rgba(128,128,128,1)"
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         const startX = 0.01;
         const startY = 0.90;
 
         const rowHeight = 0.025;
-        const colWidth  = 0.3;
+        const colWidth  = 0.2;
 
         const maxRows = Math.floor((1 - startY) / rowHeight);
 
@@ -997,33 +1415,100 @@ class Engine {
                 0
             );
 
-            ctx.fillText(
-                `[${b[0]}] ${b[1]}`,
-                p.x,
-                p.y
-            );
+            drawText(`[${b[0]}] ${b[1]}`, p.x, p.y)
         });
+    }
+    renderGrid(ctx) {
+        const camera = this.camera;
+    
+        const gridSize = 100;
+    
+        const canvasW = ctx.canvas.width;
+        const canvasH = ctx.canvas.height;
+    
+        const topLeft = camera.screenToWorld(new Vector2(0, 0));
+        const bottomRight = camera.screenToWorld(
+            new Vector2(canvasW, canvasH)
+        );
+    
+        const startX =
+            Math.floor(topLeft.x / gridSize) * gridSize;
+    
+        const endX =
+            Math.ceil(bottomRight.x / gridSize) * gridSize;
+    
+        const startY =
+            Math.floor(topLeft.y / gridSize) * gridSize;
+    
+        const endY =
+            Math.ceil(bottomRight.y / gridSize) * gridSize;
+    
+        ctx.strokeStyle = "rgba(255,255,255,0.08)";
+        ctx.lineWidth = 1;
+    
+        for (let x = startX; x <= endX; x += gridSize) {
+            const major = (x / gridSize) % 5 === 0;
 
-        switch(this.data.mode) {
-            case "nearby": {
-                let avg_pos = new Vector2(0, 0);
-                this.selected_units.forEach(u => avg_pos.addIp(u.pos));
-                avg_pos.sDivIp(this.selected_units.length);
-                avg_pos = this.camera.worldToScreen(avg_pos);
-                ctx.strokeStyle = "grey";
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(
-                    avg_pos.x,
-                    avg_pos.y,
-                    (parseInt(this.data.mode_data.inputted_data) ?? 0) * this.camera.scale,
-                    0,
-                    Math.PI * 2
+            ctx.strokeStyle = major
+                ? "rgba(255,255,255,0.15)"
+                : "rgba(255,255,255,0.1)";
+
+            ctx.lineWidth = major ? 2 : 1;
+            const p1 = camera.worldToScreen(
+                new Vector2(x, startY)
+            );
+    
+            const p2 = camera.worldToScreen(
+                new Vector2(x, endY)
+            );
+    
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+        }
+    
+        for (let y = startY; y <= endY; y += gridSize) {
+            const major = (y / gridSize) % 5 === 0;
+
+            ctx.strokeStyle = major
+                ? "rgba(255,255,255,0.15)"
+                : "rgba(255,255,255,0.1)";
+
+            ctx.lineWidth = major ? 2 : 1;
+            const p1 = camera.worldToScreen(
+                new Vector2(startX, y)
+            );
+    
+            const p2 = camera.worldToScreen(
+                new Vector2(endX, y)
+            );
+    
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+        }
+
+        ctx.fillStyle = "rgba(255,255,255,0.15)";
+        ctx.font = "8px monospace";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+
+        for (let x = startX; x <= endX; x += gridSize) {
+            for (let y = startY; y <= endY; y += gridSize) {
+
+                const p = camera.worldToScreen(
+                    new Vector2(x + 4, y + 4)
                 );
-                ctx.stroke();
+
+                ctx.fillText(
+                    `${x/gridSize},${y/gridSize}`,
+                    p.x,
+                    p.y
+                );
             }
         }
-            
     }
     tick(elapsed) {
         if(this._previousElapsed === null) {
@@ -1033,18 +1518,15 @@ class Engine {
         }
     
         const d = (elapsed - this._previousElapsed) / 1000;
-        if(d > 1) {
-            console.log("resync")
-        }
-        const delta = Math.min(
+        const delta = /*Math.min(
             d,
             0.12
-        );
+        );*/ d;
     
         this._previousElapsed = elapsed;
 
         if(this.fps_data.length > 5) {
-            this.fps_data.pop();
+            this.fps_data.shift();
         }
         this.fps_data.push(delta);
     
@@ -1059,5 +1541,5 @@ const c = document.getElementById("canvas");
 c.width = window.innerWidth;
 c.height = window.innerHeight;
 const e = new Engine(c.getContext("2d"))
-e.init();
+await e.init();
 window.requestAnimationFrame(e.tick.bind(e));

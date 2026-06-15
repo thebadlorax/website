@@ -78,40 +78,51 @@ export class Maths {
 }
 
 export class Vector2 {
-    constructor(x, y) { this.x = x; this.y = y; }
+    constructor(x=null, y=null) { this.x = x; this.y = y; }
 
-    addIp(vector)  { this.x += vector.x; this.y += vector.y }
+    addIp(vector)  { this.x += vector.x; this.y += vector.y; return this; }
     add(vector)    { return new Vector2(this.x + vector.x, this.y + vector.y) }
-    sAddIp(scalar) { this.x += scalar; this.y += scalar }
+    sAddIp(scalar) { this.x += scalar; this.y += scalar; return this; }
     sAdd(scalar)   { return new Vector2(this.x + scalar, this.y + scalar) }
+    xyAddIp(x, y)  { this.x += x; this.y += y; return this; }
+    xyAdd(x, y)    { return new Vector2(this.x + x, this.y + y) }
 
-    subIp(vector)  { this.x -= vector.x; this.y -= vector.y }
+    subIp(vector)  { this.x -= vector.x; this.y -= vector.y; return this; }
     sub(vector)    { return new Vector2(this.x - vector.x, this.y - vector.y) }
-    sSubIp(scalar) { this.x -= scalar; this.y -= scalar }
+    sSubIp(scalar) { this.x -= scalar; this.y -= scalar; return this; }
     sSub(scalar)   { return new Vector2(this.x - scalar, this.y - scalar) }
+    xySubIp(x, y)  { this.x -= x; this.y -= y; return this; }
+    xySub(x, y)    { return new Vector2(this.x - x, this.y - y) }
 
-    divIp(vector)  { this.x /= vector.x; this.y /= vector.y }
+    divIp(vector)  { this.x /= vector.x; this.y /= vector.y; return this; }
     div(vector)    { return new Vector2(this.x / vector.x, this.y / vector.y) }
-    sDivIp(scalar) { this.x /= scalar; this.y /= scalar }
+    sDivIp(scalar) { this.x /= scalar; this.y /= scalar; return this; }
     sDiv(scalar)   { return new Vector2(this.x / scalar, this.y / scalar) }
+    xyDivIp(x, y)  { this.x /= x; this.y /= y; return this; }
+    xyDiv(x, y)    { return new Vector2(this.x / x, this.y / y) }
 
-    mulIp(vector)  { this.x *= vector.x; this.y *= vector.y }
+    mulIp(vector)  { this.x *= vector.x; this.y *= vector.y; return this; }
     mul(vector)    { return new Vector2(this.x * vector.x, this.y * vector.y) }
-    sMulIp(scalar) { this.x *= scalar; this.y *= scalar }
+    sMulIp(scalar) { this.x *= scalar; this.y *= scalar; return this; }
     sMul(scalar)   { return new Vector2(this.x * scalar, this.y * scalar) }
+    xyMulIp(x, y)  { this.x *= x; this.y *= y; return this; }
+    xyMul(x, y)    { return new Vector2(this.x * x, this.y * y) }
 
-    setIp(vector)  { this.x = vector.x; this.y = vector.y }
+    setIp(vector)  { this.x = vector.x; this.y = vector.y; return this; }
     set(vector)    { return new Vector2(vector.x, vector.y) }
+    xySetIp(x, y)  { this.x = x; this.y = y; return this; }
 
-    normalizeIp()  { this.sDivIp(Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2))) }
+    normalizeIp()  { this.sDivIp(Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2))); return this; }
     normalize()    { return new Vector2(this.x, this.y).sDiv(Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2))) }
 
     dist(vector)   { return Math.sqrt(Math.pow(vector.x-this.x,2) + Math.pow(vector.y-this.y,2)) }
 
-    invertIp() { this.x *= -1; this.y *= -1;}
+    invertIp() { this.x *= -1; this.y *= -1; return this;}
     invert()   { return new Vector2(this.x * -1, this.y * -1) };
 
     isZero() { return (this.x < 0.0001 && this.y < 0.0001) }
 
     isNull() { return (this.x == null || this.y == null) }
+
+    copy() { return new Vector2(this.x, this.y); }
 }

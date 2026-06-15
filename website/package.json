@@ -11,5 +11,8 @@
   "scripts": {
     "start": "bun run --watch src/index.ts"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "simplex-noise": "^4.0.3"
+  }
 }
