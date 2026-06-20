@@ -936,13 +936,15 @@ const server = Bun.serve({
             if(!disabled_features.includes("game")) return corsResponse(Bun.file("src/pages/game/game.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
+          case "/archive": return corsResponse(Bun.file("src/pages/archive.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles.html"), { headers: { "Content-Type": "text/html" } }); 
-          case "/mini/logclicker": return corsResponse(Bun.file("src/pages/mini/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/mini/thelongwalk": return corsResponse(Bun.file("src/pages/mini/walk.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/mini/sand": return corsResponse(Bun.file("src/pages/mini/sand.html"), { headers: { "Content-Type": "text/html" } }); 
-          case "/mini/milsim": return corsResponse(Bun.file("src/pages/mini/milsim.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/mini/emulator": return corsResponse(Bun.file("src/pages/mini/emulator.html"), { headers: { "Content-Type": "text/html" } }); 
+
+          case "/archive/milsim": return corsResponse(Bun.file("src/pages/mini/milsim.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/archive/logclicker": return corsResponse(Bun.file("src/pages/mini/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
       

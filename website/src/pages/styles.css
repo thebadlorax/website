@@ -233,32 +233,6 @@ body {
     display: block;
 }
 
-.hide {
-    display: block;
-}
-
-.unhide {
-    display: none;
-}
-
-@media (width <= 800px) {
-    * :not(body) {
-        display: none;
-    }
-
-    body {
-        background: black;
-    }
-
-    .hide {
-        display: none;
-    }
-
-    .unhide {
-        display: block;
-    }
-}
-
 .input {
     font-family: "Jersey 20";
     color: black;

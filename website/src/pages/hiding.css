@@ -1,0 +1,32 @@
+/*
+ * author thebadlorax
+ * created on 20-06-2026-18h-13m
+ * github: https://github.com/thebadlorax
+ * copyright 2026
+*/
+
+.hide {
+    display: block;
+}
+
+.unhide {
+    display: none;
+}
+
+@media (width <= 800px) {
+    * :not(body) {
+        display: none;
+    }
+
+    body {
+        background: black;
+    }
+
+    .hide {
+        display: none;
+    }
+
+    .unhide {
+        display: block;
+    }
+}
