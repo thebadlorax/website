@@ -40,13 +40,13 @@ export class TimeWizard {
             this.log = log;
             this.startTime = performance.now();
             this.endTime = 0;
-            this.log.log("Timer started", "TIMEWIZARD")
+            //this.log.log("Timer started", "TIMEWIZARD")
         }
 
         end() { 
             this.endTime = performance.now();
             let final = this.endTime-this.startTime;
-            this.log.log(`Timer finished in ${final}ms`, "TIMEWIZARD")
+            //this.log.log(`Timer finished in ${final}ms`, "TIMEWIZARD")
             return final;
         }
     }

@@ -117,8 +117,11 @@ export class Vector2 {
 
     dist(vector)   { return Math.sqrt(Math.pow(vector.x-this.x,2) + Math.pow(vector.y-this.y,2)) }
 
-    invertIp() { this.x *= -1; this.y *= -1; return this;}
-    invert()   { return new Vector2(this.x * -1, this.y * -1) };
+    invertIp() { this.x *= -1; this.y *= -1; return this; }
+    invert()   { return new Vector2(this.x * -1, this.y * -1) }
+
+    floorIp() { this.x = Math.floor(this.x); this.y = Math.floor(this.y); return this; }
+    floor() { return new Vector2(Math.floor(this.x), Math.floor(this.y)) }
 
     isZero() { return (this.x < 0.0001 && this.y < 0.0001) }
 

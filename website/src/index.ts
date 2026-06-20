@@ -140,7 +140,7 @@ const starting_time = new Date();
 let key = await db.fetch("key")
 if(!key) {
   key = generateRandomString(5);
-  await db.modify("key", key);
+  db.modify("key", key);
 }
 // end todo
 
@@ -345,9 +345,9 @@ const server = Bun.serve({
 
             let is_hosting = await db.fetch(filePath + "_hosting");
             // @ts-expect-error
-            if(!is_hosting) await db.modify(filePath + "_hosting", "true")
+            if(!is_hosting) db.modify(filePath + "_hosting", "true")
             // @ts-expect-error
-            else await db.modify(filePath + "_hosting", "")
+            else db.modify(filePath + "_hosting", "")
             log.log(`Hosting toggled on directory: ${filePath}`, "API");
             return corsResponse(null, { status: 200 });
           case "/hosting/query":
@@ -516,7 +516,7 @@ const server = Bun.serve({
             let id = generateRandomString(10);
             visitor_count += 1;
             // @ts-expect-error
-            await db.modify("visitors", visitor_count.toString())
+            db.modify("visitors", visitor_count.toString())
             return corsResponse(JSON.stringify({"id": `${key}-${id}`}), { status: 200});
           case "/user/account/create":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
@@ -595,7 +595,7 @@ const server = Bun.serve({
             if(!await auth.exists(json["name2"])) return corsResponse(null, { status: 400 });
 
             admins.push(json.name2);
-            await db.modify("admins", admins);
+            db.modify("admins", admins);
             return corsResponse(null, { status: 200 });
           }
           case "/admin/revokeAdmin": {
@@ -611,7 +611,7 @@ const server = Bun.serve({
             if(json["name2"] == "admin") return corsResponse(null, { status: 400 }); 
 
             admins.splice(admins.indexOf(json.name2));
-            await db.modify("admins", admins);
+            db.modify("admins", admins);
             return corsResponse(null, { status: 200 });
           }
           case "/admin/changeNews": {
@@ -623,7 +623,7 @@ const server = Bun.serve({
             let admins = await db.fetch("admins") || ["admin"];
             if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
 
-            await db.modify("news", json["news"]);
+            db.modify("news", json["news"]);
             await reset_news();
             return corsResponse(null, { status: 200 });
           }
@@ -723,7 +723,7 @@ const server = Bun.serve({
             let index = fb.indexOf(json.feedback);
             if(index == -1) return corsResponse(null, { status: 400 });
             fb.splice(index, 1);
-            await db.modify("feedback", fb);
+            db.modify("feedback", fb);
             return corsResponse(null, { status: 200 });
           }
           case "/admin/fetchDatabase": {
@@ -790,7 +790,7 @@ const server = Bun.serve({
             let disabled = await db.fetch("disabled_features") || [];
             disabled.push(json.feature);
             disabled_features.push(json.feature);
-            await db.modify("disabled_features", disabled);
+            db.modify("disabled_features", disabled);
 
             switch(json.feature) {
               case "chat": {
@@ -812,7 +812,7 @@ const server = Bun.serve({
             if(!disabled.includes(json.feature)) return corsResponse(null, { status: 200 });;
             disabled.splice(disabled.indexOf(json.feature));
             disabled_features.splice(disabled_features.indexOf(json.feature));
-            await db.modify("disabled_features", disabled);
+            db.modify("disabled_features", disabled);
             return corsResponse(null, { status: 200 });
           }
           case "/feedback/give": {
@@ -820,7 +820,7 @@ const server = Bun.serve({
             let json = await req.json(); 
             let fb = await db.fetch("feedback") || new Array();
             fb.push(json.feedback.slice(0, 250));
-            await db.modify("feedback", fb);
+            db.modify("feedback", fb);
             return corsResponse(null, { status: 200 });
           }
           case "/feedback/fetch": {
@@ -859,7 +859,7 @@ const server = Bun.serve({
             let x = d.player_data[user.account.id] ?? GameWizard.defaultPlayerData
             x.settings = user_json.new;
             d.player_data[user.account.id] = x;
-            await db.modify("game", d);
+            db.modify("game", d);
             return corsResponse(null, { status: 200 });
           }
           case "/game/data/clearSettings": {
@@ -868,7 +868,7 @@ const server = Bun.serve({
             if(!user) return corsResponse(null, { status: 401 });
             let d = await db.fetch("game") || GameWizard.defaultGameData;
             delete d.player_data[user.account.id].settings;
-            await db.modify("game", d);
+            db.modify("game", d);
             return corsResponse(null, { status: 200 });
           }
           case "/game/analytics/perfTest": {
@@ -879,7 +879,7 @@ const server = Bun.serve({
             if(!d.analytics) d.analytics = {};
             if(!d.analytics.perfTests) d.analytics.perfTests = [];
             d.analytics.perfTests.push(user_json.data);
-            await db.modify("game", d);
+            db.modify("game", d);
             return corsResponse(null, { status: 200 });
           }
           case "/game/live": {
@@ -895,7 +895,7 @@ const server = Bun.serve({
             let json = await req.json(); 
             let wishes = await db.fetch("longwalk_wishes") || new Array();
             wishes.push(`${json.name}: ${json.wish} ||| username: ${json.user.account.name}`);
-            await db.modify("longwalk_wishes", wishes);
+            db.modify("longwalk_wishes", wishes);
             return corsResponse(null, { status: 200 });
             break;
           }
@@ -937,21 +937,13 @@ const server = Bun.serve({
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
 
-          case "/mini/particles": { 
-            return corsResponse(Bun.file("src/pages/mini/particles.html"), { headers: { "Content-Type": "text/html" } }); 
-          }
-          case "/mini/logclicker": { 
-            return corsResponse(Bun.file("src/pages/mini/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
-          }
-          case "/mini/thelongwalk": { 
-            return corsResponse(Bun.file("src/pages/mini/walk.html"), { headers: { "Content-Type": "text/html" } }); 
-          }
-          case "/mini/sand": { 
-            return corsResponse(Bun.file("src/pages/mini/sand.html"), { headers: { "Content-Type": "text/html" } }); 
-          }
-          case "/mini/milsim": { 
-            return corsResponse(Bun.file("src/pages/mini/milsim.html"), { headers: { "Content-Type": "text/html" } }); 
-          }
+          case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/mini/logclicker": return corsResponse(Bun.file("src/pages/mini/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/mini/thelongwalk": return corsResponse(Bun.file("src/pages/mini/walk.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/mini/sand": return corsResponse(Bun.file("src/pages/mini/sand.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/mini/milsim": return corsResponse(Bun.file("src/pages/mini/milsim.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/mini/emulator": return corsResponse(Bun.file("src/pages/mini/emulator.html"), { headers: { "Content-Type": "text/html" } }); 
+
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
       
           default:

@@ -79,7 +79,7 @@ export class ChatWizard {
 
         delete this.instances[this.instances.indexOf(i)];
         delete data[i.id];
-        await this.db.modify("chats", data);
+        this.db.modify("chats", data);
         await this.revitalizeOldChats();
      };
     async assign(id: string, i: ChatInstance) { 
@@ -236,7 +236,7 @@ export class ChatInstance {
     constructor(db: Database, id: (string | null) = null, w: ChatWizard) { this.db = db; if(id != null) id = id; this.w = w;}
 
     async init() {
-        if(!await this.db.exists("chats"))  await this.db.modify("chats", {});
+        if(!await this.db.exists("chats"))  this.db.modify("chats", {});
         let chats = await this.db.fetch("chats")
         setInterval(async () => {if(this.queue.length > 0) await this.writeQueueToDB()}, 3000);
         if(!chats) return;
@@ -256,7 +256,7 @@ export class ChatInstance {
             content: `this is the start of the chat: ${this.id}`,
             timestamp: Date.now()
         } as message], "assignees": [], "display_name": "", "timestamp": Date.now(), "immutable": this.immutable, "text_cooldown": this.text_cooldown};
-        await this.db.modify("chats", chats);
+        this.db.modify("chats", chats);
     }
     
     async flood() {
@@ -281,7 +281,7 @@ export class ChatInstance {
             data[this.id]["history"].push(m);
         });
         this.queue = new Array();
-        await this.db.modify("chats", data);
+        this.db.modify("chats", data);
     }
 
     async modifyProperty(name: string, value: any) {
@@ -289,7 +289,7 @@ export class ChatInstance {
         try { data = await this.db.fetch("chats"); }
         catch { return; }
         data[this.id][name] = value;
-        await this.db.modify("chats", data);
+        this.db.modify("chats", data);
     }
 
     async fetchProperty(name: string) {

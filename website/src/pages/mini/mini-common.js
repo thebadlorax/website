@@ -40,3 +40,78 @@ export const generateRandomString = (length) => {
     }
     return result;
 }
+
+export const getRandomFromList = (list) => {
+    return list[Math.floor(Math.random()*list.length)]
+}
+
+export const getRandomName = () => {
+    const prefix = [
+        "immediate",
+        "careless",
+        "female",
+        "eminent",
+        "psychotic",
+        "perpetual",
+        "abrupt",
+        "dispensable",
+        "hospitable",
+        "standing",
+        "living",
+        "probable",
+        "mighty",
+        "guttural",
+        "kaput",
+        "empty",
+        "unarmed",
+        "swift",
+        "ceaseless",
+        "bad",
+        "painstaking",
+        "puzzling",
+        "acid",
+        "loose",
+        "eager",
+        "oceanic",
+        "rigid",
+        "frightening",
+        "like",
+        "spotless"
+    ]
+    const suffix = [
+        "meaning",
+        "role",
+        "version",
+        "hair",
+        "mud",
+        "speech",
+        "politics",
+        "poetry",
+        "speaker",
+        "patience",
+        "elevator",
+        "university",
+        "measurement",
+        "trainer",
+        "editor",
+        "policy",
+        "actor",
+        "decision",
+        "industry",
+        "requirement",
+        "operation",
+        "transportation",
+        "teacher",
+        "energy",
+        "attention",
+        "extent",
+        "procedure",
+        "meat",
+        "writing",
+        "internet"
+    ]
+
+    let pre = getRandomFromList(prefix);
+    let suf = getRandomFromList(suffix)
+    return `${pre.charAt(0).toUpperCase() + pre.slice(1)}${suf.charAt(0).toUpperCase() + suf.slice(1)}`
+}

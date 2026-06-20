@@ -129,7 +129,7 @@ export class SingleplayerConnection {
                             }
                         }
                         a.player_data[this.user.account.id] = x;
-                        await this.db.modify("game", a);
+                        this.db.modify("game", a);
                         this.send({
                             type: "flag",
                             data: {
@@ -141,7 +141,7 @@ export class SingleplayerConnection {
                     case "delete": {
                         delete x.flags[packet.data.type][packet.data.name];
                         a.player_data[this.user.account.id] = x;
-                        await this.db.modify("game", a);
+                        this.db.modify("game", a);
                         this.send({
                             type: "flag",
                             data: {
@@ -168,7 +168,7 @@ export class SingleplayerConnection {
                     case "all": {
                         const a = await this.db.fetch("game") ?? GameWizard.defaultGameData;
                         delete a.player_data[this.user.account.id];
-                        await this.db.modify("game", a);
+                        this.db.modify("game", a);
                         this.send({
                             type: "clearData",
                             data: {
@@ -209,7 +209,7 @@ export class SingleplayerConnection {
                         x.inventory.items.push(i);
                     }
                 })
-                await this.db.modify("game", a);
+                this.db.modify("game", a);
                 this.send({
                     type: "addItem",
                     data: {

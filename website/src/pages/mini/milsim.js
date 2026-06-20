@@ -7,10 +7,11 @@
 
 import { Maths, Vector2 } from "./maths.js";
 import { clamp } from "../common.js";
-import { generateRandomString, Loader } from "./mini-common.js";
+import { generateRandomString, getRandomName, Loader } from "./mini-common.js";
 
 import { createNoise2D } from "./noise.js";
 
+// INPUT
 export class Keyboard {
     _keys = {};
     _key_functions = {};
@@ -94,6 +95,7 @@ export class Keyboard {
     }
 }
 
+// UNITS
 class UnitTypes {
     static TypeData = {
         "infantry": {
@@ -453,6 +455,7 @@ class UnitController {
     }
 }
 
+// GRAPHICS
 class Camera {
     constructor(engine) {
         this.pos = new Vector2(0, 0);
@@ -541,7 +544,475 @@ class Camera {
         this.pos.setIp(npos);
     }
 }
+const Terrain = {
+    WATER: 0,
+    LAND: 1,
+    FOREST: 2,
+    MOUNTAIN: 3
+};
+const COLORS = [
+    "#3a6fff", // water
+    "#66bb55", // land
+    "#2c7a2c", // forest
+    "#777777"  // mountain
+];
+class map {
+    constructor(w,h,tileSize,engine) {
+        this.width = w;
+        this.height = h;
 
+        this.nations = new Array();
+
+        this.tileSize = tileSize;
+
+        this.chunkSize = 200;
+        this.pendingRebakes = [];
+        this.rebakesPerFrame = 7;
+
+        this.chunks = {};
+        this.terrain_grid = new Uint8Array(w * h);
+        this.owner_grid = new Int16Array(w * h);
+
+        for(let i = 0; i < this.terrain_grid.length; i++) {
+            this.terrain_grid[i] = Terrain.WATER;
+        }
+
+        for(let i = 0; i < this.owner_grid.length; i++) {
+            this.owner_grid[i] = -1;
+        }
+
+        this.debugChunks = true;
+        this.engine = engine;
+
+        this.noise = createNoise2D(() => Math.random());
+    }
+
+    getChunk(cx,cy) {
+        let chunk = this.chunks[`${cx},${cy}`];
+        if (!chunk) return null;
+        return chunk;
+    }
+
+    getNationFromID(id) {
+        return this.nations[id];
+    }
+
+    claimNation() {
+        let n = this.nations.filter(n => !n.has_owner)[Math.floor(Math.random()*this.nations.length)];
+        n.has_owner = true;
+        n.owned_by_self = true;
+        return n
+    }
+
+    update(delta) {
+        for (let i = 0; i < this.rebakesPerFrame; i++) {
+            const job = this.pendingRebakes.shift();
+            if (job) {
+                this.rebakeChunk(job[0], job[1]);
+                this.getChunk(job[0], job[1]).dirty = false;
+            }
+            
+        }
+    }
+
+    generate(type) {
+        for(let i = 0; i < this.terrain_grid.length; i++) this.terrain_grid[i] = Terrain.WATER;
+        for(let i = 0; i < this.owner_grid.length; i++) this.owner_grid[i] = -1;
+        switch(type) {
+            case "island": {
+                let scale = 10          // larger = smoother continents
+                let octaves = 12         // detail layers
+                let persistence = 0.6   // amplitude drop per octave
+                let lacunarity = 2.5    // frequency increase per octave
+                let seaLevel = 0.35
+                let mountainLevel = 0.45
+
+            
+                const width = this.width;
+                const height = this.height;
+        
+                let falloff_mult = 0.35 + (Math.random()*0.1)
+                let lac = -.8 + (Math.random())
+                let f_height = 0.4 + (Math.random()*0.05)
+            
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+            
+                        // normalized coords (important)
+                        const nx = x / width;
+                        const ny = y / height;
+            
+                        // --- FBM SIMPLEX NOISE ---
+                        let amplitude = 1;
+                        let frequency = 1;
+                        let value = 0;
+                        let max = 0;
+            
+                        for (let i = 0; i < octaves; i++) {
+                            const sampleX = nx * scale * frequency;
+                            const sampleY = ny * scale * frequency;
+            
+                            value += this.noise(sampleX, sampleY) * amplitude;
+            
+                            max += amplitude;
+                            amplitude *= persistence;
+                            frequency *= (lacunarity+lac);
+                        }
+            
+                        value /= max;
+            
+                        // normalize to [0,1]
+                        value = (value + 1) * 0.5;
+            
+                        const dx = nx - 0.5;
+                        const dy = ny - 0.5;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+            
+                        const falloff = 1 - dist; // island/continent center bias
+                        value = value * (0.18) + falloff * falloff_mult;
+            
+                        let tile;
+            
+                        if (value < seaLevel) {
+                            tile = Terrain.WATER;
+                        } else if (value > mountainLevel) {
+                            tile = Terrain.MOUNTAIN;
+                        } else if (value < f_height) {
+                            tile = Terrain.LAND;
+                        } else {
+                            tile = Terrain.FOREST;
+                        }
+            
+                        this.terrain_grid[x + y * this.width] = tile;
+                    };
+                }
+                break;
+            }
+            case "continents": {
+                let scale = 10          // larger = smoother continents
+                let octaves = 12         // detail layers
+                let persistence = 0.6   // amplitude drop per octave
+                let lacunarity = 2.5    // frequency increase per octave
+                let seaLevel = 0.35
+                let mountainLevel = 0.47
+            
+                const width = this.width;
+                const height = this.height;
+
+                let num_continents = Math.max(1, Math.floor(Math.random()*3));
+                for(let c = 0; c < num_continents; c++) {
+                    let offsetX = (width*.5) + Math.floor(Math.random()*(width*.9));
+                    let offsetY = (height*-.5) + Math.floor(Math.random()*(height*.9));
+
+                    let falloff_mult = 0.35 + (Math.random()*0.1)
+                    let lac = -.8 + (Math.random())
+                    let f_height = 0.4 + (Math.random()*0.05)
+                
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                
+                            // normalized coords (important)
+                            const nx = x / width;
+                            const ny = y / height;
+                
+                            // --- FBM SIMPLEX NOISE ---
+                            let amplitude = 1;
+                            let frequency = 1;
+                            let value = 0;
+                            let max = 0;
+                
+                            for (let i = 0; i < octaves; i++) {
+                                const sampleX = nx * scale * frequency;
+                                const sampleY = ny * scale * frequency;
+                
+                                value += this.noise(sampleX, sampleY) * amplitude;
+                
+                                max += amplitude;
+                                amplitude *= persistence;
+                                frequency *= (lacunarity+lac);
+                            }
+                
+                            value /= max;
+                
+                            // normalize to [0,1]
+                            value = (value + 1) * 0.5;
+                
+                            const dx = nx - 0.5;
+                            const dy = ny - 0.5;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                            const falloff = 1 - dist; // island/continent center bias
+                            value = value * (0.18) + falloff * falloff_mult;
+                
+                            let tile;
+                
+                            if (value < seaLevel) {
+                                continue;
+                            } else if (value > mountainLevel) {
+                                tile = Terrain.MOUNTAIN;
+                            } else if (value < f_height) {
+                                tile = Terrain.LAND;
+                            } else {
+                                tile = Terrain.FOREST;
+                            }
+                
+                            this.terrain_grid[(offsetX+x) + (offsetY+y) * this.width] = tile;
+                        }
+                    }
+                }
+            }
+        }
+
+        this.generateNations();
+
+        for (const key in this.chunks) {
+            this.chunks[key].dirty = true;
+        }
+    }
+
+    generateNations() {
+        const num_nations = 25;
+
+        const isValidTile = (x, y) => { let t = this.getTile(x, y); if(t == undefined || t == 0) return false; else return true; }
+        const findStartingLocation = () => {
+            const findRandom = () => { return new Vector2(Math.random() * this.width, Math.random() * this.height).floorIp() }
+            let pos = findRandom();
+            do { pos = findRandom(); } while(!isValidTile(pos.x, pos.y)) 
+            return pos;
+        }
+
+        const queue = [];
+
+        for (let n = 0; n < num_nations; n++) {
+            let nation = this.createNation(n, getRandomName());
+            let start = findStartingLocation();
+
+            this.setOwner(start.x, start.y, n);
+
+            queue.push({
+                pos: start,
+                nation: n
+            });
+        }
+
+        while (queue.length > 0) {
+            const { pos, nation } = queue.shift();
+
+            const neighbors = [
+                new Vector2(pos.x + 1, pos.y),
+                new Vector2(pos.x - 1, pos.y),
+                new Vector2(pos.x, pos.y + 1),
+                new Vector2(pos.x, pos.y - 1)
+            ];
+
+            for (const p of neighbors) {
+                if (!isValidTile(p.x, p.y))
+                    continue;
+
+                if (this.getOwner(p.x, p.y) !== -1)
+                    continue;
+
+                this.setOwner(p.x, p.y, nation);
+
+                queue.push({
+                    pos: p,
+                    nation
+                });
+            }
+        }
+    }
+
+    createNation(id, name) {
+        let n = new Nation(id, name);
+        this.nations.push(n);
+        return n;
+    }
+
+    initChunks() {
+        this.generate("island");
+        const cs = this.chunkSize;
+    
+        const chunksX = Math.ceil(this.width / cs);
+        const chunksY = Math.ceil(this.height / cs);
+    
+        for (let cy = 0; cy < chunksY; cy++) {
+            for (let cx = 0; cx < chunksX; cx++) {
+                this.createChunk(cx, cy);
+            }
+        }
+    }
+
+    rebakeAllChunks() {
+        const cs = this.chunkSize;
+    
+        const chunksX = Math.ceil(this.width / cs);
+        const chunksY = Math.ceil(this.height / cs);
+    
+        for (let cy = 0; cy < chunksY; cy++) {
+            for (let cx = 0; cx < chunksX; cx++) {
+                this.pendingRebakes.push([cx, cy]);
+            }
+        }
+    }
+
+    getChunkFromWorld(x, y) {
+        const cx = Math.floor(x/this.chunkSize);
+        const cy = Math.floor(y/this.chunkSize);
+        return new Vector2(cx, cy);
+    }
+
+    rebakeChunk(cx,cy) {
+        const chunk = this.getChunk(cx, cy);
+    
+        const ctx = chunk.ctx;
+
+        ctx.clearRect(0, 0, chunk.canvas.width, chunk.canvas.height);
+
+        const startX = cx * this.chunkSize;
+
+        const startY = cy * this.chunkSize;
+
+        const endX = Math.min(startX + this.chunkSize, this.width);
+
+        const endY = Math.min(startY + this.chunkSize, this.height);
+
+        for (let y = startY; y < endY; y++) {
+            for (let x = startX; x < endX; x++) {
+        
+                const tile = this.getTile(x, y);
+        
+                ctx.fillStyle = COLORS[tile];
+        
+                ctx.fillRect(
+                    (x - startX) * this.tileSize,
+                    (y - startY) * this.tileSize,
+                    this.tileSize,
+                    this.tileSize
+                );
+
+                const check = (owner, x, y) => {
+                    let o = this.getOwner(x, y);
+                    let t = this.getTile(x, y);
+                    if(o != owner) return o;
+                    if(t == 0) return owner;
+                    return false;
+                }
+        
+                const owner = this.getOwner(x, y);
+        
+                if (owner !== -1 && owner != null) {
+                    const nation = this.nations[owner];
+
+                    const px = (x - startX) * this.tileSize;
+                    const py = (y - startY) * this.tileSize;
+
+                    //if(!nation.owned_by_self) {
+                    ctx.fillStyle = `rgba(${nation.color[1]}, ${nation.color[1]}, ${nation.color[2]}, ${nation.clicked ? .15 : .25})`
+    
+                    ctx.fillRect(
+                        px,
+                        py,
+                        this.tileSize,
+                        this.tileSize
+                    );
+                    //}
+
+                    let right = check(owner, x + 1, y);
+                    let left  = check(owner, x - 1, y);
+                    let down  = check(owner, x, y + 1);
+                    let up    = check(owner, x, y - 1);
+
+                    ctx.strokeStyle = nation.clicked ? "rgba(0,255,255,1)" : "rgba(0,0,0,1)";
+                    ctx.lineWidth = nation.clicked ? 10 : 5;
+
+                    if(nation.owned_by_self) {
+                        ctx.strokeStyle = "rgba(255, 0, 0, 1)"
+                        ctx.lineWidth = 20
+                    }
+                    const s = this.tileSize;
+
+                    ctx.beginPath();
+
+                    if (left != false) {
+                        ctx.moveTo(px, py);
+                        ctx.lineTo(px, py + s);
+                    }
+
+                    if (right != false) {
+                        ctx.moveTo(px + s, py);
+                        ctx.lineTo(px + s, py + s);
+                    }
+
+                    if (up != false) {
+                        ctx.moveTo(px, py);
+                        ctx.lineTo(px + s, py);
+                    }
+
+                    if (down != false) {
+                        ctx.moveTo(px, py + s);
+                        ctx.lineTo(px + s, py + s);
+                    }
+
+                    ctx.stroke();
+                }
+            }
+        }
+
+        chunk.dirty = false;
+    }
+
+    createChunk(cx,cy) {
+        const c = document.createElement("canvas");
+        const ctx = c.getContext("2d");
+
+        c.width = this.chunkSize * this.tileSize;
+        c.height = this.chunkSize * this.tileSize;
+
+        const chunk = {
+            canvas: c,
+            ctx,
+            dirty: true
+        };
+    
+        this.chunks[`${cx},${cy}`] = chunk
+    
+        return chunk;
+    }
+
+    getTile(x, y) {
+        if ( x < 0 || y < 0 || x >= this.width || y >= this.height ) { return Terrain.WATER }
+        return this.terrain_grid[
+            x + y * this.width
+        ];
+    }
+
+    getOwner(x, y) {
+        if ( x < 0 || y < 0 || x >= this.width || y >= this.height ) { return null }
+        return this.owner_grid[
+            x + y * this.width
+        ];
+    }
+
+    screenToMap(pos) {
+        let m = this.engine.camera.screenToWorld(pos).sDivIp(this.tileSize).floorIp();
+        return m;
+    }
+    
+    setTile(x, y, tile) {
+        if ( x < 0 || y < 0 || x >= this.width || y >= this.height ) return;
+        this.terrain_grid[x + y * this.width] = tile;
+        const cx = Math.floor(x / this.chunkSize);
+        const cy = Math.floor(y / this.chunkSize);
+        this.getChunk(cx, cy).dirty = true;
+    }
+
+    setOwner(x, y, id) {
+        if ( x < 0 || y < 0 || x >= this.width || y >= this.height ) return;
+        this.owner_grid[x + y * this.width] = id;
+    }
+}
+
+// NETWORKING
 class Server {
     constructor() {}
 }
@@ -549,11 +1020,11 @@ class Lobby {
     constructor() {}
     getPlayers() {}
 }
-
 class Player {
     constructor() {}
 }
 
+// UI
 class UIElement {
     constructor(type, pos, w, h, data, menu) {
         this.type = type; this.pos = pos; this.w = w; this.h = h; this.data = data;
@@ -623,228 +1094,15 @@ class Menu {
     }
 }
 
+// GAMEPLAY
 class Nation {
-    constructor() {
-        this.points = [];
-    }
-}
-const Terrain = {
-    WATER: 0,
-    LAND: 1,
-    FOREST: 2,
-    MOUNTAIN: 3
-};
-const COLORS = [
-    "#3a6fff", // water
-    "#66bb55", // land
-    "#2c7a2c", // forest
-    "#777777"  // mountain
-];
-class map {
-    constructor(w,h,tileSize) {
-        this.width = w;
-        this.height = h;
-
-        this.tileSize = tileSize;
-
-        this.chunkSize = 200;
-        this.pendingRebakes = [];
-        this.rebakesPerFrame = 20;
-
-        this.chunks = {};
-        this.terrain_grid = new Uint8Array(w * h);
-
-        for(let i = 0; i < this.terrain_grid.length; i++) {
-            this.terrain_grid[i] = Terrain.WATER;
-        }
-
-        this.debugChunks = true;
-
-        this.noise = createNoise2D(() => Math.random());
-    }
-
-    getChunk(cx,cy) {
-        let chunk = this.chunks[`${cx},${cy}`];
-        if (!chunk) return null;
-        return chunk;
-    }
-
-    update(delta) {
-        for (let i = 0; i < this.rebakesPerFrame; i++) {
-            const job = this.pendingRebakes.shift();
-            if (job) {
-                this.rebakeChunk(job[0], job[1]);
-                this.getChunk(job[0], job[1]).dirty = false;
-            }
-            
-        }
-    }
-
-    generate(options = {}) {
-        const {
-            scale = 10,          // larger = smoother continents
-            octaves = 12,         // detail layers
-            persistence = 0.6,   // amplitude drop per octave
-            lacunarity = 2.5,    // frequency increase per octave
-            seaLevel = 0.35,
-            mountainLevel = 0.45
-        } = options;
-    
-        const width = this.width;
-        const height = this.height;
-    
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-    
-                // normalized coords (important)
-                const nx = x / width;
-                const ny = y / height;
-    
-                // --- FBM SIMPLEX NOISE ---
-                let amplitude = 1;
-                let frequency = 1;
-                let value = 0;
-                let max = 0;
-    
-                for (let i = 0; i < octaves; i++) {
-                    const sampleX = nx * scale * frequency;
-                    const sampleY = ny * scale * frequency;
-    
-                    value += this.noise(sampleX, sampleY) * amplitude;
-    
-                    max += amplitude;
-                    amplitude *= persistence;
-                    frequency *= lacunarity;
-                }
-    
-                value /= max;
-    
-                // normalize to [0,1]
-                value = (value + 1) * 0.5;
-    
-                const dx = nx - 0.5;
-                const dy = ny - 0.5;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-    
-                const falloff = 1 - dist; // island/continent center bias
-                value = value * (0.18) + falloff * 0.42;
-    
-                let tile;
-    
-                if (value < seaLevel) {
-                    tile = Terrain.WATER;
-                } else if (value > mountainLevel) {
-                    tile = Terrain.MOUNTAIN;
-                } else if (value < 0.6) {
-                    tile = Terrain.LAND;
-                } else {
-                    tile = Terrain.FOREST;
-                }
-    
-                this.terrain_grid[x + y * this.width] = tile;
-            }
-        }
-    
-        // mark all chunks dirty once
-        for (const key in this.chunks) {
-            this.chunks[key].dirty = true;
-        }
-    }
-
-    initChunks() {
-        this.generate();
-        const cs = this.chunkSize;
-    
-        const chunksX = Math.ceil(this.width / cs);
-        const chunksY = Math.ceil(this.height / cs);
-    
-        for (let cy = 0; cy < chunksY; cy++) {
-            for (let cx = 0; cx < chunksX; cx++) {
-                this.createChunk(cx, cy);
-            }
-        }
-    }
-
-    rebakeChunk(cx,cy) {
-        const chunk = this.getChunk(cx, cy);
-    
-        const ctx = chunk.ctx;
-
-        ctx.clearRect(0, 0, chunk.canvas.width, chunk.canvas.height);
-
-        const startX = cx * this.chunkSize;
-
-        const startY = cy * this.chunkSize;
-
-        const endX = Math.min(startX + this.chunkSize, this.width);
-
-        const endY = Math.min(startY + this.chunkSize, this.height);
-
-        for (let y = startY; y < endY; y++) {
-          for (let x = startX; x < endX; x++) {
-            const tile = this.getTile(x, y);
-
-            ctx.fillStyle = COLORS[tile];
-
-            ctx.fillRect((x - startX) * this.tileSize, (y - startY) * this.tileSize, this.tileSize, this.tileSize);
-          }
-        }
-
-        chunk.dirty = false;
-    }
-
-    createChunk(cx,cy) {
-        const c = document.createElement("canvas");
-        const ctx = c.getContext("2d");
-
-        c.width = this.chunkSize * this.tileSize;
-        c.height = this.chunkSize * this.tileSize;
-
-        const chunk = {
-            canvas: c,
-            ctx,
-            dirty: true
-        };
-    
-        this.chunks[`${cx},${cy}`] = chunk
-    
-        return chunk;
-    }
-
-    getTile(x, y) {
-        if ( x < 0 || y < 0 || x >= this.width || y >= this.height ) { return Terrain.WATER }
-        return this.terrain_grid[
-            x + y * this.width
-        ];
-    }
-    
-    setTile(x, y, tile) {
-        if ( x < 0 || y < 0 || x >= this.width || y >= this.height ) return;
-        this.terrain_grid[x + y * this.width] = tile;
-        const cx = Math.floor(x / this.chunkSize);
-        const cy = Math.floor(y / this.chunkSize);
-        this.getChunk(cx, cy).dirty = true;
-    }
-
-    rebakeTerrain() {
-        const ctx = this.terrainCtx;
-    
-        ctx.clearRect(0, 0, this.terrainCanvas.width, this.terrainCanvas.height);
-    
-        for(let x = 0; x < this.width; x++) {
-            for(let y = 0; y < this.height; y++) {
-                const tile = this.getTile(x, y);
-
-                ctx.fillStyle = COLORS[tile];
-
-                ctx.fillRect(
-                    x * this.tileSize,
-                    y * this.tileSize,
-                    this.tileSize,
-                    this.tileSize
-                );
-            }
-        }
+    constructor(id, name) {
+        this.id = id;
+        this.name = name;
+        this.color = [Math.floor(Math.random()*255), Math.floor(Math.random()*255), Math.floor(Math.random()*255)];
+        this.has_owner = false;
+        this.owned_by_self = false;
+        this.clicked = false;
     }
 }
 
@@ -861,7 +1119,7 @@ class Engine {
         this.keyboard = new Keyboard();
         this.camera = new Camera(this);
 
-        this.map = new map(500, 250, 32);
+        this.map = new map(500, 250, 32, this);
         this.map.initChunks();
 
         this.camera.bounds = new Vector2(
@@ -899,7 +1157,9 @@ class Engine {
         this.units = new UnitController(this);
         this.units.init();
 
-        this.tmp = new Vector2(0, 0)
+        this.tmp = new Vector2(0, 0);
+
+        this.nationID = this.map.claimNation();
     }
 
     getPos(x, y, w, h) {
@@ -949,6 +1209,7 @@ class Engine {
             return;
         }
         let clicked_unit = null;
+        let clicked_nation = false;
         this.units.units.forEach(u => {
             let size = u.getSize()
             const pos = this.camera.worldToScreen(u.pos);
@@ -957,16 +1218,24 @@ class Engine {
                 clicked_unit = u; 
             }
         })
+        let mouse_map_loc = this.map.screenToMap(this.mousePos);
+        let tile_owner = this.map.getOwner(mouse_map_loc.x, mouse_map_loc.y);
+        this.map.nations.forEach(n => n.clicked = false)
+        if(tile_owner != null && tile_owner != -1) {
+            this.map.getNationFromID(tile_owner).clicked = true;
+            clicked_nation = true;
+            this.map.rebakeAllChunks();
+        }
         if(!this.keyboard.isDown("ShiftLeft")) {
             this.selected_units.forEach(u => { u.selected = false })
             this.selected_units = [];
         }
         this.data.mode = null;
         this.data.mode_data.inputted_data = ""
-        if(clicked_unit == null) {
+        if(this.keyboard.isDown("ShiftLeft")) {
             this.selection.active = true;
             this.selection.start.setIp(this.camera.screenToWorld(this.mousePos));
-        } else {
+        } else if(clicked_unit != null) {
             if(!this.selected_units.includes(clicked_unit)) this.selected_units.push(clicked_unit);
             clicked_unit.selected = true;
         }
@@ -995,29 +1264,36 @@ class Engine {
     setupMenus() {}
     getPossibleKeybinds() {
         let names = [];
+        const m = this.data.mode;
+        const l = this.selected_units.length;
 
         names.push(["a", "select all"])
-        if(this.selected_units.length == 0) {
+        if(l == 0) {
             names.push(["m", "regenerate map"])
         }
-        if(this.selected_units.length > 0) {
-            names.push(["m", `converge unit${this.selected_units.length > 1 ? "s" : ""}`])
+        if(l > 0) {
             names.push(["q", `move unit${this.selected_units.length > 1 ? "s" : ""} relative`])
-            names.push(["s", `(split unit${this.selected_units.length > 1 ? "s" : ""} into groups`])
-            names.push(["n", `select nearby unit${this.selected_units.length > 1 ? "s" : ""}`])
+            names.push(["m", `converge unit${this.selected_units.length > 1 ? "s" : ""}`])
+            if(m != "split") names.push(["s", `split unit${this.selected_units.length > 1 ? "s" : ""} into groups`])
+            if(m != "nearby") names.push(["n", `select nearby unit${this.selected_units.length > 1 ? "s" : ""}`])
             names.push(["l", `lock selected unit${this.selected_units.length > 1 ? "s" : ""} from merging`])
-            if(this.data.mode != "formation" && this.selected_units.some(u => !u.targetPos.isNull())) names.push(["c", `cancel unit${this.selected_units.length > 1 ? "s" : ""} destination`])
+            if(m != "formation" && this.selected_units.some(u => !u.targetPos.isNull())) names.push(["c", `cancel unit${this.selected_units.length > 1 ? "s" : ""} destination`])
         }
-        if(this.selected_units.length > 1) {
-            names.push(["f", "assemble formation"])
+        if(l > 1) {
+            if(m != "formation") names.push(["f", "assemble formation"])
         }
-        if(this.data.mode == "split") {
+        if(m == "split") {
+            names.push(["s", `split units`])
             names.push(["1-0", "select number of groups"])
+            names.push(["backspace", "delete last input"])
         }
-        if(this.data.mode == "nearby") {
+        if(m == "nearby") {
+            names.push(["n", `select units within distance`])
             names.push(["1-0", "select distance"])
+            names.push(["backspace", "delete last input"])
         }
-        if(this.data.mode == "formation") {
+        if(m == "formation") {
+            names.push(["f", `move to formation`])
             names.push(["h", "horizontal line formation"])
             names.push(["v", "vertical line formation"])
             names.push(["c", "circle formation"])
@@ -1085,7 +1361,7 @@ class Engine {
                 switchMode("move");
             } else {
                 this.map.noise = createNoise2D(() => Math.random());
-                this.map.generate();
+                this.map.generate("island");
             }
         }); this.keyboard.setFunctionOnKeyPress("KeyL", () => {
             if(this.selected_units.length > 0) {
@@ -1177,15 +1453,31 @@ class Engine {
         this.menus.hover_menu.visible = true;
         this.menus.hover_menu.scalePos = false;
         this.menus.hover_menu.createUIElement("custom", new Vector2(0.5, 0.5), 0, 0, {"renderFn": (ctx, e, rp) => {
-            let unit = e.data.unit;
-            ctx.fillStyle = "black";
-            ctx.font = "12px monospace";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(`${unit.count} ${unit.type} unit${unit.count > 1 ? "s" : ""}`, rp.x, rp.y);
-            ctx.fillStyle = "red"
-            ctx.font = "13px monospace";
-            ctx.fillText(`${unit.lockedFromMerging ? "LOCKED" : ""}`, rp.x, rp.y+20);
+            switch(e.data.mode) {
+                case "unit": {
+                    let unit = e.data.unit;
+                    ctx.fillStyle = "black";
+                    ctx.font = "12px monospace";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(`${unit.count} ${unit.type} unit${unit.count > 1 ? "s" : ""}`, rp.x, rp.y);
+                    ctx.fillStyle = "red"
+                    ctx.font = "13px monospace";
+                    ctx.fillText(`${unit.lockedFromMerging ? "LOCKED" : ""}`, rp.x, rp.y+20);
+                    break;
+                }
+                case "nation": {
+                    let nation = e.data.nation;
+                    ctx.fillStyle = "black";
+                    ctx.font = "12px monospace";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(`${nation.name}`, rp.x, rp.y);
+                    ctx.fillStyle = "red"
+                    ctx.font = "13px monospace";
+                    ctx.fillText(`${nation.has_owner ? "OWNED" : ""}`, rp.x, rp.y+20);
+                }
+            }
         }})
     }
     update(delta) {
@@ -1209,11 +1501,19 @@ class Engine {
         this.menus.hover_menu.pos.setIp(this.tmp);
         this.menus.hover_menu.visible = false;
         this.menus.hover_menu.UIElements[0].data.unit = null;
+        let mouse_map_loc = this.map.screenToMap(this.mousePos);
+        let tile_owner = this.map.getOwner(mouse_map_loc.x, mouse_map_loc.y);
+        if(tile_owner != null && tile_owner != -1) {
+            this.menus.hover_menu.visible = true;
+            this.menus.hover_menu.UIElements[0].data.mode = "nation";
+            this.menus.hover_menu.UIElements[0].data.nation = this.map.getNationFromID(tile_owner);
+        }
         this.units.units.forEach(u => {
             let size = u.getSize();
             let pos = this.camera.worldToScreen(u.pos);
             if(Maths.rectRect(this.mousePos.x-5, this.mousePos.y-5, 10, 10, pos.x-size/2, pos.y-size/2, size, size)) {
                 this.menus.hover_menu.visible = true;
+                this.menus.hover_menu.UIElements[0].data.mode = "unit";
                 this.menus.hover_menu.UIElements[0].data.unit = u;
                 document.body.style.cursor = "pointer"
             }

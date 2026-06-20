@@ -1,0 +1,60 @@
+<!--
+ * author thebadlorax
+ * created on 19-06-2026-19h-42m
+ * github: https://github.com/thebadlorax
+ * copyright 2026
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>emulator</title>
+    <link href="../font.css" rel="stylesheet">
+    <script type="module" src="./emulator.js"></script>
+  </head>
+  <style>
+    html {
+        overscroll-behavior: none;
+        font-family: "Jersey 20", sans-serif;
+        font-weight: 200;
+        font-size: 20px;
+        font-style: normal;
+    }
+
+    body {
+        background-color: grey;
+        background-repeat: no-repeat;
+        color: black;
+        text-decoration: none;
+    }
+
+    .input {
+        font-family: "Jersey 20";
+        color: black;
+        background-color: grey;
+        outline: none;
+        margin-bottom: 1vw;
+        margin-right: 1vw;
+        width: 15vw;
+        height: 3vw;
+    }
+
+    .input::placeholder {
+        font-size: .8vw;
+    }
+  </style>
+  <body>
+    <div id="menu" style="position: absolute; top: 50vh; left: 35vw;">
+        <p style="font-size: 7vw; position: absolute; top: -30vh; left: 5vw;">emulator</p>
+        <button class="input" id="pkmnfr">pokemon firered</button>
+        <button class="input" id="smb">super mario</button>
+    </div>
+    <div id="emulator" style="display:none; align-items: center; justify-content: center; height: 90vh;">
+        <div style="width:640px;height:480px;max-width:100%">
+            <div id="game"></div>
+        </div>
+    </div>
+  </body>
+</html>

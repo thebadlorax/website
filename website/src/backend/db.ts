@@ -16,6 +16,9 @@ export class Database {
     private log: LogWizard
     private lock: Promise<void> = Promise.resolve();
     public last_backup_time: number = 0;
+    private cached: any = {};
+    private dirty = false;
+    private updateInterval = 250;
 
     constructor(path: string) {
         this.path = path;
@@ -35,29 +38,30 @@ export class Database {
         }
     }
 
+    async updateLoop() {
+        try {
+            const file = Bun.file(this.path);
+            if (!(await file.exists())) await file.write(`{"nothing":"wow"}`);
+            // @ts-expect-error
+            await Bun.write(file, JSON.stringify(this.cached), { atomic: true });
+            this.dirty = false;
+        } catch {
+            this.log.error(`Error modifying database`, "DATABASE", "MODIFICATION");
+        }
+        
+    }
+
     async init() {
         if(!await Bun.file(this.path).exists()) await Bun.file(this.path).write(`{}`);
-        this.log.log("Initialized", "DATABASE")
+        this.cached = await Bun.file(this.path).json();
+        setInterval(this.updateLoop.bind(this), this.updateInterval);
+        this.log.log("Initialized", "DATABASE");
     }
 
-    async modify(element: string, data: Record<any, any>) {
-        await this.withLock(async () => {
-            try {
-                const file = Bun.file(this.path);
-                if (!(await file.exists())) await file.write(`{"nothing":"wow"}`);
-                const json = await file.json();
-
-                json[element] = data;
-
-                // @ts-expect-error
-                await Bun.write(file, JSON.stringify(json), { atomic: true });
-            } catch (error) {
-                this.log.error(`Error modifying ${element}: ${error}`, "DATABASE", "MODIFICATION");
-            }
-        });
-    }
+    modify(element: string, data: Record<any, any>) { this.cached[element] = data; this.dirty = true; }
 
     async fetch(element: string) {
+        if(this.cached[element] != undefined) return this.cached[element];
         try {
             const file = Bun.file(this.path)
             let json = await file.json();
