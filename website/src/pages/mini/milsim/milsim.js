@@ -5,11 +5,11 @@
  * copyright 2026
 */
 
-import { Maths, Vector2 } from "./maths.js";
-import { clamp } from "../common.js";
-import { generateRandomString, getRandomName, Loader } from "./mini-common.js";
+import { Maths, Vector2 } from "../maths.js";
+import { clamp } from "../../common.js";
+import { generateRandomString, getRandomName, Loader } from "../mini-common.js";
 
-import { createNoise2D } from "./noise.js";
+import { createNoise2D } from "../noise.js";
 
 // INPUT
 export class Keyboard {
@@ -543,7 +543,7 @@ class Camera {
     
         this.pos.setIp(npos);
     }
-}
+};
 const Terrain = {
     WATER: 0,
     LAND: 1,
@@ -1010,7 +1010,7 @@ class map {
         if ( x < 0 || y < 0 || x >= this.width || y >= this.height ) return;
         this.owner_grid[x + y * this.width] = id;
     }
-}
+};
 
 // NETWORKING
 class Server {

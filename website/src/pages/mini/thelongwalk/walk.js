@@ -5,8 +5,8 @@
  * copyright 2026
 */
 
-import { Loader } from "./mini-common.js";
-import { clamp, getApiLink } from "../common.js";
+import { Loader } from "../mini-common.js";
+import { clamp, getApiLink } from "../../common.js";
 
 if(window.localStorage.getItem("has_won")) {
     alert("no walking the walk twice now lad");

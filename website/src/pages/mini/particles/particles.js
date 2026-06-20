@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { Maths } from "./maths.js";
+import { Maths } from "../maths.js";
 
 class UIElement {
     constructor(type, x, y, w, h, d, renderer) {

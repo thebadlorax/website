@@ -5,9 +5,9 @@
  * copyright 2026
 */
 
-import { Maths } from "./maths.js";
-import { formatNumber } from "../common.js";
-import { Loader, generateRandomString } from "./mini-common.js";
+import { Maths } from "../maths.js";
+import { formatNumber } from "../../common.js";
+import { Loader, generateRandomString } from "../mini-common.js";
 
 class Renderer {
     constructor(ctx, engine, loader) {
