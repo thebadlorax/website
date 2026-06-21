@@ -121,3 +121,5 @@ export async function getImageSize(url: string) {
 
   throw new Error("Unsupported image format");
 }
+
+export function sumNumArray(arr: Array<number>) { let val = 0; arr.forEach(num => val += num); return val; }

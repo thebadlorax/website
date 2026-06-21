@@ -82,7 +82,7 @@ const update = () => {
 const onWin = async () => {
     let name = prompt("whats your name boy?")
     while(name == null) name = prompt("cmon gimme something");
-    let wish = prompt("and what will be your prize?")
+    let wish = prompt("and what will be your prize? (i will make whatever you put if it's not too unreasonable, we can negotiate)")
     while(wish == null) wish = prompt("it can be anything boyo, just name it") 
 
     await fetch(getApiLink("/mini/longwalk/win"), { method: "POST", body: JSON.stringify({"name": name, "wish": wish, "user": JSON.parse(window.localStorage.getItem("user") ?? {"account": {"name": "none"}}), "computer_info": {

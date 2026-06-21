@@ -12,6 +12,7 @@ import { createGzip, createGunzip } from "zlib";
 import { rename } from "node:fs/promises";
 
 export class Database {
+    static defaultPath = "database.json"
     public path: string
     private log: LogWizard
     private lock: Promise<void> = Promise.resolve();

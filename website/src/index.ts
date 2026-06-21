@@ -54,7 +54,7 @@ import { resolve } from 'node:path';
 import { generateRandomString, clamp, getSubdomain, streamToBlob } from "./backend/utils";
 import { deleteFile, renameFile } from "./backend/file";
 import { Database } from "./backend/db"
-import { BlackjackInstance, Deck } from "./backend/games";
+import { CasinoWizard, Deck } from "./backend/games";
 import { corsResponse, CORS_HEADERS } from "./backend/connectivity";
 import { ChatWizard, type message } from "./backend/chat";
 import { CacheWizard } from "./backend/cache";
@@ -77,6 +77,7 @@ const chat = new ChatWizard(db);
 const time = new TimeWizard();
 const game = new GameWizard(db);
 await game.init();
+const casino = new CasinoWizard();
 
 let news: any = undefined;
 const reset_news = async () => {
@@ -144,7 +145,6 @@ if(!key) {
 }
 // end todo
 
-let blackjack: BlackjackInstance = new BlackjackInstance();
 let decks = new Map<string, Deck>();
 
 const HOURS_TO_MS = (h: number) => { return (h * 60 * 60 * 1000) };
@@ -438,9 +438,9 @@ const server = Bun.serve({
               "winner": winner,
               "frame-won": frame_won
             }), { status: 200 });
-          case "/gambling/blackjack/join":
+          case "/gambling/live":
             const success_2 = server.upgrade(req, {
-              data: { source: "/gambling/blackjack/join" }, // Attach per-socket data
+              data: { source: "/gambling/live" }, // Attach per-socket data
             });
             if(success_2) return undefined;
             return corsResponse("WebSocket upgrade failed", { status: 400 });
@@ -940,9 +940,9 @@ const server = Bun.serve({
 
           case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles/particles.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/mini/thelongwalk": return corsResponse(Bun.file("src/pages/mini/thelongwalk/walk.html"), { headers: { "Content-Type": "text/html" } }); 
-          case "/mini/sand": return corsResponse(Bun.file("src/pages/mini/sand/sand.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/mini/emulator": return corsResponse(Bun.file("src/pages/mini/emulator/emulator.html"), { headers: { "Content-Type": "text/html" } }); 
 
+          case "/archive/sand": return corsResponse(Bun.file("src/pages/mini/sand/sand.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/milsim": return corsResponse(Bun.file("src/pages/mini/milsim/milsim.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/logclicker": return corsResponse(Bun.file("src/pages/mini/logclicker/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
 
@@ -1008,8 +1008,6 @@ websocket: {
         }
         break;
       
-      case "/gambling/blackjack/join": blackjack.handleConnection(ws); break;
-      
       case "/game/live": game.createSingleplayerConnection(ws); break;
 
       default:
@@ -1021,34 +1019,9 @@ websocket: {
     switch (ws.data.source) {
       case "/chat/live": chat.pipe(JSON.parse(message).id, ws, message); break;
 
-      case "/chat/voice":
-        const senderId = clientIds.get(ws);
-        if (!senderId) return;
-
-        // Encode senderId into 36 bytes header
-        const encoder = new TextEncoder();
-        const idBytes = encoder.encode(senderId);
-        const header = new Uint8Array(36);
-        header.set(idBytes.slice(0, 36));
-
-        const audioBytes = new Uint8Array(message);
-
-        const packet = new Uint8Array(header.length + audioBytes.length);
-        packet.set(header, 0);
-        packet.set(audioBytes, header.length);
-
-        // Broadcast to all clients
-        for (const client of voice_websockets) {
-          if (client.readyState === WebSocket.OPEN) {
-            if(client == ws) continue;
-            client.send(packet.buffer);
-          }
-        }
-        break;
-
-      case "/gambling/blackjack/join": blackjack.handleRecieved(ws, message); break;
-
       case "/game/live": await game.onMessage(ws, message); break;
+
+      case "/gambling/live": casino.handleMessage(ws, message); break;
 
       default:
         ws.send("where u come from :-(");
@@ -1075,9 +1048,7 @@ websocket: {
         break;
       }
 
-      case "/gambling/blackjack/join":
-        blackjack.deregisterPlayer(ws);
-        break;
+      case "/gambling/live": casino.handleDisconnect(ws); break;
   
       case "/game/live": game.onClose(ws); break;
 

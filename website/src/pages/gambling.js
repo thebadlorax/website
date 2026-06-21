@@ -76,6 +76,7 @@ function hideSurveyMenu() {
 }
 
 const receiptNotification = () => {
+    if(document.getElementById("receipt").matches(":hover")) return;
     let receipt = document.getElementById("receipt");
     receipt.style.transform = "scale(0.85) rotate(25deg)";
     setTimeout(() => { receipt.style.removeProperty("transform"); }, 200);
@@ -100,20 +101,25 @@ export function hideReceiptMenu(divname) {
 document.getElementById("survey").addEventListener("click", () => { showSurveyMenu(); })
 document.getElementById("survey-close").addEventListener("click", () => { hideSurveyMenu(); })
 
+let user_update = false;
+
 color_picker.value = color;
 color_picker.style.color = color;
-color_picker.addEventListener("input", () => {
+color_picker.addEventListener("input", async () => {
     color_picker.value = `#${color_picker.value.slice(1)}`
     if(color_picker.value.length == 7) {
         color = color_picker.value;
         color_picker.style.color = color;
-        changeSettingOnAccount("color", color);
+        await changeSettingOnAccount("color", color);
+        user_update = true;
     }
 })
 name_picker.value = name;
-name_picker.addEventListener("input", () => {
+name_picker.addEventListener("input", async () => {
+    if(name_picker.value.length == 0) name_picker.value = "no name"
     name = name_picker.value;
-    changeSettingOnAccount("display_name", name);
+    await changeSettingOnAccount("display_name", name);
+    user_update = true;
 });
 
 preloadImages(["/res/gambling_balance_survey.png"])
@@ -132,3 +138,370 @@ const checkIfDisabled = async () => {
     })
 }
 setInterval(async () => {await checkIfDisabled()}, 3000);
+
+
+
+
+const player_name_positions = [[70, 20], [80, 30], [83, 50], [81, 70], [69, 80], [61, 50]]
+
+class Packet {
+    static fromFormatted(formatted) {
+        let f = atob(formatted).split(Packet.seperator);
+        return new Packet(
+            f[0],
+            JSON.parse(f[1])
+        )
+    }
+    static seperator = ";"
+    constructor(type, data) {
+        this.type = type; this.data = data;
+    }
+
+    format() {
+        return btoa(`${this.type}${Packet.seperator}${JSON.stringify(this.data)}`)
+    }
+}
+
+class UIElement {
+    static fromPacketData(d) {
+        return new UIElement(
+            d.x, d.y, d.type, d.data, d.listeners, d.id
+        )
+    }
+    constructor(x, y, type, data, listeners, id) {
+        this.x = x; this.y = y; this.type = type;
+        this.data = data; this.listeners = listeners;
+        this.id = id;
+    }
+
+    createElement() {
+        let n = null;
+        if(this.ele != undefined) this.destroy();
+
+        let p = document.createElement("div");
+
+        const parent = this.data.position == "absolute" ? document.body : document.getElementById("receipt");
+        const unit = this.data.position_unit??"%";
+        switch(this.type) {
+            case "button": {
+                const width = this.data.w ?? 0.1;
+                const height = this.data.h ?? 0.1;
+                n = document.createElement("button");
+                n.classList.add("uibutton")
+                n.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
+                n.style.left = `${(this.x-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                n.style.top = `${(this.y-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                n.style.width = `${width*(unit == "%" ? 100 : 1)}${unit}`
+                n.style.height = `${height*(unit == "%" ? 100 : 1)}${unit}`
+
+                if(this.listeners.includes("click")) {
+                    n.style.cursor = "pointer";
+                    n.addEventListener("click", e => {
+                        casino.sendPacket(new Packet("UIInteraction", {"type": "click", "id": this.id}))
+                    })
+                }
+
+                n.textContent = this.data.label ?? "";
+
+                break;
+            }
+
+            case "text": {
+                const width = this.data.w ?? 0.1;
+                const height = this.data.h ?? 0.1;
+                n = document.createElement("text");
+                n.classList.add("uitext")
+                n.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
+                n.style.left = `${(this.x-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                n.style.top = `${(this.y-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                n.style.width = `${width*(unit == "%" ? 100 : 1)}${unit}`
+                n.style.height = `${height*(unit == "%" ? 100 : 1)}${unit}`
+
+                if(this.listeners.includes("click")) {
+                    n.style.cursor = "pointer";
+                    n.addEventListener("click", e => {
+                        casino.sendPacket(new Packet("UIInteraction", {"type": "click", "id": this.id}))
+                    })
+                }
+
+                n.textContent = this.data.text ?? "";
+
+                break;
+            }
+
+            case "slider": {
+                const width = this.data.w ?? 0.1;
+                const height = this.data.h ?? 0.1;
+                n = document.createElement("input");
+                n.classList.add("uibutton")
+                n.type = "range";
+                n.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
+                n.style.left = `${(this.x-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                n.style.top = `${(this.y-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                n.style.width = `${width*(unit == "%" ? 100 : 1)}${unit}`
+                n.style.height = `${height*(unit == "%" ? 100 : 1)}${unit}`
+
+                n.min = this.data.min??0;
+                n.max = this.data.max??100;
+                n.step = this.data.step??1;
+                n.value = this.data.start??Math.floor(n.max/2)
+
+                if(this.listeners.includes("change")) {
+                    n.style.cursor = "pointer";
+                    n.addEventListener("click", e => {
+                        casino.sendPacket(new Packet("UIInteraction", {"type": "change", "id": this.id, "eventData": {"value": n.value}}));
+                    })
+                }
+
+                if(this.data.label != undefined) {
+                    let a = document.createElement("p");
+                    a.classList.add("uitext");
+                    a.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
+                    a.style.left = `${(this.x-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                    a.style.top = `${((this.y*0.95)-height/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                    a.textContent = this.data.label
+                    p.appendChild(a);
+                }
+
+                if(this.data.showVal) {
+                    let a = document.createElement("p");
+                    a.classList.add("uitext");
+                    a.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
+                    a.style.left = `${(this.x+width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                    a.style.top = `${((this.y*1.08)-height/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                    a.textContent = `${this.data.valPrefix??""}${n.value}${this.data.valSuffix??""}`
+                    n.addEventListener("input", () => {
+                        a.textContent = `${this.data.valPrefix??""}${n.value}${this.data.valSuffix??""}`
+                    })
+                    p.appendChild(a);
+                }
+
+                break;
+            }
+        }
+        p.appendChild(n);
+        parent.appendChild(p);
+        this.ele = p;
+    }
+
+    destroy() {
+        if(this.ele == undefined) return;
+        this.ele.replaceChildren();
+        this.ele.remove();
+    }
+}
+
+class UIManager {
+    constructor() {
+        this.UIElements = new Array();
+    }
+
+    createUIElement(ele) {
+        this.UIElements.push(ele);
+        ele.createElement();
+        receiptNotification();
+    }
+
+    updateUIElement(ele) {
+        this.destroyUIElement(ele.id);
+        this.createUIElement(ele);
+    }
+
+    destroyUIElement(id) {
+        let e = this.UIElements.find(u => u.id == id)
+        if(!e) return;
+        e.destroy();
+        this.UIElements.splice(this.UIElements.indexOf(e), 1);
+    }
+
+    clearUI() {
+        this.UIElements.forEach(u => {
+            this.destroyUIElement(u.id)
+        })
+    }
+}
+
+class Casino {
+    constructor() {
+        this.ws = new WebSocket(location.host.includes("66.65.25.15") ? 
+            `${location.protocol}//${location.host}/subdomain=api/gambling/live` :
+            `${location.protocol}//api.${location.host}/gambling/live`
+        )
+        this.ws.onopen = this.onConnect.bind(this);
+        this.ws.onmessage = (m) => { this.onRecieve(Packet.fromFormatted(m.data)) }
+
+        this.ui = new UIManager();
+
+        this.log_packets = true;
+    }
+    async init() {
+        create_game_button.addEventListener("click", () => {
+            this.createNewInstance(game_chooser.value)
+        })
+        join_game_button.addEventListener("click", () => {
+            this.joinInstance(progress_game_chooser.value);
+        })
+        progress_game_chooser.addEventListener("change", () => {
+            this.sendPacket(new Packet("getTableInformation", {"id": progress_game_chooser.value}));
+        })
+    }
+
+    sendPacket(packet) { 
+        if(this.log_packets) console.log(`outgoing [${packet.type}]packet, data: ${JSON.stringify(packet.data)}`)
+        this.ws.send(packet.format());
+     }
+
+    setupTableUI(data) {
+        table_ui.replaceChildren();
+        let n = []
+        data.clients.forEach((c, index) => {
+            const is_owner = data.owner.id == c.id;
+            let ele = document.createElement("p");
+            ele.classList.add("uitext");
+            ele.style.position = "absolute";
+            ele.style.top = `${player_name_positions[index][0]}vw`;
+            ele.style.left = `${player_name_positions[index][1]}vw`;
+            ele.style.width = `0.1vw`
+            ele.style.color = c.color;
+            ele.textContent = c.name;
+            if(is_owner) {
+                ele.style.textDecoration = "underline";
+                ele.style.fontWeight = "bold";
+            }
+            ele.dataset.id = c.id;
+            n.push(ele);
+            table_ui.appendChild(ele);
+        })
+        return n;
+    }
+
+    onConnect() {
+        let user = JSON.parse(window.localStorage.getItem("user"));
+        this.sendPacket(new Packet("initauth", {"name": user.account.name, "pass": user.account.pass}));
+    }
+    onRecieve(packet) {
+        if(this.log_packets) console.log(`incoming [${packet.type}]packet, data: ${JSON.stringify(packet.data)}`)
+        if(packet.data.status != undefined && packet.data.status != 200) {
+            console.log(`packet ${packet.type} response has error, data: ${packet.data}`);
+        }
+        switch(packet.type) {
+            case "initauth": {
+                console.log("initialized w/ casino")
+                this.sendPacket(new Packet("fetchInstances", {}))
+                break;
+            }
+
+            case "createUI": {
+                this.ui.createUIElement(UIElement.fromPacketData(packet.data));
+                break;
+            }
+            case "destroyUI": {
+                this.ui.destroyUIElement(packet.data.id)
+                break;
+            }
+            case "updateUI": {
+                this.ui.updateUIElement(UIElement.fromPacketData(packet.data));
+                break;
+            }
+            
+            case "instanceEnrollment": {
+                game_choosing_div.style.display = "none";
+                break;
+            }
+            case "instanceUnenrollment": {
+                game_choosing_div.style.display = "block";
+                table_ui.replaceChildren();
+                this.ui.clearUI();
+                break;
+            }
+
+            case "getTableInformation": {
+                this.setupTableUI(packet.data.data.information);
+                break;
+            }
+            case "refreshTable": {
+                let client_texts = this.setupTableUI(packet.data);
+                let leave_button = document.createElement("button");
+                leave_button.classList.add("uibutton");
+                leave_button.style.position = "absolute";
+                leave_button.style.top = `67vw`;
+                leave_button.style.left = `53vw`;
+                leave_button.style.width = "4vw";
+                leave_button.style.height = "2vw";
+                leave_button.textContent = "leave"
+                leave_button.id = "leave_button";
+                leave_button.addEventListener("click", () => {
+                    casino.sendPacket(new Packet("leaveInstance", {}))
+                })
+                table_ui.appendChild(leave_button);
+
+                let self = JSON.parse(window.localStorage.getItem("user"));
+                if(self.account.id == packet.data.owner.id) {
+                    let start_button = document.createElement("button");
+                    start_button.classList.add("uibutton");
+                    start_button.style.position = "absolute";
+                    start_button.style.top = `67vw`;
+                    start_button.style.left = `43vw`;
+                    start_button.style.width = "4vw";
+                    start_button.style.height = "2vw";
+                    start_button.textContent = "start"
+                    start_button.id = "start_button";
+                    start_button.addEventListener("click", () => {
+                        casino.sendPacket(new Packet("startGame", {}))
+                    })
+                    table_ui.appendChild(start_button);
+
+                    client_texts.forEach(ele => {
+                        const id = ele.dataset.id;
+                        if(id == self.account.id) return;
+                        ele.style.cursor = "pointer";
+                        ele.addEventListener("click", () => {
+                            casino.sendPacket(new Packet("setOwner", {"id": id}))
+                        })
+                    })
+                }
+                break;
+            }
+            case "fetchInstances": {
+                if(packet.data.data.instances.length == 0) join_game_ui.style.display = "none"
+                else join_game_ui.style.display = "block"
+                progress_game_chooser.replaceChildren();
+                packet.data.data.instances.forEach(i => {
+                    let o = document.createElement("option");
+                    o.textContent = `${i.owner.name}'s ${i.type} table`
+                    o.value = i.id;
+                    progress_game_chooser.appendChild(o);
+                })
+                break;
+            }
+
+            case "startGame": {
+                leave_button.style.top = "65vw";
+                leave_button.style.left = "57vw";
+                start_button.remove();
+            }
+
+            default: {
+                //console.log(`unhandled packet: ${atob(packet.format())}`)
+                break;
+            }
+        }
+    }
+
+    createNewInstance(gameType) {
+        this.sendPacket(new Packet("createInstance", {"type": gameType}))
+    }
+    joinInstance(id) {
+        this.sendPacket(new Packet("joinInstance", {"id": id}))
+    }
+}
+
+const casino = new Casino();
+await casino.init();
+
+setInterval(() => {
+    if(!user_update) return;
+    let user = JSON.parse(window.localStorage.getItem("user"));
+    casino.sendPacket(new Packet("updateUser", {"new_user": user}))
+    user_update = false;
+})

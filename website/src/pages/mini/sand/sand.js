@@ -72,7 +72,7 @@ class Engine {
         const i = this.index(x, y);
     
         // gravity
-        this.velocity[i] += 80 * delta;
+        this.velocity[i] += 120 * delta;
     
         // accumulate fractional falling
         this.progress[i] += this.velocity[i] * delta;
@@ -152,8 +152,14 @@ class Engine {
         this.flip = !this.flip;
     
         for (let y = this.gridHeight - 2; y >= 0; y--) {
-            for (let x = 0; x < this.gridWidth; x++) {
-                this.updateCell(x, y, delta);
+            if (this.flip) {
+                for (let x = 0; x < this.gridWidth; x++) {
+                    this.updateCell(x, y, delta);
+                }
+            } else {
+                for (let x = this.gridWidth - 1; x >= 0; x--) {
+                    this.updateCell(x, y, delta);
+                }
             }
         }
     }

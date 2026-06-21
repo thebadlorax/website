@@ -24,6 +24,17 @@ body {
   height: 115vw;
 }
 
+.uitext {
+    color: black;
+
+    -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none;   /* Chrome, Safari, Opera */
+    -khtml-user-select: none;    /* Konqueror */
+    -moz-user-select: none;      /* Firefox */
+    -ms-user-select: none;       /* Internet Explorer/Edge */
+    user-select: none;           /* Standard syntax */
+}
+
 .not-picked {
     opacity: 80%;
     transform: scale(0.95);
@@ -31,6 +42,21 @@ body {
 
 .basic-text {
     color: black;
+}
+
+.uibutton {
+    font-family: "Jersey 20";
+    color: black;
+    background-color: grey;
+    outline: none;
+    margin-bottom: 1vw;
+    margin-right: 1vw;
+    width: 15vw;
+    height: 3vw;
+}
+
+.uibutton::placeholder {
+    font-size: .8vw;
 }
 
 .button {
