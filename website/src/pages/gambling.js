@@ -373,6 +373,8 @@ class Casino {
 
         this.ui = new UIManager();
 
+        this.in_game = false;
+
         this.log_packets = false;
     }
     async init() {
@@ -395,6 +397,7 @@ class Casino {
         });
 
         this.points = await getPoints() ?? 0;
+        this.is_monopoly_money = false;
         this.resetPointsText();
     }
 
@@ -432,7 +435,7 @@ class Casino {
     }
 
     resetPointsText() {
-        points.textContent = `${this.points} points`
+        points.textContent = `${this.points} points${this.is_monopoly_money ? "*" : ""}`
     }
 
     onConnect() {
@@ -442,7 +445,7 @@ class Casino {
     onRecieve(packet) {
         if(this.log_packets) console.log(`incoming [${packet.type}]packet, data: ${JSON.stringify(packet.data)}`)
         if(packet.data.status != undefined && packet.data.status != 200) {
-            console.log(`packet ${packet.type} response has error, data: ${JSON.stringify(packet.data)}`);
+            console.log(`incoming [${packet.type}]packet has error, data: ${JSON.stringify(packet.data)}`);
         }
         switch(packet.type) {
             case "initauth": {
@@ -475,7 +478,8 @@ class Casino {
             case "instanceUnenrollment": {
                 game_choosing_div.style.display = "block";
                 table_ui.replaceChildren();
-                leave_button.remove();
+                try { leave_button.remove(); }
+                catch {}
                 this.ui.clearUI();
                 break;
             }
@@ -486,6 +490,7 @@ class Casino {
             }
             case "refreshTable": {
                 let client_texts = this.setupTableUI(packet.data);
+                if(this.in_game) return;
                 let leave_button = document.createElement("button");
                 leave_button.classList.add("uibutton");
                 leave_button.style.position = "absolute";
@@ -497,6 +502,7 @@ class Casino {
                 leave_button.id = "leave_button";
                 leave_button.addEventListener("click", () => {
                     casino.sendPacket(new Packet("leaveInstance", {}))
+                    this.in_game = false;
                     leave_button.remove()
                 })
                 document.body.appendChild(leave_button);
@@ -530,10 +536,10 @@ class Casino {
                 break;
             }
             case "fetchInstances": {
-                if(packet.data.data.instances.length == 0) join_game_ui.style.display = "none"
+                if(packet.data.data.instances.filter(i => i.can_join).length == 0) join_game_ui.style.display = "none"
                 else join_game_ui.style.display = "block"
                 progress_game_chooser.replaceChildren();
-                packet.data.data.instances.forEach(i => {
+                packet.data.data.instances.filter(i => i.can_join).forEach(i => {
                     let o = document.createElement("option");
                     o.textContent = `${i.owner.name}'s ${i.type} table`
                     o.value = i.id;
@@ -542,17 +548,31 @@ class Casino {
                 break;
             }
 
+            case "setMonopolyMoney": {
+                this.is_monopoly_money = packet.data.flag
+                break;
+            }
+
             case "changePoints": {
                 this.points += packet.data.delta;
                 this.resetPointsText();
                 break;
             }
+            case "setPoints": {
+                this.points = packet.data.amt;
+                this.resetPointsText();
+                break;
+            }
 
             case "startGame": {
-                leave_button.style.top = "65vw";
-                leave_button.style.left = "57vw";
+                document.getElementById("leave_button").style.top = "65vw";
+                document.getElementById("leave_button").style.left = "57vw";
+                document.querySelectorAll('#leave_button').forEach(element => {
+                    if(element.style.top != "65vw") element.remove()
+                });
                 try { start_button.remove(); }
                 catch {}
+                this.in_game = true;
                 break;
             }
 
@@ -563,8 +583,8 @@ class Casino {
         }
     }
 
-    createNewInstance(gameType) {
-        this.sendPacket(new Packet("createInstance", {"type": gameType}))
+    createNewInstance(gameType, settings={}) {
+        this.sendPacket(new Packet("createInstance", {...{"type": gameType}, ...settings}))
     }
     joinInstance(id) {
         this.sendPacket(new Packet("joinInstance", {"id": id}))

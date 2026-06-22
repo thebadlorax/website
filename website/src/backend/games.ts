@@ -213,6 +213,17 @@ class ClientUIElement {
     }
 }
 
+const DefaultGameInstanceSettings = () => { return {
+    monopoly_money: false,
+    starting_money: null,
+    max_players: 5
+} as GameInstanceSettings }
+type GameInstanceSettings = {
+    monopoly_money: boolean,
+    starting_money: number | null,
+    max_players: number
+}
+
 class GameInstance {
     public clients: Array<Client> = new Array();
     protected log: LogWizard = new LogWizard();
@@ -224,9 +235,11 @@ class GameInstance {
     public started: boolean = false;
     public can_join: boolean = true;
     public turn_index: number = -1;
+
+    public settings: GameInstanceSettings;
     protected casino: CasinoWizard;
-    constructor(type: string, owner: Client, casino: CasinoWizard) {
-        this.type = type; this.owner = owner; this.casino = casino;
+    constructor(type: string, owner: Client, casino: CasinoWizard, settings: GameInstanceSettings | null = null) {
+        this.type = type; this.owner = owner; this.casino = casino; settings != null ? this.settings = settings : this.settings = DefaultGameInstanceSettings();
     }
 
     async init() {}
@@ -241,7 +254,8 @@ class GameInstance {
         if(!this.clients.includes(client)) {
             return;
         }
-        this.clients.splice(this.clients.indexOf(client), 1);
+        const index = this.clients.indexOf(client)
+        this.clients.splice(index, 1);
         if(this.clients.length <= 0) this.markedForDestruction = true;
         if(this.owner.user.account.id == client.user.account.id) {
             if(this.clients.length > 0) {
@@ -249,7 +263,7 @@ class GameInstance {
             }
         }
         client.sendPacket(new Packet("instanceUnenrollment", {}))
-        this.onClientUnenrollment(client);
+        this.onClientUnenrollment(client, index);
     }
 
     sendTableUpdate() {
@@ -263,7 +277,7 @@ class GameInstance {
         this.sendTableUpdate();
     }
 
-    onClientUnenrollment(client: Client) {
+    onClientUnenrollment(client: Client, index: number) {
         this.sendTableUpdate();
     };
 
@@ -290,6 +304,9 @@ class GameInstance {
 
     startGame() {
         this.started = true;
+        this.can_join = false;
+        this.casino.broadcast(new Packet("fetchInstances", {"data": {"instances": this.casino.instances.map(i => i.getInstanceInformation())}}))
+        this.casino.broadcast(new Packet("startGame", {}));
         this.onStart();
         this.clients.forEach((c, i) => this.clientOnStart(c, i));
         this.progressTurn()
@@ -314,14 +331,21 @@ type BlackjackClientData = {
     hand: Array<number>,
     bet: number
 }
+const DefaultBlackjackInstanceSettings = () => { return {...DefaultGameInstanceSettings(),
+    dealer_stop: 17
+} as BlackjackInstanceSettings }
+type BlackjackInstanceSettings = GameInstanceSettings & {
+    dealer_stop: number
+}
 
 class BlackjackInstance extends GameInstance {
-    public max_players: number = 5;
     public turn_type: number = 0;
     public client_data: Map<Client, BlackjackClientData> = new Map();
+    override settings: BlackjackInstanceSettings;
     protected dealer_hand: Array<number> = new Array();
-    constructor(owner: Client, casino: CasinoWizard) {
+    constructor(owner: Client, casino: CasinoWizard, settings: BlackjackInstanceSettings | null) {
         super("blackjack", owner, casino);
+        settings != null ? this.settings = settings : this.settings = DefaultBlackjackInstanceSettings();
     }
 
     private hasWon(checking: number, opponent: number) {
@@ -340,13 +364,19 @@ class BlackjackInstance extends GameInstance {
             hand: new Array(this.deck.draw(), this.deck.draw())
         } as BlackjackClientData);
 
+        if(this.settings.monopoly_money) {
+            c.user.statistics.points = this.settings.starting_money!
+            c.sendPacket(new Packet("setMonopolyMoney", {"flag": true}))
+            c.sendPacket(new Packet("setPoints", {"amt": this.settings.starting_money}));
+        }
+
         c.UIElements.filter(ele => ele.type != "card").forEach(ele => c.destroyUIElement(ele));
         const player_data = this.client_data.get(c)!;
         player_data.hand.forEach((c1, index) => {
             let n = new ClientUIElement("card", (0.5+(0.09*index)), 0.4, {"w": 0.1, "h": 0.1333, "card": c1})
-            let n2 = new ClientUIElement("card", 0, 0, {"position": "absolute", "pos_override": {"x": player_name_positions[i]![1]!+(index*3) + "vw", "y": player_name_positions[i]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": c1})
+            let n2 = new ClientUIElement("card", 0, 0, {"owner_id": c.user.account.id, "position": "absolute", "pos_override": {"x": player_name_positions[i]![1]!+(index*3) + "vw", "y": player_name_positions[i]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": c1})
             c.createUIElement(n); c.createUIElement(n2);
-            this.clients.filter(c1 => c1.user.account.id != c.user.account.id).forEach(c => c.createUIElement(new ClientUIElement("card", 0, 0, {"position": "absolute", "pos_override": {"x": player_name_positions[i]![1]!+(index*3) + "vw", "y": player_name_positions[i]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": "back"})))
+            this.clients.filter(c1 => c1.user.account.id != c.user.account.id).forEach(c2 => c2.createUIElement(new ClientUIElement("card", 0, 0, {"owner_id": c.user.account.id, "position": "absolute", "pos_override": {"x": player_name_positions[i]![1]!+(index*3) + "vw", "y": player_name_positions[i]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": "back"})))
         })
 
         c.createUIElement(new ClientUIElement("card", 0, 0, {"dealer": true, "position": "absolute", "pos_override": {"x": player_name_positions[5]![1]! + "vw", "y": player_name_positions[5]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": this.dealer_hand[0]}))
@@ -356,6 +386,27 @@ class BlackjackInstance extends GameInstance {
 
     override onStart() {
         this.dealer_hand.push(this.deck.draw()!, this.deck.draw()!);
+    }
+
+    override onClientUnenrollment(client: Client, index: number) {
+        super.onClientUnenrollment(client, index);
+        this.clients.forEach((c, index) => {
+            c.UIElements.filter(ele => ele.type == "card" && ele.data.owner_id == client.user.account.id).forEach(card => {
+                c.destroyUIElement(card);
+            })
+            c.UIElements.filter(ele => ele.type == "card" && ele.data.owner_id == c.user.account.id).forEach((card, i) => {
+                card.data.pos_override = {
+                    "x": player_name_positions[index]![1]!+(i*3) + "vw", 
+                    "y": player_name_positions[index]![0]!+5 + "vw", 
+                    "w": "54px", "h": "72px"
+                }
+                c.updateUIElement(card);
+            })
+        })
+        if(this.turn_index == index) {
+            this.turn_index -= 1;
+            this.progressTurn();
+        }
     }
 
     clientOnTurnChange(c: Client, i: number) {
@@ -374,8 +425,9 @@ class BlackjackInstance extends GameInstance {
 
                 const beat_dealer = this.hasWon(Deck.evaluateHand(player_data.hand), dealer_value);
                 const bust = Deck.evaluateHand(player_data.hand);
+                if(player_data.bet == undefined) player_data.bet = Math.floor(c.user.statistics.points/2)
                 player_data.hand.forEach((card, index) => {
-                    this.clients.forEach(c1 => c1.createUIElement(new ClientUIElement("card", 0, 0, {"bust": bust, "position": "absolute", "pos_override": {"x": player_name_positions[i]![1]!+((index-1)*3) + "vw", "y": player_name_positions[i]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": card})))
+                    this.clients.forEach(c1 => c1.createUIElement(new ClientUIElement("card", 0, 0, {"owner_id": c.user.account.id, "bust": bust, "position": "absolute", "pos_override": {"x": player_name_positions[i]![1]!+((index-1)*3) + "vw", "y": player_name_positions[i]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": card})))
                 });
                 c.createUIElement(new ClientUIElement("text", 0.5, 0.5, {"text": beat_dealer ? `you won! +${Math.floor(player_data.bet/2)}` : `you lost :( -${player_data.bet}`}))
 
@@ -385,7 +437,15 @@ class BlackjackInstance extends GameInstance {
                 })
                 c.createUIElement(new ClientUIElement("text", 0, 0, {"text": dealer_value, "position": "absolute", "pos_override": {"x": player_name_positions[5]![1]! + "vw", "y": player_name_positions[5]![0]!+3 + "vw", "w": "54px", "h": "72px"}}))
                 
-                if(beat_dealer) c.modifyPoints(Math.floor(player_data.bet*1.5))
+                if(beat_dealer) {
+                    if(!this.settings.monopoly_money) {
+                        c.modifyPoints(Math.floor(player_data.bet*1.5))
+                    } else {
+                        c.user.statistics.points += player_data.bet*1.5
+                        c.sendPacket(new Packet("changePoints", {"delta": player_data.bet*1.5}));
+                    }
+                    
+                }
             }
         }
     }
@@ -393,7 +453,7 @@ class BlackjackInstance extends GameInstance {
     onTurnChange() {
         switch(this.turn_type) {
             case 2: {
-                while(Deck.evaluateHand(this.dealer_hand) < 17) {
+                while(Deck.evaluateHand(this.dealer_hand) < this.settings.dealer_stop) {
                     this.dealer_hand.push(this.deck.draw()!);
                 } 
                 setTimeout(() => {
@@ -408,7 +468,7 @@ class BlackjackInstance extends GameInstance {
                     this.dealer_hand = new Array();
                     this.broadcastPacket(new Packet("clearUI", {}))
                     this.startGame();
-                }, 2500)
+                }, 4000)
                 break;
             }
         }
@@ -433,7 +493,12 @@ class BlackjackInstance extends GameInstance {
                 let bet_button = new ClientUIElement("button", 0.75, 0.625, {"w": 0.1, "h": 0.05, "label": "bet"})
                 bet_button.addEventListener("click", async () => {
                     player_data.bet = bet_slider.value ?? Math.floor(turn_player.user.statistics.points/2);
-                    await turn_player.modifyPoints(-player_data.bet)
+                    if(!this.settings.monopoly_money) {
+                        await turn_player.modifyPoints(-player_data.bet)
+                    } else {
+                        turn_player.user.statistics.points -= player_data.bet
+                        turn_player.sendPacket(new Packet("changePoints", {"delta": -player_data.bet}));
+                    }
                     bet_slider.data.disabled = true;
                     turn_player.sendPacket(bet_slider.getUpdatePacket());
                     turn_player.sendPacket(bet_button.getDestructionPacket());
@@ -452,7 +517,7 @@ class BlackjackInstance extends GameInstance {
                     let c = this.deck.draw()!
                     player_data.hand.push(c);
                     let n = new ClientUIElement("card", (0.5+(0.09*(player_data.hand.length-1))), 0.4, {"w": 0.1, "h": 0.1333, "card": c})
-                    let n2 = new ClientUIElement("card", 0, 0, {"position": "absolute", "pos_override": {"x": player_name_positions[this.turn_index]![1]!+((player_data.hand.length-1)*3) + "vw", "y": player_name_positions[this.turn_index]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": c})
+                    let n2 = new ClientUIElement("card", 0, 0, {"owner_id": turn_player.user.account.id, "position": "absolute", "pos_override": {"x": player_name_positions[this.turn_index]![1]!+((player_data.hand.length-1)*3) + "vw", "y": player_name_positions[this.turn_index]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": c})
                     turn_player.createUIElement(n); turn_player.createUIElement(n2);
                     this.clients.filter(c => c.user.account.id != turn_player.user.account.id).forEach(c => c.createUIElement(new ClientUIElement("card", 0, 0, {"position": "absolute", "pos_override": {"x": player_name_positions[this.turn_index]![1]!+((player_data.hand.length-1)*3) + "vw", "y": player_name_positions[this.turn_index]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": "back"})))
                     let nvalue = Deck.evaluateHand(player_data.hand);
@@ -479,9 +544,6 @@ class BlackjackInstance extends GameInstance {
             }
         }
         this.updateClientsOnTurn();
-    }
-    override resetTurn() {
-        super.resetTurn();
     }
 }
 
@@ -566,7 +628,7 @@ export class CasinoWizard {
         let n;
         switch(type) {
             case "blackjack": {
-                n = new BlackjackInstance(owner, this)
+                n = new BlackjackInstance(owner, this, DefaultBlackjackInstanceSettings())
                 break;
             }
         }
@@ -589,6 +651,12 @@ export class CasinoWizard {
         if(!client.instance) return;
         const inst = client.instance;
         inst.unenrollClient(client);
+        this.auth.fetchAccount(client.user.account.name, client.user.account.pass).then(acc => { // fix monopoly money
+            if(!acc) return;
+            client.user.statistics.points = acc.statistics.points;
+            client.sendPacket(new Packet("setMonopolyMoney", {"flag": false}))
+            client.sendPacket(new Packet("setPoints", {"amt": acc.statistics.points}))
+        })
         if(inst.markedForDestruction) { this.destroyInstance(inst) }
         this.broadcast(new Packet("fetchInstances", {"data": {"instances": this.instances.map(i => i.getInstanceInformation())}}))
     }
