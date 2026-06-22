@@ -77,7 +77,7 @@ const chat = new ChatWizard(db);
 const time = new TimeWizard();
 const game = new GameWizard(db);
 await game.init();
-const casino = new CasinoWizard();
+const casino = new CasinoWizard(db);
 
 let news: any = undefined;
 const reset_news = async () => {

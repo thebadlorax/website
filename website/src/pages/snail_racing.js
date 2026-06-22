@@ -5,8 +5,8 @@
  * copyright 2026
 */
 
-import { getApiLink, getCookie, range } from "./common.js";
-import { refreshPoints, showReceiptMenu, hideReceiptMenu, getPoints } from "./gambling.js";
+import { getApiLink } from "./common.js";
+import { showReceiptMenu, hideReceiptMenu, getPoints } from "./gambling.js";
 
 const snail_racing = document.getElementById("snail-racing")
 const winner_text = document.getElementById("winner")
@@ -158,14 +158,14 @@ async function runSnailRace() {
             }
             tick();
             frame_count += 1;
-            if(frame_count == win_frame) refreshPoints();
+            //if(frame_count == win_frame) refreshPoints();
             await delay(1000/fps);
         }
     }
     hideReceiptMenu("receipt-snail-racing");
 }
 
-await refreshPoints();
+//await refreshPoints();
 
 while(true) {
     await runSnailRace();

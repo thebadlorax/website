@@ -19,11 +19,6 @@ catch { alert("make an account"); window.location.href = `${location.protocol}//
 let name = getSettingOnAccount("display_name")
 let receiptMenu = null;
 
-export async function refreshPoints() {
-    let points = await getPoints();
-    document.getElementById("points").textContent = `${points} points.`
-}
-
 export async function getPoints() {
     await refreshAccount();
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
@@ -122,7 +117,15 @@ name_picker.addEventListener("input", async () => {
     user_update = true;
 });
 
-preloadImages(["/res/gambling_balance_survey.png"])
+let card_urls = []
+for(let x = 0; x < 52; x++) {
+    let path = x+1;
+    if(x >= 51) path = "back";
+    const url = `../res/cards/${path}.png`;
+    card_urls.push(url);
+}
+
+preloadImages(["/res/gambling_balance_survey.png"].concat(card_urls))
 
 document.getElementById("receipt").addEventListener("mouseleave", () => { // hide survey menu after 1sec of being put away
     setTimeout(() => {
@@ -142,7 +145,7 @@ setInterval(async () => {await checkIfDisabled()}, 3000);
 
 
 
-const player_name_positions = [[70, 20], [80, 30], [83, 50], [81, 70], [69, 80], [61, 50]]
+const player_name_positions = [[70, 20], [80, 30], [83, 50], [81, 70], [69, 80], [61, 47]]
 
 class Packet {
     static fromFormatted(formatted) {
@@ -165,18 +168,20 @@ class Packet {
 class UIElement {
     static fromPacketData(d) {
         return new UIElement(
-            d.x, d.y, d.type, d.data, d.listeners, d.id
+            d.x, d.y, d.type, d.data, d.listeners, d.id, d.visible, d.value
         )
     }
-    constructor(x, y, type, data, listeners, id) {
+    constructor(x, y, type, data, listeners, id, visible=true, value=null) {
         this.x = x; this.y = y; this.type = type;
         this.data = data; this.listeners = listeners;
-        this.id = id;
+        this.id = id; this.visible = visible;
+        this.value = value;
     }
 
     createElement() {
         let n = null;
         if(this.ele != undefined) this.destroy();
+        if(!this.visible) return;
 
         let p = document.createElement("div");
 
@@ -214,8 +219,8 @@ class UIElement {
                 n.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
                 n.style.left = `${(this.x-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
                 n.style.top = `${(this.y-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
-                n.style.width = `${width*(unit == "%" ? 100 : 1)}${unit}`
-                n.style.height = `${height*(unit == "%" ? 100 : 1)}${unit}`
+                n.style.width = this.data.w_override //?? `${width*(unit == "%" ? 100 : 1)}${unit}`
+                n.style.height = this.data.h_override //?? `${height*(unit == "%" ? 100 : 1)}${unit}`
 
                 if(this.listeners.includes("click")) {
                     n.style.cursor = "pointer";
@@ -237,29 +242,29 @@ class UIElement {
                 n.type = "range";
                 n.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
                 n.style.left = `${(this.x-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
-                n.style.top = `${(this.y-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                n.style.top = `${(this.y-height/2)*(unit == "%" ? 100 : 1)}${unit}`;
                 n.style.width = `${width*(unit == "%" ? 100 : 1)}${unit}`
                 n.style.height = `${height*(unit == "%" ? 100 : 1)}${unit}`
 
                 n.min = this.data.min??0;
                 n.max = this.data.max??100;
                 n.step = this.data.step??1;
-                n.value = this.data.start??Math.floor(n.max/2)
+                n.value = this.value??Math.floor(n.max/2)
 
-                if(this.listeners.includes("change")) {
-                    n.style.cursor = "pointer";
-                    n.addEventListener("click", e => {
-                        casino.sendPacket(new Packet("UIInteraction", {"type": "change", "id": this.id, "eventData": {"value": n.value}}));
-                    })
-                }
+
+                n.style.cursor = "pointer";
+                n.addEventListener("click", e => {
+                    casino.sendPacket(new Packet("UIInteraction", {"type": "change", "id": this.id, "eventData": {"value": n.value}}));
+                })
+                casino.sendPacket(new Packet("UIInteraction", {"type": "change", "id": this.id, "eventData": {"value": n.value}}));
 
                 if(this.data.label != undefined) {
                     let a = document.createElement("p");
                     a.classList.add("uitext");
-                    a.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
-                    a.style.left = `${(this.x-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
-                    a.style.top = `${((this.y*0.95)-height/2)*(unit == "%" ? 100 : 1)}${unit}`;
                     a.textContent = this.data.label
+                    a.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
+                    a.style.left = `${(this.x-(this.data.label.length*0.005))*(unit == "%" ? 100 : 1)}${unit}`;
+                    a.style.top = `${((this.y-0.05)-height/2)*(unit == "%" ? 100 : 1)}${unit}`;
                     p.appendChild(a);
                 }
 
@@ -267,17 +272,52 @@ class UIElement {
                     let a = document.createElement("p");
                     a.classList.add("uitext");
                     a.style.position = this.data.position == "absolute" ? "absolute" : "fixed";
-                    a.style.left = `${(this.x+width/2)*(unit == "%" ? 100 : 1)}${unit}`;
-                    a.style.top = `${((this.y*1.08)-height/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                    a.style.left = `${(this.x+(width*0.3)-(this.data.label.length*0.005))*(unit == "%" ? 100 : 1)}${unit}`;
+                    a.style.top = `${((this.y+0.05)-height/2)*(unit == "%" ? 100 : 1)}${unit}`;
                     a.textContent = `${this.data.valPrefix??""}${n.value}${this.data.valSuffix??""}`
-                    n.addEventListener("input", () => {
-                        a.textContent = `${this.data.valPrefix??""}${n.value}${this.data.valSuffix??""}`
-                    })
+                    n.addEventListener("input", () => { a.textContent = `${this.data.valPrefix??""}${n.value}${this.data.valSuffix??""}` })
                     p.appendChild(a);
                 }
 
                 break;
             }
+
+            case "card": {
+                const width = this.data.w ?? 0.1;
+                const height = this.data.h ?? 0.1;
+                n = document.createElement("img");
+                n.classList.add("card");
+                n.style.position = this.data.position ??  "fixed";
+                n.style.left = `${(this.x-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                n.style.top = `${(this.y-width/2)*(unit == "%" ? 100 : 1)}${unit}`;
+                n.style.width = `${width*(unit == "%" ? 100 : 1)}${unit}`
+                n.style.height = `${height*(unit == "%" ? 100 : 1)}${unit}`
+
+                const url = `../res/cards/${this.data.card}.png`;
+                n.src = url;
+                n.setAttribute("draggable", false);
+                if(this.data.bust) n.classList.add("bust");
+                else n.classList.add("active")
+
+                if(this.listeners.includes("click")) {
+                    n.style.cursor = "pointer";
+                    n.addEventListener("click", e => {
+                        casino.sendPacket(new Packet("UIInteraction", {"type": "click", "id": this.id}))
+                    })
+                }
+
+                break;
+            }
+        }
+        if(this.data.disabled) {
+            n.disabled = true;
+            n.style.cursor = "default";
+        }
+        if(this.data.pos_override != undefined) {
+            n.style.left = this.data.pos_override.x;
+            n.style.top = this.data.pos_override.y;
+            n.style.width = this.data.pos_override.w;
+            n.style.height = this.data.pos_override.h;
         }
         p.appendChild(n);
         parent.appendChild(p);
@@ -316,8 +356,9 @@ class UIManager {
 
     clearUI() {
         this.UIElements.forEach(u => {
-            this.destroyUIElement(u.id)
+            u.destroy();
         })
+        this.UIElements = []
     }
 }
 
@@ -332,18 +373,29 @@ class Casino {
 
         this.ui = new UIManager();
 
-        this.log_packets = true;
+        this.log_packets = false;
     }
     async init() {
         create_game_button.addEventListener("click", () => {
-            this.createNewInstance(game_chooser.value)
+            if(this.points > 0) {
+                create_game_button.style.display = "none";
+                this.createNewInstance(game_chooser.value)
+            }
+            else alert("you're too broke")
         })
         join_game_button.addEventListener("click", () => {
-            this.joinInstance(progress_game_chooser.value);
+            if(this.points > 0) {
+                join_game_button.style.display = "none"
+                this.joinInstance(progress_game_chooser.value);
+            }
+            else alert("you're too broke")
         })
         progress_game_chooser.addEventListener("change", () => {
             this.sendPacket(new Packet("getTableInformation", {"id": progress_game_chooser.value}));
-        })
+        });
+
+        this.points = await getPoints() ?? 0;
+        this.resetPointsText();
     }
 
     sendPacket(packet) { 
@@ -365,14 +417,22 @@ class Casino {
             ele.style.color = c.color;
             ele.textContent = c.name;
             if(is_owner) {
-                ele.style.textDecoration = "underline";
                 ele.style.fontWeight = "bold";
+            }
+            if(c.is_turn) {
+                ele.style.textDecoration = "underline";
             }
             ele.dataset.id = c.id;
             n.push(ele);
             table_ui.appendChild(ele);
         })
+        create_game_button.style.display = "block";
+        join_game_button.style.display = "block";
         return n;
+    }
+
+    resetPointsText() {
+        points.textContent = `${this.points} points`
     }
 
     onConnect() {
@@ -382,7 +442,7 @@ class Casino {
     onRecieve(packet) {
         if(this.log_packets) console.log(`incoming [${packet.type}]packet, data: ${JSON.stringify(packet.data)}`)
         if(packet.data.status != undefined && packet.data.status != 200) {
-            console.log(`packet ${packet.type} response has error, data: ${packet.data}`);
+            console.log(`packet ${packet.type} response has error, data: ${JSON.stringify(packet.data)}`);
         }
         switch(packet.type) {
             case "initauth": {
@@ -403,6 +463,10 @@ class Casino {
                 this.ui.updateUIElement(UIElement.fromPacketData(packet.data));
                 break;
             }
+            case "clearUI": {
+                this.ui.clearUI();
+                break;
+            }
             
             case "instanceEnrollment": {
                 game_choosing_div.style.display = "none";
@@ -411,6 +475,7 @@ class Casino {
             case "instanceUnenrollment": {
                 game_choosing_div.style.display = "block";
                 table_ui.replaceChildren();
+                leave_button.remove();
                 this.ui.clearUI();
                 break;
             }
@@ -432,8 +497,9 @@ class Casino {
                 leave_button.id = "leave_button";
                 leave_button.addEventListener("click", () => {
                     casino.sendPacket(new Packet("leaveInstance", {}))
+                    leave_button.remove()
                 })
-                table_ui.appendChild(leave_button);
+                document.body.appendChild(leave_button);
 
                 let self = JSON.parse(window.localStorage.getItem("user"));
                 if(self.account.id == packet.data.owner.id) {
@@ -447,6 +513,7 @@ class Casino {
                     start_button.textContent = "start"
                     start_button.id = "start_button";
                     start_button.addEventListener("click", () => {
+                        start_button.remove();
                         casino.sendPacket(new Packet("startGame", {}))
                     })
                     table_ui.appendChild(start_button);
@@ -475,10 +542,18 @@ class Casino {
                 break;
             }
 
+            case "changePoints": {
+                this.points += packet.data.delta;
+                this.resetPointsText();
+                break;
+            }
+
             case "startGame": {
                 leave_button.style.top = "65vw";
                 leave_button.style.left = "57vw";
-                start_button.remove();
+                try { start_button.remove(); }
+                catch {}
+                break;
             }
 
             default: {

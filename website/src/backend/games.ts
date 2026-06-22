@@ -5,12 +5,13 @@
  * copyright 2026
 */
 
-import { range, generateRandomString, clamp, sumNumArray } from "./utils";
-import { type User, JSONToUser, AuthorizationWizard } from "./auth";
+import { range, generateRandomString, sumNumArray, mergeDicts } from "./utils";
+import { type User, AuthorizationWizard } from "./auth";
 import { type ServerWebSocket } from "bun";
 import { LogWizard } from "./logging";
 import { Database } from "./db";
 
+const player_name_positions = [[70, 20], [80, 30], [83, 50], [81, 70], [69, 80], [61, 47]]
 const cardValues: Map<number, number> = new Map([
     [0, 11],
     [1, 2],
@@ -72,7 +73,7 @@ export class Deck {
     private log: LogWizard = new LogWizard();
     constructor() {
         this.cards = [...range(0, 52)];
-        this.log.log(`Deck initalized with id ${this.id}`, "GAMES")
+        //this.log.log(`Deck initalized with id ${this.id}`, "GAMES")
     }
   
     public draw() {
@@ -90,6 +91,22 @@ export class Deck {
 
     public static getCardValue(cardIndex: number) {
         return cardValues.get(cardIndex);
+    }
+
+    public static evaluateHand(hand: Array<number>): number {
+        let ace_count = 0
+        let values: Array<number> = []
+        hand.forEach(c => {
+            let v = Deck.getCardValue(c);
+            if(!v) return;
+            if(v == 11) ace_count += 1;
+            else values.push(v);
+        });
+        while(ace_count > 0) {
+            values.push(sumNumArray(values)+11 <= 21 ? 11 : 1);
+            ace_count -= 1;
+        }
+        return sumNumArray(values);
     }
 }
 
@@ -142,6 +159,8 @@ class ClientUIElement {
     public y: number;
     public data: any;
     public id: string = `ui_${generateRandomString(5)}`;
+    public value: any = null;
+    public visible: boolean = true;
     protected listeners: Map<string, Array<(event: UIEvent) => void>>
     constructor(type: string, x: number, y: number, data: any) {
         this.type = type;
@@ -157,6 +176,7 @@ class ClientUIElement {
     }
 
     handleEvent(type: string, event: UIEvent) {
+        if(type == "change") { this.value = parseInt(event.data.value); }
         let e = this.listeners.get(type);
         if(!e) return;
         e.forEach(a => a(event))
@@ -169,6 +189,8 @@ class ClientUIElement {
             "type": this.type,
             "data": this.data,
             "id": this.id,
+            "value": this.value,
+            "visible": this.visible,
             "listeners": this.listeners.keys().toArray()
         }
     }
@@ -184,6 +206,11 @@ class ClientUIElement {
     getUpdatePacket() {
         return new Packet("updateUI", this.format())
     }
+
+    getVisiblityPacket(visible: boolean) {
+        this.visible = visible;
+        return this.getUpdatePacket();
+    }
 }
 
 class GameInstance {
@@ -192,16 +219,20 @@ class GameInstance {
     public id: string = `gi_${generateRandomString(5)}`
     public type: string;
     public owner: Client;
+    public deck: Deck = new Deck();
     public markedForDestruction: boolean = false;
     public started: boolean = false;
     public can_join: boolean = true;
-    constructor(type: string, owner: Client) {
-        this.type = type; this.owner = owner;
+    public turn_index: number = -1;
+    protected casino: CasinoWizard;
+    constructor(type: string, owner: Client, casino: CasinoWizard) {
+        this.type = type; this.owner = owner; this.casino = casino;
     }
 
     async init() {}
 
     enrollClient(client: Client) { 
+        if(this.clients.map(c => c.user.account.id).includes(client.user.account.id)) return;
         this.clients.push(client);
         client.sendPacket(new Packet("instanceEnrollment", this.getInstanceInformation()))
         this.onClientEnrollment(client);
@@ -248,9 +279,10 @@ class GameInstance {
             "id": this.id,
             "type": this.type,
             "owner": this.owner.getFormatted(),
-            "clients": this.clients.map(c => c.getFormatted()),
+            "clients": this.clients.map((c, index) => mergeDicts(c.getFormatted(), {"is_turn": this.turn_index == index})),
             "started": this.started,
-            "can_join": this.can_join
+            "can_join": this.can_join,
+            "turn_index": this.turn_index
         }
     }
 
@@ -259,28 +291,197 @@ class GameInstance {
     startGame() {
         this.started = true;
         this.onStart();
+        this.clients.forEach((c, i) => this.clientOnStart(c, i));
+        this.progressTurn()
     }
 
     onStart() {}
+
+    progressTurn() {
+        this.turn_index += 1;
+    }
+    updateClientsOnTurn() {
+        this.broadcastPacket(new Packet("getTableInformation", {"data": {"information": this.getInstanceInformation()}}))
+    }
+    resetTurn() {
+        this.turn_index = 0;
+    }
+
+    clientOnStart(c: Client, i: number) {}
+}
+
+type BlackjackClientData = {
+    hand: Array<number>,
+    bet: number
 }
 
 class BlackjackInstance extends GameInstance {
-    constructor(owner: Client) {
-        super("blackjack", owner);
+    public max_players: number = 5;
+    public turn_type: number = 0;
+    public client_data: Map<Client, BlackjackClientData> = new Map();
+    protected dealer_hand: Array<number> = new Array();
+    constructor(owner: Client, casino: CasinoWizard) {
+        super("blackjack", owner, casino);
+    }
+
+    private hasWon(checking: number, opponent: number) {
+        if (checking > 21) return false;        // player busts → lose
+        if (opponent > 21) return true;         // dealer busts → win
+        if (checking === opponent) return null; // push (tie)
+        return checking > opponent;             // higher hand wins
     }
 
     override onClientEnrollment(client: Client) {
         super.onClientEnrollment(client);
     }
 
-    override onStart() {
-        this.clients.forEach(cl => {
-            let c = new ClientUIElement("slider", 0.5, 0.5, {"label": "test"});
-            c.addEventListener("change", e => {
-                console.log(e.data.value)
-            });
-            cl.createUIElement(c)
+    override clientOnStart(c: Client, i: number) {
+        this.client_data.set(c, {
+            hand: new Array(this.deck.draw(), this.deck.draw())
+        } as BlackjackClientData);
+
+        c.UIElements.filter(ele => ele.type != "card").forEach(ele => c.destroyUIElement(ele));
+        const player_data = this.client_data.get(c)!;
+        player_data.hand.forEach((c1, index) => {
+            let n = new ClientUIElement("card", (0.5+(0.09*index)), 0.4, {"w": 0.1, "h": 0.1333, "card": c1})
+            let n2 = new ClientUIElement("card", 0, 0, {"position": "absolute", "pos_override": {"x": player_name_positions[i]![1]!+(index*3) + "vw", "y": player_name_positions[i]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": c1})
+            c.createUIElement(n); c.createUIElement(n2);
+            this.clients.filter(c1 => c1.user.account.id != c.user.account.id).forEach(c => c.createUIElement(new ClientUIElement("card", 0, 0, {"position": "absolute", "pos_override": {"x": player_name_positions[i]![1]!+(index*3) + "vw", "y": player_name_positions[i]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": "back"})))
         })
+
+        c.createUIElement(new ClientUIElement("card", 0, 0, {"dealer": true, "position": "absolute", "pos_override": {"x": player_name_positions[5]![1]! + "vw", "y": player_name_positions[5]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": this.dealer_hand[0]}))
+        c.createUIElement(new ClientUIElement("card", 0, 0, {"dealer": true, "position": "absolute", "pos_override": {"x": (player_name_positions[5]![1]!+3) + "vw", "y": player_name_positions[5]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": "back"}))
+        c.createUIElement(new ClientUIElement("text", 0, 0, {"text": `${Deck.getCardValue(this.dealer_hand[0]!)}?`, "position": "absolute", "pos_override": {"x": player_name_positions[5]![1]! + "vw", "y": player_name_positions[5]![0]!+3 + "vw", "w": "54px", "h": "72px"}}))
+    }
+
+    override onStart() {
+        this.dealer_hand.push(this.deck.draw()!, this.deck.draw()!);
+    }
+
+    clientOnTurnChange(c: Client, i: number) {
+        switch(this.turn_type) {
+            case 0: {
+                break;
+            }
+            case 1: {
+                break;
+            }
+
+            case 2: {
+                const player_data = this.client_data.get(c)!;
+                c.sendPacket(new Packet("clearUI", {}))
+                const dealer_value = Deck.evaluateHand(this.dealer_hand);
+
+                const beat_dealer = this.hasWon(Deck.evaluateHand(player_data.hand), dealer_value);
+                const bust = Deck.evaluateHand(player_data.hand);
+                player_data.hand.forEach((card, index) => {
+                    this.clients.forEach(c1 => c1.createUIElement(new ClientUIElement("card", 0, 0, {"bust": bust, "position": "absolute", "pos_override": {"x": player_name_positions[i]![1]!+((index-1)*3) + "vw", "y": player_name_positions[i]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": card})))
+                });
+                c.createUIElement(new ClientUIElement("text", 0.5, 0.5, {"text": beat_dealer ? `you won! +${Math.floor(player_data.bet/2)}` : `you lost :( -${player_data.bet}`}))
+
+                const dealer_bust = dealer_value > 21;
+                this.dealer_hand.forEach((card, index) => {
+                    c.createUIElement(new ClientUIElement("card", 0, 0, {"bust": dealer_bust, "position": "absolute", "pos_override": {"x": player_name_positions[5]![1]!+((index)*3) + "vw", "y": player_name_positions[5]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": card}))
+                })
+                c.createUIElement(new ClientUIElement("text", 0, 0, {"text": dealer_value, "position": "absolute", "pos_override": {"x": player_name_positions[5]![1]! + "vw", "y": player_name_positions[5]![0]!+3 + "vw", "w": "54px", "h": "72px"}}))
+                
+                if(beat_dealer) c.modifyPoints(Math.floor(player_data.bet*1.5))
+            }
+        }
+    }
+
+    onTurnChange() {
+        switch(this.turn_type) {
+            case 2: {
+                while(Deck.evaluateHand(this.dealer_hand) < 17) {
+                    this.dealer_hand.push(this.deck.draw()!);
+                } 
+                setTimeout(() => {
+                    this.clients.forEach(c => {
+                        if(c.user.statistics.points <= 0) {
+                            this.casino.removeFromCurrentInstance(c);
+                        }
+                    })
+                    this.turn_index = -1;
+                    this.turn_type = 0;
+                    this.client_data.clear();
+                    this.dealer_hand = new Array();
+                    this.broadcastPacket(new Packet("clearUI", {}))
+                    this.startGame();
+                }, 2500)
+                break;
+            }
+        }
+
+        this.clients.forEach((c, i) => {this.clientOnTurnChange(c, i)})
+    }
+
+    override progressTurn() {
+        super.progressTurn();
+        if(this.turn_index >= this.clients.length) {
+            this.turn_type += 1;
+            this.onTurnChange();
+            this.resetTurn();
+        }
+
+        const turn_player = this.clients[this.turn_index]; if(!turn_player) return;
+        const player_data = this.client_data.get(turn_player); if(!player_data) return;
+
+        switch(this.turn_type) {
+            case 0: {
+                let bet_slider = new ClientUIElement("slider", 0.5, 0.6, {"disabled": false, "label": "wager", "w": 0.3, "showVal": true, "min": 1, "max": turn_player.user.statistics.points, "valSuffix": " points"});
+                let bet_button = new ClientUIElement("button", 0.75, 0.625, {"w": 0.1, "h": 0.05, "label": "bet"})
+                bet_button.addEventListener("click", async () => {
+                    player_data.bet = bet_slider.value ?? Math.floor(turn_player.user.statistics.points/2);
+                    await turn_player.modifyPoints(-player_data.bet)
+                    bet_slider.data.disabled = true;
+                    turn_player.sendPacket(bet_slider.getUpdatePacket());
+                    turn_player.sendPacket(bet_button.getDestructionPacket());
+                    this.progressTurn();
+                });
+                turn_player.createUIElement(bet_slider); turn_player.createUIElement(bet_button)
+                turn_player.sendPacket(bet_slider.getUpdatePacket());
+                break;
+            }
+            
+            case 1: {
+                let stand_button = new ClientUIElement("button", 0.75, 0.8, {"w": 0.1, "h": 0.05, "label": "stand"})
+                let hit_button = new ClientUIElement("button", 0.63, 0.8, {"w": 0.1, "h": 0.05, "label": "hit"})
+                let worth_text = new ClientUIElement("text", 0.55, 0.81, {"text": Deck.evaluateHand(player_data.hand)})
+                hit_button.addEventListener("click", () => {
+                    let c = this.deck.draw()!
+                    player_data.hand.push(c);
+                    let n = new ClientUIElement("card", (0.5+(0.09*(player_data.hand.length-1))), 0.4, {"w": 0.1, "h": 0.1333, "card": c})
+                    let n2 = new ClientUIElement("card", 0, 0, {"position": "absolute", "pos_override": {"x": player_name_positions[this.turn_index]![1]!+((player_data.hand.length-1)*3) + "vw", "y": player_name_positions[this.turn_index]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": c})
+                    turn_player.createUIElement(n); turn_player.createUIElement(n2);
+                    this.clients.filter(c => c.user.account.id != turn_player.user.account.id).forEach(c => c.createUIElement(new ClientUIElement("card", 0, 0, {"position": "absolute", "pos_override": {"x": player_name_positions[this.turn_index]![1]!+((player_data.hand.length-1)*3) + "vw", "y": player_name_positions[this.turn_index]![0]!+5 + "vw", "w": "54px", "h": "72px"}, "card": "back"})))
+                    let nvalue = Deck.evaluateHand(player_data.hand);
+                    worth_text.data.text = nvalue;
+                    turn_player.updateUIElement(worth_text);
+
+                    if(nvalue < 21) return;
+                    turn_player.destroyUIElement(hit_button)
+                    if(nvalue == 21) return
+                    turn_player.UIElements.filter(c => c.type == "card" && c.data.dealer == undefined).forEach(ele => {
+                        ele.data.bust = true;
+                        turn_player.updateUIElement(ele);
+                    })
+                    worth_text.data.text = worth_text.data.text + " (BUST)"
+                    turn_player.updateUIElement(worth_text);
+                });
+                const handle_stand = () => {
+                    turn_player.UIElements.filter(ele => ele.type == "button").forEach(ele => turn_player.destroyUIElement(ele))
+                    this.progressTurn();
+                }
+                stand_button.addEventListener("click", () => { handle_stand() })
+                turn_player.createUIElement(stand_button); if(Deck.evaluateHand(player_data.hand) < 21) turn_player.createUIElement(hit_button); turn_player.createUIElement(worth_text);
+                break;
+            }
+        }
+        this.updateClientsOnTurn();
+    }
+    override resetTurn() {
+        super.resetTurn();
     }
 }
 
@@ -289,12 +490,14 @@ class Client {
     public user: User;
     public UIElements: Array<ClientUIElement> = new Array();
     public instance: GameInstance | null = null;
-    protected auth: AuthorizationWizard = new AuthorizationWizard(new Database(Database.defaultPath));
+    protected db: Database;
+    protected auth: AuthorizationWizard;
     protected log: LogWizard = new LogWizard();
 
-    constructor(ws: ServerWebSocket<{ source: string; }>, user: User) {
+    constructor(ws: ServerWebSocket<{ source: string; }>, user: User, db: Database) {
         this.ws = ws;
         this.user = user;
+        this.db = db; this.auth = new AuthorizationWizard(db);
     }
 
     sendPacket(packet: Packet) { this.ws.send(packet.format()) }
@@ -317,6 +520,9 @@ class Client {
         this.sendPacket(ele.getDestructionPacket());
     }
     updateUIElement(ele: ClientUIElement) { this.sendPacket(ele.getUpdatePacket()) }
+    changeUIElementVisiblity(ele: ClientUIElement) {
+
+    }
 
     enroll(instance: GameInstance) {
         this.instance = instance;
@@ -336,23 +542,21 @@ class Client {
     }
 
     async modifyPoints(delta: number) {
+        this.user.statistics.points = Math.max(0, this.user.statistics.points + delta)
+        this.sendPacket(new Packet("changePoints", {"delta": delta}));
         await this.auth.changePoints(this.user.account.name, this.user.account.pass, delta);
-        let n = await this.auth.fetchAccount(this.user.account.name, this.user.account.pass);
-        if(!n) {
-            this.log.error("error changing points", "GAMECLIENT");
-            return;
-        }
-        this.updateUser(n);
-        this.sendPacket(new Packet("forceUserUpdate", {}));
     }
 }
 
 export class CasinoWizard {
     public instances: Array<GameInstance> = new Array();
     public allClients: Array<Client> = new Array();
-    protected auth: AuthorizationWizard = new AuthorizationWizard(new Database(Database.defaultPath));
+    protected auth: AuthorizationWizard;
+    protected db: Database;
     protected log: LogWizard = new LogWizard();
-    constructor() {}
+    constructor(db: Database) {
+        this.db = db; this.auth = new AuthorizationWizard(db);
+    }
 
     appendNewClient(client: Client) {
         this.allClients.push(client);
@@ -362,7 +566,7 @@ export class CasinoWizard {
         let n;
         switch(type) {
             case "blackjack": {
-                n = new BlackjackInstance(owner)
+                n = new BlackjackInstance(owner, this)
                 break;
             }
         }
@@ -389,7 +593,7 @@ export class CasinoWizard {
         this.broadcast(new Packet("fetchInstances", {"data": {"instances": this.instances.map(i => i.getInstanceInformation())}}))
     }
 
-    handleConnection(ws: ServerWebSocket<{ source: string; }>, user: User) { this.allClients.push(new Client(ws, user)) }
+    handleConnection(ws: ServerWebSocket<{ source: string; }>, user: User) { this.allClients.push(new Client(ws, user, this.db)) }
     handleDisconnect(ws: ServerWebSocket<{ source: string; }>) {
         const client = this.allClients.find(c => c.ws == ws);
         if(!client) return;
@@ -406,7 +610,7 @@ export class CasinoWizard {
         if(packet.type == "initauth") {
             let u = await this.auth.fetchAccount(packet.data.name, packet.data.pass);
             if(!u) return;
-            let c = new Client(ws, u);
+            let c = new Client(ws, u, this.db);
             this.appendNewClient(c);
             c.sendPacket(packet.getResponse(200))
             return;
@@ -451,6 +655,7 @@ export class CasinoWizard {
             }
             case "leaveInstance": {
                 client.sendPacket(packet.getResponse(200));
+                client.sendPacket(new Packet("clearUI", {}))
                 this.removeFromCurrentInstance(client);
                 break;
             }

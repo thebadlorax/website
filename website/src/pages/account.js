@@ -127,7 +127,7 @@ export async function openMenu() {
     main_container.style.display = "none"
     account_menu.style.display = "block"
     account_button.textContent = "Homepage"
-    account_button.style.left = "85vw"
+    account_button.style.left = "83vw"
     menu_is_open = true;
 }
 

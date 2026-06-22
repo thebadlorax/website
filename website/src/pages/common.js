@@ -129,6 +129,16 @@ export function getApiLink(route) {
     return link
 }
 
+export function getTextWidth(text, font) {
+    const canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+    const context = canvas.getContext("2d");
+    
+    context.font = font;
+    
+    const metrics = context.measureText(text);
+    return metrics.width;
+  }
+
 export async function changeSettingOnAccount(setting, value) {
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
     let name = saved_data["account"]["name"];
