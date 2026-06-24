@@ -35,6 +35,17 @@ body {
     user-select: none;           /* Standard syntax */
 }
 
+.uiinput {
+    font-family: "Jersey 20";
+    color: black;
+    background-color: grey;
+    outline: none;
+}
+
+.uiinput::placeholder {
+    font-size: .8vw;
+}
+
 .not-picked {
     opacity: 80%;
     transform: scale(0.95);

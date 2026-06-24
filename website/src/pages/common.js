@@ -174,6 +174,8 @@ export async function refreshAccount() {
     window.localStorage.setItem("user", JSON.stringify(json));
 }
 
+export const isOnlyDigits = (str) =>{ return /^\d+$/.test(str) }
+
 await updateId();
 
 console.log("get out of here")

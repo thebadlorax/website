@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { getApiLink, getSettingOnAccount, changeSettingOnAccount, refreshAccount, preloadImages } from "./common.js";
+import { getApiLink, getSettingOnAccount, changeSettingOnAccount, refreshAccount, preloadImages, isOnlyDigits } from "./common.js";
 
 let color_picker = document.getElementById("color-picker");
 let name_picker = document.getElementById("name-picker");
@@ -141,7 +141,6 @@ const checkIfDisabled = async () => {
     })
 }
 setInterval(async () => {await checkIfDisabled()}, 3000);
-
 
 
 
@@ -381,10 +380,34 @@ class Casino {
         create_game_button.addEventListener("click", () => {
             if(this.points > 0) {
                 create_game_button.style.display = "none";
-                this.createNewInstance(game_chooser.value)
+                const settings = {};
+                if(mmcb.checked) {
+                    settings.monopoly_money = true;
+                    settings.starting_money = mmsm.value || null
+                }
+                this.createNewInstance(game_chooser.value, settings)
             }
             else alert("you're too broke")
         })
+        settings_button.addEventListener("click", () => {
+            document.getElementById("settings-ui").style.display = "flex"
+        })
+        sexit.addEventListener("click", () => {
+            document.getElementById("settings-ui").style.display = "none"
+        })
+        mmcb.checked = false;
+        mmcb.addEventListener("change", () => {
+            if(mmcb.checked) { 
+                mmsm.style.display = "block"
+            } else {
+                mmsm.style.display = "none"
+            }
+        })
+        mmsm.addEventListener("input", e => {
+            if(e.data == null) return;
+            if(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"].includes(e.data)) return;
+            mmsm.value = mmsm.value.slice(0, -1);
+        });
         join_game_button.addEventListener("click", () => {
             if(this.points > 0) {
                 join_game_button.style.display = "none"
@@ -584,7 +607,7 @@ class Casino {
     }
 
     createNewInstance(gameType, settings={}) {
-        this.sendPacket(new Packet("createInstance", {...{"type": gameType}, ...settings}))
+        this.sendPacket(new Packet("createInstance", {...{"type": gameType}, ...{"settings": settings}}))
     }
     joinInstance(id) {
         this.sendPacket(new Packet("joinInstance", {"id": id}))

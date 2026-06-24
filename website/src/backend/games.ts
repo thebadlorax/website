@@ -367,7 +367,7 @@ class BlackjackInstance extends GameInstance {
         if(this.settings.monopoly_money) {
             c.user.statistics.points = this.settings.starting_money!
             c.sendPacket(new Packet("setMonopolyMoney", {"flag": true}))
-            c.sendPacket(new Packet("setPoints", {"amt": this.settings.starting_money}));
+            if(this.settings.starting_money != null) c.sendPacket(new Packet("setPoints", {"amt": this.settings.starting_money}));
         }
 
         c.UIElements.filter(ele => ele.type != "card").forEach(ele => c.destroyUIElement(ele));
@@ -624,11 +624,16 @@ export class CasinoWizard {
         this.allClients.push(client);
     }
 
-    createInstance(type: string, owner: Client): GameInstance | null {
+    createInstance(type: string, owner: Client, settings: any): GameInstance | null {
         let n;
         switch(type) {
             case "blackjack": {
-                n = new BlackjackInstance(owner, this, DefaultBlackjackInstanceSettings())
+                let s = DefaultBlackjackInstanceSettings();
+                if(settings != null) {
+                    s.monopoly_money = settings.monopoly_money ?? false; 
+                    s.starting_money = settings.starting_money;
+                }
+                n = new BlackjackInstance(owner, this, s)
                 break;
             }
         }
@@ -689,7 +694,7 @@ export class CasinoWizard {
 
         switch(packet.type) {
             case "createInstance": {
-                const new_instance = this.createInstance(packet.data.type, client);
+                const new_instance = this.createInstance(packet.data.type, client, packet.data.settings);
                 if(new_instance == null) {
                     client.sendPacket(packet.getResponse(400));
                     break;

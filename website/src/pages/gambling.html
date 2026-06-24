@@ -66,11 +66,21 @@
   <p class="unselectable" id="winner" style="position: absolute; left: 37vw; font-size: 4.5vw; top: 20vw; display: none;">Snail x wins!</p>
 </div>
 
+<p class="basic-text unselectable" style="position: absolute; top: 100vw; color: rgb(162, 30, 30); font-size: 6vw; left: 40vw">Work In Progress</p>
+
 <div id="game_choosing_div">
   <select class="uibutton" name="game" id="game_chooser" style="position: absolute; top: 67vw; left: 43vw; width: 8vw; height: 2vw;">
     <option value="blackjack">blackjack</option>
   </select>
   <button id="create_game_button" class="uibutton" style="position: absolute; top: 67vw; left: 53vw; width: 4vw; height: 2vw;">create</button>
+  <button id="settings_button" class="uibutton" style="position: absolute; top: 67vw; left: 58vw; width: 2vw; height: 2vw; font-size: 1.5vw;">⚙</button>
+  <div id="settings-ui" style="position: fixed; top: 10%; left: 10%; width: 80%; height: 80%; background-color: #4e4e4e; border: 2px solid black; display: none; align-items: center; justify-content: center;">
+    <p style="position: fixed; top: 7%; left: 42.5%; font-size: 5vw;">settings</p>
+    <button style="position: fixed; top: 17.5%; left: 15%; width: 5vw;" class="uibutton" id="sexit">exit</button>
+    <div style="position: fixed; top: 50%; left: 40%; display: flex;">
+      <input class="uiinput" type="checkbox" id="mmcb" style="width: 1.5vw; height: 1.5vw;"> <label for="mmcb" style="font-size: 2vw; margin-left: 1vw;">monopoly money</label> <input class="uiinput" id="mmsm" placeholder="starting money" maxlength="5" style="width: 6vw; height: 1.5vw; margin-left: 1vw; display: none;"> 
+    </div>  
+  </div>
   <div id="join_game_ui" style="display: none;">
     <select class="uibutton" name="game" id="progress_game_chooser" style="position: absolute; top: 71vw; left: 43vw; width: 8vw; height: 2vw;"></select>
     <button id="join_game_button" class="uibutton" style="position: absolute; top: 71vw; left: 53vw; width: 4vw; height: 2vw;">join</button>
@@ -78,5 +88,3 @@
 </div>
 
 <div id="table_ui"></div>
-
-<p class="basic-text unselectable" style="position: absolute; top: 100vw; color: rgb(162, 30, 30); font-size: 6vw; left: 40vw">Work In Progress</p>
