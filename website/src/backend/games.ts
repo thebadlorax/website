@@ -343,6 +343,7 @@ class BlackjackInstance extends GameInstance {
     public client_data: Map<Client, BlackjackClientData> = new Map();
     override settings: BlackjackInstanceSettings;
     protected dealer_hand: Array<number> = new Array();
+    protected first_start: boolean = true;
     constructor(owner: Client, casino: CasinoWizard, settings: BlackjackInstanceSettings | null) {
         super("blackjack", owner, casino);
         settings != null ? this.settings = settings : this.settings = DefaultBlackjackInstanceSettings();
@@ -359,16 +360,18 @@ class BlackjackInstance extends GameInstance {
         super.onClientEnrollment(client);
     }
 
-    override clientOnStart(c: Client, i: number) {
-        this.client_data.set(c, {
-            hand: new Array(this.deck.draw(), this.deck.draw())
-        } as BlackjackClientData);
-
+    clientOnFirstStart(c: Client) {
         if(this.settings.monopoly_money) {
             c.user.statistics.points = this.settings.starting_money!
             c.sendPacket(new Packet("setMonopolyMoney", {"flag": true}))
             if(this.settings.starting_money != null) c.sendPacket(new Packet("setPoints", {"amt": this.settings.starting_money}));
         }
+    }
+
+    override clientOnStart(c: Client, i: number) {
+        this.client_data.set(c, {
+            hand: new Array(this.deck.draw(), this.deck.draw())
+        } as BlackjackClientData);
 
         c.UIElements.filter(ele => ele.type != "card").forEach(ele => c.destroyUIElement(ele));
         const player_data = this.client_data.get(c)!;
@@ -386,6 +389,10 @@ class BlackjackInstance extends GameInstance {
 
     override onStart() {
         this.dealer_hand.push(this.deck.draw()!, this.deck.draw()!);
+        if(this.first_start) {
+            this.clients.forEach(c => this.clientOnFirstStart(c));
+            this.first_start = false;
+        }
     }
 
     override onClientUnenrollment(client: Client, index: number) {
@@ -489,7 +496,7 @@ class BlackjackInstance extends GameInstance {
 
         switch(this.turn_type) {
             case 0: {
-                let bet_slider = new ClientUIElement("slider", 0.5, 0.6, {"disabled": false, "label": "wager", "w": 0.3, "showVal": true, "min": 1, "max": turn_player.user.statistics.points, "valSuffix": " points"});
+                let bet_slider = new ClientUIElement("slider", 0.5, 0.6, {"disabled": false, "label": "wager", "w": 0.3, "showVal": true, "min": Math.floor(turn_player.user.statistics.points*0.05), "max": turn_player.user.statistics.points, "valSuffix": " points"});
                 let bet_button = new ClientUIElement("button", 0.75, 0.625, {"w": 0.1, "h": 0.05, "label": "bet"})
                 bet_button.addEventListener("click", async () => {
                     player_data.bet = bet_slider.value ?? Math.floor(turn_player.user.statistics.points/2);
@@ -631,7 +638,7 @@ export class CasinoWizard {
                 let s = DefaultBlackjackInstanceSettings();
                 if(settings != null) {
                     s.monopoly_money = settings.monopoly_money ?? false; 
-                    s.starting_money = settings.starting_money;
+                    s.starting_money = parseInt(settings.starting_money);
                 }
                 n = new BlackjackInstance(owner, this, s)
                 break;

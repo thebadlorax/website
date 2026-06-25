@@ -501,8 +501,7 @@ class Casino {
             case "instanceUnenrollment": {
                 game_choosing_div.style.display = "block";
                 table_ui.replaceChildren();
-                try { leave_button.remove(); }
-                catch {}
+                leave_button.remove();
                 this.ui.clearUI();
                 break;
             }
@@ -514,6 +513,7 @@ class Casino {
             case "refreshTable": {
                 let client_texts = this.setupTableUI(packet.data);
                 if(this.in_game) return;
+                if(document.getElementById("leave_button") != undefined) document.getElementById("leave_button").remove();
                 let leave_button = document.createElement("button");
                 leave_button.classList.add("uibutton");
                 leave_button.style.position = "absolute";

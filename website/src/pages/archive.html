@@ -17,13 +17,13 @@
     <link rel="stylesheet" href="styles.css">
     <link href="font.css" rel="stylesheet">
     <link rel="icon" href="../res/favicon.ico" type="image/x-icon">
+    <script type="module" src="./archive.js"></script>
   </head>
   <body>
     <div class="main-container" id="main-container">
         <div class="banner-container unselectable" draggable="false" style="position: absolute; top: 0vh; left: 17vw;"</div>
             <img id="banner" src="../res/archive_banner.png" class="banner-image" draggable="false" style="cursor: pointer;">
         </div>
-        <p class="unselectable" style="font-weight: bold; color: yellow; font-size: 2vw; position: absolute; top: 0vh; left: 0vw; width: 17vw;">everything here may or may not work anymore, and are no longer worked on (and aren't cool enough to leave on the frontpage)</p>
         <div class="row-container" style="position: absolute; top: 30vh; left: 0vw;">
             <div class="column-container" style="width: 40%;">
                 <div class="large-item">
@@ -32,7 +32,7 @@
                 </div>
             </div>
             <div class="column-container" style="width: 40%;">
-                <div class="large-item">
+                <div class="large-item" id="mnp">
                     mini projects
                     <p class="basic-text"><a class="basic-link" href="/archive/logclicker">log clicker</a></p>
                     <p class="basic-text"><a class="basic-link" href="/archive/milsim">military simulator</a></p>
@@ -41,10 +41,6 @@
             </div>
         </div>
     </div>
-    <script>
-        banner.addEventListener("click", () => {
-            window.location.href = "/"
-        })
-    </script>
+    <p class="unselectable" id="t" style="font-weight: bold; color: yellow; font-size: 2vw; position: absolute; top: 17vh; left: 11vw; width: 17vw; margin: 0; ">everything here may or may not work anymore, and are no longer worked on (and aren't cool enough to leave on the frontpage)</p>
   </body>
 </html>

@@ -264,6 +264,48 @@ ticker_speed_slider.addEventListener("input", () => {
 });
 handle_ticker_speed_change();
 
+const img = document.getElementById("di");
+
+let isDragging = false;
+let startX = 0;
+let startY = 0;
+let initialLeft = 0;
+let initialTop = 0;
+
+const dragStart = (e) => {
+  isDragging = true;
+  
+  const pageX = e.touches ? e.touches[0].pageX : e.pageX;
+  const pageY = e.touches ? e.touches[0].pageY : e.pageY;
+  
+  startX = pageX;
+  startY = pageY;
+  
+  initialLeft = img.offsetLeft;
+  initialTop = img.offsetTop;
+};
+
+const dragMove = (e) => {
+  if (!isDragging) return;
+  
+  const pageX = e.touches ? e.touches[0].pageX : e.pageX;
+  const pageY = e.touches ? e.touches[0].pageY : e.pageY;
+  
+  const deltaX = pageX - startX;
+  const deltaY = pageY - startY;
+  
+  img.style.left = `${initialLeft + deltaX}px`;
+  img.style.top = `${initialTop + deltaY}px`;
+
+}
+const dragEnd = () => {
+  isDragging = false;
+};
+
+img.addEventListener("mousedown", dragStart);
+document.addEventListener("mousemove", dragMove);
+document.addEventListener("mouseup", dragEnd);
+
 
 await update_stats(false);
 setInterval(() => {
