@@ -28,6 +28,7 @@ banner.addEventListener("click", () => {
 const img = document.getElementById("t");
 
 let isDragging = false;
+let done = false;
 let startX = 0;
 let startY = 0;
 let initialLeft = 0;
@@ -36,8 +37,11 @@ let currentX = 0; let currentY = 0;
 
 // Start dragging
 const dragStart = (e) => {
-    if(localStorage.getItem("abc")) return;
+    if(localStorage.getItem("abc") || done) return;
     isDragging = true;
+
+    img.style.cursor = ""
+    document.body.style.cursor = "grabbing"
   
     // Handle both mouse and touch events
     const pageX = e.touches ? e.touches[0].pageX : e.pageX;
@@ -73,7 +77,9 @@ const dragMove = (e) => {
 const dragEnd = () => {
     isDragging = false;
 
-    if(localStorage.getItem("abc")) return;
+    img.style.cursor = "grab"
+    document.body.style.cursor = ""
+    if(localStorage.getItem("abc") || done) return;
 
     img.style.pointerEvents = 'none';
     
@@ -83,6 +89,7 @@ const dragEnd = () => {
 
     if (elementUnderCursor.id == "mnp") {
         img.remove();
+        done = true;
         alert(asciiToHex(generateRandomString(Math.floor(Math.random()*15)) + " /stage1 " + generateRandomString(Math.floor(Math.random()*15))))
         //localStorage.setItem("abc", true)
     }

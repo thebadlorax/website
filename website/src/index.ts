@@ -899,6 +899,11 @@ const server = Bun.serve({
             return corsResponse(null, { status: 200 });
             break;
           }
+
+          case "/puzzle/validateStage1Password": {
+            let json = await req.json(); 
+            return corsResponse(JSON.stringify({"isValid": btoa(json.pass) == "cGEkJHcwcmQ="}), { status: 200 });
+          }
           case "/health":
             return corsResponse("OK"); 
           default: // dynamic route endpoints
@@ -947,6 +952,8 @@ const server = Bun.serve({
           case "/archive/logclicker": return corsResponse(Bun.file("src/pages/mini/logclicker/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
+
+          case "/stage1": return corsResponse(Bun.file("src/pages/puzzle/stage1.html"), { headers: { "Content-Type": "text/html" } });
       
           default:
             return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });

@@ -112,6 +112,6 @@ export const getRandomName = () => {
     ]
 
     let pre = getRandomFromList(prefix);
-    let suf = getRandomFromList(suffix)
+    let suf = getRandomFromList(suffix);
     return `${pre.charAt(0).toUpperCase() + pre.slice(1)}${suf.charAt(0).toUpperCase() + suf.slice(1)}`
 }
