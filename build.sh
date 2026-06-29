@@ -51,11 +51,30 @@ for file in staging/src/pages/**/*; do # minify
     fi
 done
 
+for file in staging/src/pages/mini/**/*; do # minify
+    if [[ -f "$file" && "$file" == *.js ]]; then
+        echo "Minifying $file"
+        bun build --minify $file --outfile $file.temp
+        mv "$file.temp" "$file"
+        echo "Replaced $file with minified version."
+    fi
+done
+
+for file in staging/src/pages/*; do # minify
+    if [[ -f "$file" && "$file" == *.js ]]; then
+        echo "Minifying $file"
+        bun build --minify $file --outfile $file.temp
+        mv "$file.temp" "$file"
+        echo "Replaced $file with minified version."
+    fi
+done
+
 if [ "$1" = "send" ]; then
     uncomment_tls_block "staging/src/index.ts"
 fi
 bun build --minify staging/src/index.ts --outfile staging/src/index.js --target bun --sourcemap
 rm staging/src/index.ts
+
 
 for file in staging/src/backend/*; do # minify
     if [[ -f "$file" && "$file" == *.ts ]]; then

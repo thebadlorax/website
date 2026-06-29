@@ -283,6 +283,8 @@ const dragStart = (e) => {
   
   initialLeft = img.offsetLeft;
   initialTop = img.offsetTop;
+
+  localStorage.setItem("abcd", true);
 };
 
 const dragMove = (e) => {

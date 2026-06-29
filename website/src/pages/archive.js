@@ -38,6 +38,15 @@ let currentX = 0; let currentY = 0;
 // Start dragging
 const dragStart = (e) => {
     if(localStorage.getItem("abc") || done) return;
+    if(!localStorage.getItem("abcd")) {
+        img.style.cursor = ""
+        document.body.style.cursor = "not-allowed"
+        setTimeout(() => {
+            img.style.cursor = "grab"
+            document.body.style.cursor = ""
+        }, 500)
+        return;
+    }
     isDragging = true;
 
     img.style.cursor = ""
@@ -75,6 +84,7 @@ const dragMove = (e) => {
 
 // Stop dragging
 const dragEnd = () => {
+    if(!localStorage.getItem("abcd")) return;
     isDragging = false;
 
     img.style.cursor = "grab"

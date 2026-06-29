@@ -46,6 +46,10 @@
  * refactor api code
  * port desktop app to windows & linux + autoupdater
  * sign in w/ google
+ * 
+ * 
+ * ARG
+ * when the browser is too small page - put something there
 */
 
 import { Glob, $, type ServerWebSocket } from "bun";
@@ -944,9 +948,10 @@ const server = Bun.serve({
           case "/archive": return corsResponse(Bun.file("src/pages/archive.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles/particles.html"), { headers: { "Content-Type": "text/html" } }); 
-          case "/mini/thelongwalk": return corsResponse(Bun.file("src/pages/mini/thelongwalk/walk.html"), { headers: { "Content-Type": "text/html" } }); 
-          case "/mini/emulator": return corsResponse(Bun.file("src/pages/mini/emulator/emulator.html"), { headers: { "Content-Type": "text/html" } }); 
-
+          case "/mini/thelongwalk": return corsResponse(Bun.file("src/pages/mini/thelongwalk/walk.html"), { headers: { "Content-Type": "text/html" } });
+          case "/mini/homelife": return corsResponse(Bun.file("src/pages/mini/homelife/hl.html"), { headers: { "Content-Type": "text/html" } }); 
+          
+          case "/archive/emulator": return corsResponse(Bun.file("src/pages/mini/emulator/emulator.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/sand": return corsResponse(Bun.file("src/pages/mini/sand/sand.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/milsim": return corsResponse(Bun.file("src/pages/mini/milsim/milsim.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/logclicker": return corsResponse(Bun.file("src/pages/mini/logclicker/clicker.html"), { headers: { "Content-Type": "text/html" } }); 

@@ -5,10 +5,10 @@
  * copyright 2026
 */
 
-import { type User, AuthorizationWizard } from "./auth.ts";
-import { Database } from "./db.ts"
-import { LogWizard } from "./logging.ts"
-import { generateRandomString } from "./utils.ts";
+import { type User, AuthorizationWizard } from "./auth";
+import { Database } from "./db"
+import { LogWizard } from "./logging"
+import { generateRandomString } from "./utils";
 import type { ServerWebSocket } from "bun";
 
 type Packet = {
