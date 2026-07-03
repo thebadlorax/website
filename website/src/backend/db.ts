@@ -15,7 +15,6 @@ export class Database {
     static defaultPath = "database.json"
     public path: string
     private log: LogWizard
-    private lock: Promise<void> = Promise.resolve();
     public last_backup_time: number = 0;
     private cached: any = {};
     private dirty = false;
@@ -26,20 +25,8 @@ export class Database {
         this.log = new LogWizard();
     }
 
-    private async withLock(fn: () => Promise<void>) {
-        const previousLock = this.lock;
-        let release: () => void;
-        this.lock = new Promise<void>((resolve) => (release = resolve!));
-
-        await previousLock; // wait for previous operation
-        try {
-            await fn();
-        } finally {
-            release!();
-        }
-    }
-
     async updateLoop() {
+        if(!this.dirty) return;
         try {
             const file = Bun.file(this.path);
             if (!(await file.exists())) await file.write(`{"nothing":"wow"}`);

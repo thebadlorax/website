@@ -66,6 +66,7 @@ import { LogWizard } from "./backend/logging";
 import { AuthorizationWizard, userToJSON } from "./backend/auth";
 import { TimeWizard } from "./backend/time";
 import { GameWizard } from "./backend/game";
+import { MusicWizard } from "./backend/music";
 
 let log = new LogWizard();
 await log.init();
@@ -82,6 +83,7 @@ const time = new TimeWizard();
 const game = new GameWizard(db);
 await game.init();
 const casino = new CasinoWizard(db);
+const music = new MusicWizard(db);
 
 let news: any = undefined;
 const reset_news = async () => {
@@ -902,6 +904,94 @@ const server = Bun.serve({
             return corsResponse("WebSocket upgrade failed", { status: 400 });
           }
 
+          case "/music/streamAudio": {
+            const u = req_url.searchParams.get("url");
+            if(!u) return corsResponse(null, { status: 400 });
+            return corsResponse(MusicWizard.youtubeToAudio(u), {
+              headers: {
+                  "Content-Type": "audio/webm",
+              },
+            });
+          }
+          case "/music/downloadMp3": {
+            const u = req_url.searchParams.get("url");
+            if(!u) return corsResponse(null, { status: 400 });
+            return corsResponse(MusicWizard.youtubeToMp3(u), {
+              headers: {
+                  "Content-Type": "audio/mp3",
+              },
+            });
+          }
+          case "/music/getPlaylists": {
+            const json = await req.json();
+            return corsResponse(JSON.stringify(await music.getPlaylists(json.name)), { status: 200 }); 
+          }
+          case "/music/createPlaylist": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+
+            let p = await music.createPlaylist(json.name, json.pass, json.pname);
+            if(!p) return corsResponse(null, { status: 400 }); 
+            return corsResponse(JSON.stringify(MusicWizard.serializePlaylist(p)), { status: 200 }); 
+          }
+          case "/music/appendSongToPlaylist": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+
+            let playlists = await music.getPlaylists(json.name);
+            let p = playlists[json.pname];
+            if(!p) return corsResponse(null, { status: 400 }); 
+            await music.appendSongToPlaylist(p, json.song);
+            music.updatePlaylist(json.name, json.pass, json.pname, p);
+            return corsResponse(null, { status: 200 }); 
+          }
+          case "/music/removeSongFromPlaylist": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+
+            let playlists = await music.getPlaylists(json.name);
+            let p = playlists[json.pname];
+            if(!p) return corsResponse(null, { status: 400 }); 
+            music.removeSongFromPlaylist(p, json.song);
+            music.updatePlaylist(json.name, json.pass, json.pname, p);
+            return corsResponse(null, { status: 200 }); 
+          }
+          case "/music/deletePlaylist": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+
+            await music.deletePlaylist(json.name, json.pass, json.pname);
+            return corsResponse(null, { status: 200 }); 
+          }
+          case "/music/renamePlaylist": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); }
+            if(!e) return corsResponse(null, { status: 401 });
+
+            await music.renamePlaylist(json.name, json.pass, json.pname, json.nname);
+            return corsResponse(null, { status: 200 }); 
+          }
+          case "/music/getDataFromURL": {
+            let json = await req.json(); 
+            let data = await MusicWizard.urlToData(json.song);
+            if(!data) return corsResponse(null, { status: 400 }); 
+            return corsResponse(JSON.stringify(data), { status: 200 }); 
+          }
+
           case "/mini/longwalk/win": {
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let json = await req.json(); 
@@ -932,7 +1022,8 @@ const server = Bun.serve({
               let file = Bun.file(file_name)
               if(await file.exists()) return corsResponse(file);
               else return corsResponse(null, { status: 400 });
-            } else return corsResponse("endpoint not found", { status: 404 }); // serve error page
+            } 
+            return corsResponse("endpoint not found", { status: 404 }); // serve error page
         };
       case "":
         let staticResponse = await serveStaticIfAllowed(url);
@@ -959,7 +1050,7 @@ const server = Bun.serve({
             if(!disabled_features.includes("music")) return corsResponse(Bun.file("src/pages/music.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
-          
+
           case "/archive": return corsResponse(Bun.file("src/pages/archive.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles/particles.html"), { headers: { "Content-Type": "text/html" } }); 

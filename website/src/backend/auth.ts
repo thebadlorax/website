@@ -81,7 +81,7 @@ export const JSONToUser = (json: any) => {
 }
 
 const generateUser = (name: string, pass: string, uniques: number, index: number) => {
-    let user: User = {
+    return {
         account: {
             name: name,
             pass: pass,
@@ -98,8 +98,7 @@ const generateUser = (name: string, pass: string, uniques: number, index: number
             uniquesOnCreation: uniques
         },
         ownedFolders: new Array()
-    }
-    return user
+    } as User
 }
 
 export class AuthorizationWizard {
@@ -309,5 +308,22 @@ export class AuthorizationWizard {
         this.log.log(`Renaming Account "${name}" to "${newName}"`, "AUTHWIZARD")
         this.db.modify("auth", {"users": json});
         setTimeout(async () => {await this.deleteAccount(name, pass);}, 500);
+    }
+
+    async fetchUserData(name: string, scope: string) {
+        const id = await this.fetchUserID(name);
+        if(!id) return undefined;
+        const user_data_full = await this.db.fetch("user_data") ?? {};
+        let user_data = user_data_full[id] ?? {};
+        return user_data[scope] ?? {};
+    }
+    async setUserData(name: string, pass: string, scope: string, data: any) {
+        if(!await this._confirmAccessAndExistance(name, pass)) return undefined;
+        const id = await this.fetchUserID(name);
+        if(!id) return undefined;
+        const user_data_full = await this.db.fetch("user_data") ?? {};
+        if(user_data_full[id] == undefined) user_data_full[id] = {};
+        user_data_full[id][scope] = data;
+        this.db.modify("user_data", user_data_full);
     }
 }
