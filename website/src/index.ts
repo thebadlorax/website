@@ -55,7 +55,7 @@
 import { Glob, $, type ServerWebSocket } from "bun";
 import { resolve } from 'node:path';
 
-import { generateRandomString, clamp, getSubdomain, streamToBlob } from "./backend/utils";
+import { generateRandomString, clamp, getSubdomain, streamToBlob, asciiToHex } from "./backend/utils";
 import { deleteFile, renameFile } from "./backend/file";
 import { Database } from "./backend/db"
 import { CasinoWizard, Deck } from "./backend/games";
@@ -196,6 +196,7 @@ const server = Bun.serve({
               headers: { "Content-Type": "application/json" },
             });
           }
+          
           case "/file/download":
             if (req.method !== "GET") return corsResponse(null, { status: 405 });
         
@@ -366,6 +367,7 @@ const server = Bun.serve({
             let is_hosting_2 = await db.fetch(`/${filePath}_hosting`);
             if(is_hosting_2) return corsResponse(null, { status: 200 })
             return corsResponse(null, { status: 400 });
+          
           case "/gambling/cards/create":
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let instance_id = generateRandomString(5);
@@ -448,6 +450,7 @@ const server = Bun.serve({
             });
             if(success_2) return undefined;
             return corsResponse("WebSocket upgrade failed", { status: 400 });
+          
           case "/chat/live":
             const success = server.upgrade(req, {
               data: { source: "/chat/live" }, // Attach per-socket data
@@ -507,6 +510,7 @@ const server = Bun.serve({
               },
             });
           }
+          
           case "/stats":
             if(req.method != "GET") return corsResponse(null, { status: 405 });
             let visitor_count_2 = await db.fetch("visitors") || 0;
@@ -516,6 +520,7 @@ const server = Bun.serve({
               "uptime": Math.floor((new Date().getTime() - starting_time.getTime())/ 1000),
               "disabled_features": disabled_features
             }), { status: 200});
+          
           case "/user/init":
             let id = generateRandomString(10);
             visitor_count += 1;
@@ -576,6 +581,7 @@ const server = Bun.serve({
             let req_json2 = await req.json(); 
             await auth.changePoints(req_json2["name"], req_json2["pass"], parseInt(req_json2["amt"]))
             return corsResponse(null, { status: 200 });
+          
           case "/admin/verify": {
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let json = await req.json(); 
@@ -819,6 +825,7 @@ const server = Bun.serve({
             db.modify("disabled_features", disabled);
             return corsResponse(null, { status: 200 });
           }
+
           case "/feedback/give": {
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let json = await req.json(); 
@@ -831,6 +838,7 @@ const server = Bun.serve({
             let fb = await db.fetch("feedback") || new Array();
             return corsResponse(JSON.stringify({"feedback": fb}), { status: 200 }); 
           }
+
           case "/game/files":
             const glob2 = new Glob(`src/res/game/**/*`);
             var data = [];
@@ -898,7 +906,7 @@ const server = Bun.serve({
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let json = await req.json(); 
             let wishes = await db.fetch("longwalk_wishes") || new Array();
-            wishes.push(`${json.name}: ${json.wish} ||| username: ${json.user.account.name}`);
+            wishes.push(`${json.name ?? "n/a server"}: ${json.wish ?? "n/a server"} ||| username: ${json.user.account.name ?? "n/a server"}`);
             db.modify("longwalk_wishes", wishes);
             return corsResponse(null, { status: 200 });
             break;
@@ -908,6 +916,8 @@ const server = Bun.serve({
             let json = await req.json(); 
             return corsResponse(JSON.stringify({"isValid": btoa(json.pass) == "cGEkJHcwcmQ="}), { status: 200 });
           }
+          case "/puzzle/getStage1Clue": return corsResponse(JSON.stringify({"clue": asciiToHex(generateRandomString(Math.floor(Math.random()*15)) + " /stage1 " + generateRandomString(Math.floor(Math.random()*15)))}), { status: 200 });
+          
           case "/health":
             return corsResponse("OK"); 
           default: // dynamic route endpoints
@@ -945,6 +955,11 @@ const server = Bun.serve({
             if(!disabled_features.includes("game")) return corsResponse(Bun.file("src/pages/game/game.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
+          case "/music": { 
+            if(!disabled_features.includes("music")) return corsResponse(Bun.file("src/pages/music.html"), { headers: { "Content-Type": "text/html" } }); 
+            else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
+          }
+          
           case "/archive": return corsResponse(Bun.file("src/pages/archive.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles/particles.html"), { headers: { "Content-Type": "text/html" } }); 

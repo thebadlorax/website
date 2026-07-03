@@ -5,21 +5,7 @@
  * copyright 2026
 */
 
-const asciiToHex = (str) => {
-    return [...str]
-      .map(char => char.charCodeAt(0).toString(16).padStart(2, '0'))
-      .join('');
-};
-
-const generateRandomString = (length) => {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      const randomIndex = Math.floor(Math.random() * characters.length);
-      result += characters.charAt(randomIndex);
-    }
-    return result;
-}
+import { getApiLink } from "./common.js";
 
 banner.addEventListener("click", () => {
     window.location.href = "/"
@@ -83,7 +69,7 @@ const dragMove = (e) => {
 };
 
 // Stop dragging
-const dragEnd = () => {
+const dragEnd = async () => {
     if(!localStorage.getItem("abcd")) return;
     isDragging = false;
 
@@ -100,7 +86,9 @@ const dragEnd = () => {
     if (elementUnderCursor.id == "mnp") {
         img.remove();
         done = true;
-        alert(asciiToHex(generateRandomString(Math.floor(Math.random()*15)) + " /stage1 " + generateRandomString(Math.floor(Math.random()*15))))
+        let e = await fetch(getApiLink("/puzzle/getStage1Clue"));
+        e = await e.json();
+        alert(e.clue);
         //localStorage.setItem("abc", true)
     }
 };

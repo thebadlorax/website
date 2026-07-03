@@ -13,6 +13,8 @@ document.getElementById("files-link").addEventListener("click", () => { redirect
 document.getElementById("chat-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`) })
 document.getElementById("gambling-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/gambling`) })
 document.getElementById("game-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/game`) })
+document.getElementById("music-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/music`) })
+
 
 
 const ad_positions = {
@@ -84,6 +86,7 @@ async function update_stats(do_fetch) {
     document.getElementById("chat-link").style.display = data.disabled_features.includes("chat") ? "none" : "block";
     document.getElementById("gambling-link").style.display = data.disabled_features.includes("gambling") ? "none" : "block";
     document.getElementById("game-link").style.display = data.disabled_features.includes("game") ? "none" : "block";
+    document.getElementById("music-link").style.display = data.disabled_features.includes("music") ? "none" : "block";
 }
 
 

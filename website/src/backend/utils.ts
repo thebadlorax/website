@@ -126,4 +126,10 @@ export function mergeDicts(dict1, dict2) {
   return {...dict1, ...dict2};
 }
 
+export const asciiToHex = (str) => {
+  return [...str]
+    .map(char => char.charCodeAt(0).toString(16).padStart(2, '0'))
+    .join('');
+};
+
 export function sumNumArray(arr: Array<number>) { let val = 0; arr.forEach(num => val += num); return val; }

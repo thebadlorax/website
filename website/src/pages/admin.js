@@ -208,6 +208,11 @@ game_feature_check.addEventListener("click", async () => {
     if(!game_feature_check.checked) await disable_feature("game");
     else await enable_feature("game");
 });
+const music_feature_check = document.getElementById("disable_music");
+music_feature_check.addEventListener("click", async () => {
+    if(!music_feature_check.checked) await disable_feature("music");
+    else await enable_feature("music");
+});
 
 const disable_feature = async (ft) => {
     await fetch(getApiLink("/admin/disableFeature"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "feature": ft})}).then(async (e) => {
@@ -257,6 +262,8 @@ const refresh_db_info = async () => {
         else gambling_feature_check.checked = true;
         if(disabled.includes("game")) game_feature_check.checked = false;
         else game_feature_check.checked = true;
+        if(disabled.includes("music")) music_feature_check.checked = false;
+        else music_feature_check.checked = true;
     })
 }
 refresh_db_info();
