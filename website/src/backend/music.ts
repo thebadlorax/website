@@ -57,35 +57,6 @@ export class MusicWizard {
         // @ts-expect-error
         return (match && match[2].length === 11) ? match[2] : null;
     }
-    static async urlToTitle(url: string) {
-        try {
-            const videoId = MusicWizard.getYouTubeId(url);
-            if (!videoId) return null;
-    
-            const response = await fetch(
-                `https://www.youtube.com/oembed?url=${encodeURIComponent(
-                    `https://www.youtube.com/watch?v=${videoId}`
-                )}&format=json`
-            );
-    
-            if (!response.ok) {
-                return null;
-            }
-    
-            const data = await response.json();
-    
-            return data.title;
-        } catch (err) {
-            console.error(err);
-            return null;
-        }
-    }
-    static serializePlaylist(playlist: Playlist) {
-        return {
-            "songs": JSON.stringify(playlist.songs),
-            "name": playlist.name
-        }
-    }
     static async urlToData(url: string) {
         try {
             const videoId = MusicWizard.getYouTubeId(url);
@@ -120,12 +91,43 @@ export class MusicWizard {
             return null;
         }
     }
+    static async urlToTitle(url: string) {
+        try {
+            const videoId = MusicWizard.getYouTubeId(url);
+            if (!videoId) return null;
+    
+            const response = await fetch(
+                `https://www.youtube.com/oembed?url=${encodeURIComponent(
+                    `https://www.youtube.com/watch?v=${videoId}`
+                )}&format=json`
+            );
+    
+            if (!response.ok) {
+                return null;
+            }
+    
+            const data = await response.json();
+    
+            return data.title;
+        } catch (err) {
+            console.error(err);
+            return null;
+        }
+    }
+
+    static serializePlaylist(playlist: Playlist) {
+        return {
+            "songs": JSON.stringify(playlist.songs),
+            "name": playlist.name
+        }
+    }
     static deserializePlaylist(playlist: any) {
         return {
             songs: playlist.songs,
             name: playlist.name
         } as Playlist
     }
+
     protected auth: AuthorizationWizard;
     protected db: Database;
 

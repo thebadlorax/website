@@ -68,6 +68,100 @@ import { TimeWizard } from "./backend/time";
 import { GameWizard } from "./backend/game";
 import { MusicWizard } from "./backend/music";
 
+// PUZZLE STUFF
+type Rule =
+    | { type: "line"; text: string }
+    | { type: "optional"; text: string }
+    | { type: "unorderedPair"; lines: [string, string] };
+
+const poem: Rule[] = [
+    {
+      type: "unorderedPair",
+      lines: ["Nothing is real", "Belief is key"]
+    },
+
+    { type: "line", text: "Don't forget the code" },
+    { type: "line", text: "There's always meaning" },
+    { type: "line", text: "Fight to learn" },
+    { type: "line", text: "The truth of the matter" },
+    { type: "line", text: "It's better than" },
+    { type: "line", text: "Living a lie" },
+    { type: "line", text: "It's not always a clue" },
+    { type: "line", text: "And it's not always this easy" },
+    { type: "line", text: "IT'S NOT" },
+
+    { type: "optional", text: "It is" },
+    { type: "optional", text: "It is" },
+    { type: "optional", text: "It is" },
+
+    { type: "line", text: "ART" },
+    { type: "line", text: "OR IS IT?" },
+    { type: "line", text: "A square is not fit" },
+    { type: "line", text: "To shape a painting" },
+    { type: "line", text: "Just an imitation of your elders" },
+    { type: "line", text: "you seek to outdo" },
+    { type: "line", text: "but without meaning to" },
+    { type: "line", text: "you replace" },
+    { type: "line", text: "LOST" },
+    { type: "line", text: "Seemingly impossible tasks;" },
+    { type: "line", text: "Don't fall into nihilism" },
+    { type: "line", text: "don't fall into a spiral" },
+    { type: "line", text: "geometry is scary" },
+];
+
+function normalize(s: string) {
+  return s
+      .trim()
+      .replace(/[’‘]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+}
+
+export function validatePoem(input: string): boolean {
+  const lines = input
+      .split(/\r?\n/)
+      .map(normalize);
+
+  let i = 0;
+
+  for (const rule of poem) {
+      if (rule.type === "line") {
+          if (i >= lines.length) return false;
+          if (lines[i] !== normalize(rule.text)) return false;
+          i++;
+      }
+
+      else if (rule.type === "optional") {
+          if (i < lines.length && lines[i] === normalize(rule.text)) {
+              i++;
+          }
+      }
+
+      else if (rule.type === "unorderedPair") {
+        if (i + 1 >= lines.length) return false;
+    
+        const a = normalize(rule.lines[0]);
+        const b = normalize(rule.lines[1]);
+    
+        const first = lines[i];
+        const second = lines[i + 1];
+    
+        if (
+            !(
+                (first === a && second === b) ||
+                (first === b && second === a)
+            )
+        ) {
+            return false;
+        }
+    
+        i += 2;
+    }
+  }
+  return i === lines.length;
+}
+
 let log = new LogWizard();
 await log.init();
 log.log("starting server :3", "SERVER")
@@ -168,7 +262,7 @@ const server = Bun.serve({
   async fetch(req) { // api
     const req_url = new URL(req.url);
     let url = req_url.pathname;
-    let subdomain = req_url.hostname;
+    let subdomain = req_url.hostname.replace("www.", "");
     const protocol = req_url.protocol;
     if(protocol == "http:") subdomain += ".dev"
     let cd, filePath, cdFileName;
@@ -207,6 +301,7 @@ const server = Bun.serve({
           
             filePath = cd.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
+            console.log(filePath);
             filePath = filePath.replaceAll("../", "")
           
             const file = Bun.file(filePath);
@@ -1007,6 +1102,32 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify({"isValid": btoa(json.pass) == "cGEkJHcwcmQ="}), { status: 200 });
           }
           case "/puzzle/getStage1Clue": return corsResponse(JSON.stringify({"clue": asciiToHex(generateRandomString(Math.floor(Math.random()*15)) + " /stage1 " + generateRandomString(Math.floor(Math.random()*15)))}), { status: 200 });
+          case "/puzzle/getStage2Clue": {
+            const path = "src/res/stage-2.pdf";
+            const file = Bun.file(path)
+            const filename = path.split("/").pop();
+            return corsResponse(file, {
+              headers: {
+                "Content-Type": "application/octet-stream",
+                "Content-Disposition": `attachment; filename="${filename}"`,
+                "Content-Length": String(file.size),
+              },
+            });
+          }
+          case "/puzzle/validateStage2Poem": {
+            let json = await req.json(); 
+            let success = validatePoem(json.poem);
+            let key = generateRandomString(5);
+            let all_keys = await db.fetch("stage2Keys") || [];
+            all_keys.push(key);
+            db.modify('stage2Keys', all_keys);
+            return corsResponse(JSON.stringify({"isValid": success, "key": key}), { status: 200 });
+          }
+          case "/puzzle/validateStage2Key": {
+            let json = await req.json(); 
+            let all_keys = await db.fetch("stage2Keys") || [];
+            return corsResponse(JSON.stringify({"isValid": all_keys.includes(json.key)}), { status: 200 });
+          }
           
           case "/health":
             return corsResponse("OK"); 
@@ -1065,6 +1186,7 @@ const server = Bun.serve({
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
 
           case "/stage1": return corsResponse(Bun.file("src/pages/puzzle/stage1.html"), { headers: { "Content-Type": "text/html" } });
+          case "/stage2": return corsResponse(Bun.file("src/pages/puzzle/stage2.html"), { headers: { "Content-Type": "text/html" } });
       
           default:
             return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });

@@ -20,22 +20,29 @@ export class LogWizard {
     }
     async init() {
         await createDirectory(this.logDir);
-        await createFile(this.logFileName, `LOG GENERATED ON ${this.logTime} - ${this._time()}\n\n`); // only works when no file found
+        await createFile(this.logFileName, this.generationText()); // only works when no file found
         await this._appToLog("------ STARTING ------")
         this.log("Initialized", "LOGWIZARD")
     }
+
+    generationText() {
+        return `LOG GENERATED ON ${this.logTime} - ${this._time()}\n\n`
+    }
+
     protected async refreshLog() {
         this.logTime = this._date();
         this.logFileName = `${this.logDir}/${this.logTime}.log`;
-        await createFile(this.logFileName, `LOG GENERATED ON ${this.logTime} - ${this._time()}\n\n------ DAY CHANGE -----\n`);
+        await createFile(this.logFileName, `${this.generationText()}------ DAY CHANGE -----\n`);
     }
     protected async _appToLog(msg: string) { 
         if(this.logTime !== this._date()) {await this.refreshLog(); this.log("Creating new log file for the day", "LOGWIZARD"); }
         appendFile(this.logFileName, `${msg}\n`);
     }
+
     protected _log(msg: string) { let formatted = `${this._time()} - ${msg}`; console.log(formatted); this._appToLog(formatted)}
     protected _time() { return `${new Date().toLocaleTimeString()}`}
     protected _date() { return `${new Date().toLocaleDateString().replaceAll("/", "_")}`}
+    
     log(msg: string, source: string = "LOG") { this._log(`${source !== "N/A" ?  `[${source}]: ` : ""}${msg}`)}
     error(msg: string, source: string = "ERROR", reason: string = "UNSPECIFIED") { this.log(`---${reason} ERROR---\n${this._time()} - [${source}]: ${msg}\n${this._time()} - ---END ERROR---`, "N/A")}
 }

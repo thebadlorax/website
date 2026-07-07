@@ -5,22 +5,7 @@
  * copyright 2026
 */
 
-import { getApiLink } from "./common.js";
-
-function downloadBlob(content, fileName, contentType) {
-    const blob = new Blob([content], { type: contentType });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    
-    document.body.appendChild(link);
-    link.click();
-    
-    URL.revokeObjectURL(url);
-    document.body.removeChild(link);
-}
+import { getApiLink, downloadBlob } from "./common.js";
 
 // music player
 class MusicPlayer {
@@ -31,20 +16,20 @@ class MusicPlayer {
 
     stop() {
         if(this.queue.length == 0) return;
-        this.queue[0].pause();
+        this.queue[0].audio.pause();
         this.playing = false;
         this._stop()
     };
     
     resume() {
         if(this.queue.length == 0) return;
-        this.queue[0].play();
+        this.queue[0].audio.play();
         this.playing = true;
         this._start();
     }
 
-    async queueSong(url) {
-        let a = await this.getYoutubeAudio(url);
+    queueSong(songData) {
+        let a = this.getYoutubeAudio(songData.url);
         a.addEventListener("ended", () => {
             this.queue.shift();
             if(this.queue.length == 0) {
@@ -54,7 +39,7 @@ class MusicPlayer {
             }
             this.resume();
         })
-        this.queue.push(a)
+        this.queue.push({...songData, "audio": a})
         if(this.queue.length == 1) {
             this.resume();
         }
@@ -69,6 +54,8 @@ class MusicPlayer {
 
     getYoutubeAudio(url) {
         const audio = new Audio(`${getApiLink("/music/streamAudio")}?url=${url}`);
+        audio.addEventListener("play", () => { this._start() })
+        audio.addEventListener("pause", () => { this.stop() })
         return audio
     }
 }
@@ -119,7 +106,7 @@ document.getElementById("add_to_playlist").addEventListener("click", async () =>
 })
 
 document.getElementById("song_play").addEventListener("click", async () => {
-    await mp.queueSong(main_view_data.song_data.url);
+    mp.queueSong(main_view_data.song_data);
 });
 
 document.getElementById("song_download").addEventListener("click", async () => {

@@ -31,19 +31,85 @@ function formatTimeLeft(targetDate) {
         return `${days}:${hours}:${minutes}:${seconds}`;
 };
 
-let r = await fetch(getApiLink("/puzzle/validateStage1Password"), {
-    body: JSON.stringify({"pass": prompt("password?")}),
-    method: "POST"
-})
-let json = await r.json();
+async function downloadPDF() {
+    try {
+        const res = await fetch(getApiLink("/puzzle/getStage2Clue"));
+    
+        if (!res.ok || !res.body) return;
+    
+        const total = Number(res.headers.get("Content-Length"));
+        let received = 0;
+    
+        const reader = res.body.getReader();
+        const chunks = [];
+    
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+    
+          chunks.push(value);
+          received += value.length;
+        }
+    
+        const blob = new Blob(chunks);
+        const url = URL.createObjectURL(blob);
+    
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "stage-2.pdf";
+        document.body.appendChild(a);
+        a.click();
+    
+        URL.revokeObjectURL(url);
+        a.remove();
+    } catch (err) {
+        console.error("Download failed", err);
+        return;
+    }
+}
 
-if(!json.isValid) {
-    alert("invalid password");
-    window.location.href = "/"
+
+
+if(localStorage.getItem("abcdef")) {
+    document.getElementById("rd").addEventListener("click", async () => {
+        await downloadPDF();
+    })
+    document.getElementById("poem-button").addEventListener("click", async () => {
+        let r = await fetch(getApiLink("/puzzle/validateStage2Poem"), {
+            body: JSON.stringify({"poem": document.getElementById("poem-input").value}),
+            method: "POST"
+        })
+        let json = await r.json();
+        if(!json.isValid) {
+            alert("invalid poem (make sure everything is seperated correctly onto new lines, just like it would be in the pdf)")
+        } else {
+            localStorage.setItem("stage2Key", json.key)
+            location.href = "/stage2"
+        }
+    });
+
+    let r2 = await fetch(getApiLink("/puzzle/validateStage2Key"), {
+        body: JSON.stringify({"key": localStorage.getItem("stage2Key") || ""}),
+        method: "POST"
+    })
+    let json = await r2.json();
+    if(json.isValid) {
+        location.href = "/stage2"
+    }
 } else {
-    const countdown = document.createElement("p");
-    d.appendChild(countdown);
-    setInterval(() => {
-        countdown.textContent = formatTimeLeft("2026-08-31T00:00:00.000Z");
-    }, 100) 
+    let p = prompt("password?");
+    let r = await fetch(getApiLink("/puzzle/validateStage1Password"), {
+        body: JSON.stringify({"pass": p}),
+        method: "POST"
+    })
+    let json = await r.json();
+    
+    if(!json.isValid) {
+        alert("invalid password");
+        window.location.href = "/"
+    } else {
+        localStorage.setItem("abcdef", true);
+        await downloadPDF();
+        location.reload();
+    }
 }

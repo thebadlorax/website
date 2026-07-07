@@ -18,6 +18,21 @@ export function setCookie(cname, cvalue, exdays) {
     document.cookie = `${cname}=${cvalue};expires=${d.toUTCString()};path=/`;
 }
 
+export function downloadBlob(content, fileName, contentType) {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    
+    document.body.appendChild(link);
+    link.click();
+    
+    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+}
+
 export function* range(start, end, step = 1) {
     for (let i = start; i < end; i += step) {
         yield i;

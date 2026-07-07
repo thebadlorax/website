@@ -39,9 +39,13 @@ export class Database {
         
     }
 
+    async fullCacheReset() {
+        this.cached = await Bun.file(this.path).json();
+    }
+
     async init() {
         if(!await Bun.file(this.path).exists()) await Bun.file(this.path).write(`{}`);
-        this.cached = await Bun.file(this.path).json();
+        await this.fullCacheReset()
         setInterval(this.updateLoop.bind(this), this.updateInterval);
         this.log.log("Initialized", "DATABASE");
     }
@@ -101,6 +105,7 @@ export class Database {
         
         await rename(tempPath, this.path);
         
+        await this.fullCacheReset();
         this.log.log("db restoration complete", "DATABASE");
         await this.backup_database();
     };

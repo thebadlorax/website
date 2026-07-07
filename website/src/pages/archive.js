@@ -86,7 +86,7 @@ const dragEnd = async () => {
     if (elementUnderCursor.id == "mnp") {
         img.remove();
         done = true;
-        let e = await fetch(getApiLink("/puzzle/getStage1Clue"));
+        let e = await fetch(getApiLink(atob("L3B1enpsZS9nZXRTdGFnZTFDbHVl")));
         e = await e.json();
         alert(e.clue);
         //localStorage.setItem("abc", true)
