@@ -79,30 +79,27 @@ const poem: Rule[] = [
       type: "unorderedPair",
       lines: ["Nothing is real", "Belief is key"]
     },
-
     { type: "line", text: "Don't forget the code" },
     { type: "line", text: "There's always meaning" },
+    { type: "line", text: "It's not always a clue" },
+    { type: "line", text: "And it's not always this easy" },
     { type: "line", text: "Fight to learn" },
     { type: "line", text: "The truth of the matter" },
     { type: "line", text: "It's better than" },
     { type: "line", text: "Living a lie" },
-    { type: "line", text: "It's not always a clue" },
-    { type: "line", text: "And it's not always this easy" },
     { type: "line", text: "IT'S NOT" },
-
     { type: "optional", text: "It is" },
     { type: "optional", text: "It is" },
     { type: "optional", text: "It is" },
-
     { type: "line", text: "ART" },
     { type: "line", text: "OR IS IT?" },
     { type: "line", text: "A square is not fit" },
     { type: "line", text: "To shape a painting" },
     { type: "line", text: "Just an imitation of your elders" },
+    { type: "line", text: "LOST" },
     { type: "line", text: "you seek to outdo" },
     { type: "line", text: "but without meaning to" },
     { type: "line", text: "you replace" },
-    { type: "line", text: "LOST" },
     { type: "line", text: "Seemingly impossible tasks;" },
     { type: "line", text: "Don't fall into nihilism" },
     { type: "line", text: "don't fall into a spiral" },
@@ -111,17 +108,19 @@ const poem: Rule[] = [
 
 function normalize(s: string) {
   return s
-      .trim()
-      .replace(/[’‘]/g, "'")
-      .replace(/[“”]/g, '"')
-      .replace(/\s+/g, " ")
-      .toLowerCase();
+      .normalize("NFKD")               // separate accented characters
+      .replace(/[\u0300-\u036f]/g, "") // remove accent marks
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")     // remove punctuation
+      .replace(/\s+/g, " ")            // collapse whitespace
+      .trim();
 }
 
 export function validatePoem(input: string): boolean {
   const lines = input
-      .split(/\r?\n/)
-      .map(normalize);
+    .split(/\r?\n/)
+    .map(normalize)
+    .filter(line => line.length > 0);
 
   let i = 0;
 
@@ -1104,6 +1103,18 @@ const server = Bun.serve({
           case "/puzzle/getStage1Clue": return corsResponse(JSON.stringify({"clue": asciiToHex(generateRandomString(Math.floor(Math.random()*15)) + " /stage1 " + generateRandomString(Math.floor(Math.random()*15)))}), { status: 200 });
           case "/puzzle/getStage2Clue": {
             const path = "src/res/stage-2.pdf";
+            const file = Bun.file(path)
+            const filename = path.split("/").pop();
+            return corsResponse(file, {
+              headers: {
+                "Content-Type": "application/octet-stream",
+                "Content-Disposition": `attachment; filename="${filename}"`,
+                "Content-Length": String(file.size),
+              },
+            });
+          }
+          case "/puzzle/getStage2Transcript": {
+            const path = "src/res/stage-2.txt";
             const file = Bun.file(path)
             const filename = path.split("/").pop();
             return corsResponse(file, {

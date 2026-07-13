@@ -37,25 +37,27 @@
     </style>
 </head>
 <body>
-    <div style="display: flex;">
-        <button class="input" id="rd">redownload pdf</button>
-    </div>
-    <div style="display: flex; flex-direction: column;">
-        <p style="margin-bottom: 0%;">your task: recite the poem found within the pdf (case sensitivity doesn't matter, and if things can be any order the order doesn't matter either)</p>
-        <p style=" margin-bottom: 0%;">assume that all plaintext comes first, and then cyphered information comes after</p>
-        <p style="margin-top: 0%;">be careful to make sure each line is actually on a new line and not just wrapping in the box</p>
-        <p style="margin-top: 0%; margin-bottom: 0%;">to make this somewhat possible:</p>
-        <p style="margin-top: 0%; margin-bottom: 0%;">page 1: 3 lines</p>
-        <p style="margin-top: 0%; margin-bottom: 0%;">page 2: 7 lines (and it's not always that easy is one line)</p>
-        <p style="margin-top: 0%; margin-bottom: 0%;">page 3: 2-5 lines</p>
-        <p style="margin-top: 0%; margin-bottom: 0%;">page 4: 3 lines</p>
-        <p style="margin-top: 0%; margin-bottom: 0%;">page 5: 5 lines</p>
-        <p style="margin-top: 0%; margin-bottom: 0%;">page 6: 4 lines</p>
-        <p style="margin-top: 0%; margin-bottom: 0%;">total: 24-27 lines</p>
-        <p style="margin-bottom: 0%;"></p>
-    </div>
-    <div style="display: flex;">
-        <textarea class="input" id="poem-input" placeholder="submit here" style="width: 45vw; height: 35vh;"></textarea>
-        <button class="input" id="poem-button" style="margin-left: 1vw;">submit</button>
+    <div id="maindiv" style="display: none;">
+        <div style="display: flex;">
+            <button class="input" id="rd">redownload pdf</button> <button class="input"  style="margin-left: 1vw;" id="key">download transcript</button>
+        </div>
+        <div style="display: flex; flex-direction: column;">
+            <p style="margin-bottom: 0%;">your task: recite the poem found within the pdf (case sensitivity doesn't matter, and if things can be any order the order doesn't matter either)</p>
+            <p style="margin-bottom: 0%;">assume that all plaintext comes first, and then cyphered information comes after</p>
+            <p style="margin-top: 0%;">be careful to make sure each line is actually on a new line and not just wrapping in the box</p>
+            <p style="margin-top: 0%; margin-bottom: 0%;">to make this somewhat possible:</p>
+            <p style="margin-top: 0%; margin-bottom: 0%;">page 1: 3 lines</p>
+            <p style="margin-top: 0%; margin-bottom: 0%;">page 2: 7 lines</p>
+            <p style="margin-top: 0%; margin-bottom: 0%;">page 3: 2-5 lines</p>
+            <p style="margin-top: 0%; margin-bottom: 0%;">page 4: 3 lines (12345, 12345 and the caption are not in the poem)</p>
+            <p style="margin-top: 0%; margin-bottom: 0%;">page 5: 5 lines</p>
+            <p style="margin-top: 0%; margin-bottom: 0%;">page 6: 4 lines</p>
+            <p style="margin-top: 0%; margin-bottom: 0%;">total: 24-27 lines</p>
+            <p style="margin-bottom: 0%;"></p>
+        </div>
+        <div style="display: flex;">
+            <textarea class="input" id="poem-input" placeholder="submit here" style="width: 45vw; height: 35vh;"></textarea>
+            <button class="input" id="poem-button" style="margin-left: 1vw;">submit</button>
+        </div>
     </div>
 </body>

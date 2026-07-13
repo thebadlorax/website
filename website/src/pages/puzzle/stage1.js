@@ -15,25 +15,9 @@ function getApiLink(route) {
     return link
 };
 
-function formatTimeLeft(targetDate) {
-        const now = new Date();
-        const difference = new Date(targetDate) - now;
-    
-        if (difference <= 0) {
-        return "0:0:0:0";
-        }
-    
-        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-    
-        return `${days}:${hours}:${minutes}:${seconds}`;
-};
-
-async function downloadPDF() {
+async function dwl(api, fname) {
     try {
-        const res = await fetch(getApiLink("/puzzle/getStage2Clue"));
+        const res = await fetch(getApiLink(api));
     
         if (!res.ok || !res.body) return;
     
@@ -56,7 +40,7 @@ async function downloadPDF() {
     
         const a = document.createElement("a");
         a.href = url;
-        a.download = "stage-2.pdf";
+        a.download = fname;
         document.body.appendChild(a);
         a.click();
     
@@ -68,12 +52,18 @@ async function downloadPDF() {
     }
 }
 
-
-
 if(localStorage.getItem("abcdef")) {
+    maindiv.style.display = "block";
     document.getElementById("rd").addEventListener("click", async () => {
-        await downloadPDF();
-    })
+        await dwl("/puzzle/getStage2Clue", "stage-2.pdf");
+    });
+
+    document.getElementById("key").addEventListener("click", async () => {
+        alert("you CANNOT solve the whole poem using just this document alone, my bad handwriting is why this must be put here")
+        await dwl("/puzzle/getStage2Transcript", "stage-2.txt");
+    });
+
+
     document.getElementById("poem-button").addEventListener("click", async () => {
         let r = await fetch(getApiLink("/puzzle/validateStage2Poem"), {
             body: JSON.stringify({"poem": document.getElementById("poem-input").value}),
@@ -109,7 +99,7 @@ if(localStorage.getItem("abcdef")) {
         window.location.href = "/"
     } else {
         localStorage.setItem("abcdef", true);
-        await downloadPDF();
+        await dwl("/puzzle/getStage2Clue", "stage-2.pdf");
         location.reload();
     }
 }
