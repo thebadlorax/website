@@ -12,15 +12,11 @@ export async function isDirectory(path: string) {
     try {
       const stats = await stat(path);
       return stats.isDirectory();
-    } catch (error) {
-      // Handle error if the path does not exist or other issues occur
-      throw(error);
-    }
+    } catch (error) { throw(error) }
 }
   
 export async function createDirectory(dirPath: string) {
     try {
-      // The recursive: true option ensures parent directories are created if they don't exist
       await mkdir(dirPath, { recursive: true });
     } catch (error) {
       throw error;
@@ -32,8 +28,8 @@ export async function deleteFile(filePath: string) {
     if(is_dir) {
       try {
         await rm(filePath, {
-          recursive: true, // Required for deleting subdirectories and files
-          force: true,     // Prevents errors if the directory doesn't exist
+          recursive: true,
+          force: true,
         });
       } catch (error) {
         throw(error);
@@ -41,7 +37,7 @@ export async function deleteFile(filePath: string) {
     } else {
       try {
         const file = Bun.file(filePath);
-        await file.delete(); // The delete() method removes the file from the filesystem
+        await file.delete();
     
       } catch (error) {
         console.error(`Error deleting file: ${error}`);

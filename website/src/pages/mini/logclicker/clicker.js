@@ -768,7 +768,7 @@ class Engine {
     
         this._previousElapsed = elapsed;
 
-        if(this.fps_data.length == 5) this.fps_data.pop();
+        if(this.fps_data.length == 5) this.fps_data.shift();
         this.fps_data.push(delta || 0);
 
         this.update(delta);

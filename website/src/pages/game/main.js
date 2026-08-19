@@ -16,6 +16,8 @@ if(!user) {
 let d = await fetch(getApiLink("/game/data/fetch"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})})
 d = await d.json();
 
+console.log(d)
+
 
 const engine = new Engine(d);
 

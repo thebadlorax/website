@@ -1332,13 +1332,10 @@ export class CombatManager {
             if (p.collected) continue;
     
             p.life += delta;
-    
             p.vx *= 0.98;
             p.vy *= 0.98;
-    
             p.x += p.vx * delta;
             p.y += p.vy * delta;
-
             p.x = clamp(p.x, 0, cb.w);
             p.y = clamp(p.y, 0, cb.h);
     

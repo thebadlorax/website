@@ -38,7 +38,6 @@ cp -r website/src staging/src
 if [ "$1" = "public" ]; then
     cp -r website/public staging/public
 fi
-cp -r .git staging/.git
 
 shopt -s globstar dotglob 
 
@@ -92,7 +91,6 @@ mv build/include/* build
 rmdir build/include
 
 if [ "$1" = "send" ]; then
-    zip -r build/git_archive build/.git
     rm -rf build/.git
     scp -r build thebadlorax@thebadlorax.dev:~/
     ssh thebadlorax.dev "sudo systemctl restart myscript"

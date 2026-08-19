@@ -167,7 +167,7 @@ async function menuAction(action) {
 
 async function fetchDataFromServer() {
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
-    current_dir = dirInput.value.trim() + "/";
+    current_dir = (dirInput.value.trim() + "/");
     if(dirInput.value.trim() != "") protect_check_div.style.display = "block";
     else protect_check_div.style.display = "none";
     host_check_div.style.display = "none";
@@ -180,6 +180,7 @@ async function fetchDataFromServer() {
             "folder": current_dir.slice(0, -1),
         })
     });
+
     fetch(getApiLink("/file/protected"), {
         method: "POST",
         body: JSON.stringify({
@@ -191,7 +192,6 @@ async function fetchDataFromServer() {
             protect_check.checked = false;
         }
     });
-    
     fetch(getApiLink("/hosting/query"), {
         method: "GET",
         headers: {
@@ -206,10 +206,12 @@ async function fetchDataFromServer() {
         container.innerHTML = `<p class="basic-text unselectable">PROTECTED DIRECTORY</p>`
         return;
     }
+
     const data = await response.json();
     
     container.innerHTML = ""
-    if(data.length == 0) container.innerHTML += `<p class="basic-text unselectable">no files found :(</p>`
+    if(!current_dir.slice(0, -1)) container.innerHTML += `<p class="basic-text unselectable">please select a directory</p>`
+    else if(data.length == 0) container.innerHTML += `<p class="basic-text unselectable">no files found :(</p>`
     for(let i = 0; i < data.length; i++) {
         let file_name = data[i][0].split("/").at(-1);
         if(file_name == "index.html") { 
@@ -271,9 +273,13 @@ document.addEventListener("dragover", (e) => {
 
 document.addEventListener("drop", async (e) => {
     e.preventDefault();
-
     const files = Array.from(e.dataTransfer.files);
     if (!files.length) return;
+
+    if(!(dirInput.value.trim() + "/").slice(0, -1)) {
+        alert("cannot upload file here")
+        return;
+    }
 
     try {
         for (const file of files) {
@@ -357,17 +363,17 @@ host_check.addEventListener("change", async (e) => {
     });
 })
 
-if(window.location.href.includes("?dir=")) {
-    let dir = window.location.href.split("?dir=")[1];
-    dirInput.value = dir;
-}
-
 window.addEventListener('keydown', (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       dirInput.focus();
     }
-  });
+});
+
+if(window.location.href.includes("?dir=")) {
+    let dir = window.location.href.split("?dir=")[1];
+    dirInput.value = dir;
+}
 
 fetchDataFromServer();
 hideMenu();

@@ -108,7 +108,7 @@ export class MusicWizard {
     
             const data = await response.json();
     
-            return data.title;
+            return `${data.title}`;
         } catch (err) {
             console.error(err);
             return null;

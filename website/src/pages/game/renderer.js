@@ -1423,9 +1423,9 @@ export class MenuRegistry {
                     screenResolution: `${screen.width}x${screen.height}`,
                     browserLanguage: navigator.language,
                     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                  },
-                  "user": user,
-                  "ms": ms
+                },
+                "user": user,
+                "ms": ms
             }})});
             return settings;
         }

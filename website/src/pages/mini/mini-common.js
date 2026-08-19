@@ -29,6 +29,14 @@ export class Loader {
     };
 
     getImage(key) { return (key in this.images) ? this.images[key] : null; };
+
+    imageSet(...images) {
+        let a = [];
+        images.forEach(i => {
+            a.push(this.getImage(i))
+        })
+        return a;
+    }
 };
 
 export const generateRandomString = (length) => {
@@ -114,4 +122,16 @@ export const getRandomName = () => {
     let pre = getRandomFromList(prefix);
     let suf = getRandomFromList(suffix);
     return `${pre.charAt(0).toUpperCase() + pre.slice(1)}${suf.charAt(0).toUpperCase() + suf.slice(1)}`
+}
+
+export function drawRotatedImage(ctx, img, x, y, width, height, degrees) {
+    const radians = degrees * Math.PI / 180;
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+  
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(radians);
+    ctx.drawImage(img, -width / 2, -height / 2, width, height); // big geep told me this was the method
+    ctx.restore();
 }

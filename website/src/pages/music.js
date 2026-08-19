@@ -12,6 +12,12 @@ class MusicPlayer {
     constructor() {
         this.queue = []
         this.playing = false;
+        this.vol = 1;
+    }
+
+    setVolume(vol) {
+        this.vol = vol;
+        this.queue[0].audio.volume = this.vol;
     }
 
     stop() {
@@ -24,6 +30,7 @@ class MusicPlayer {
     resume() {
         if(this.queue.length == 0) return;
         this.queue[0].audio.play();
+        this.queue[0].audio.volume = this.vol;
         this.playing = true;
         this._start();
     }
@@ -34,7 +41,7 @@ class MusicPlayer {
             this.queue.shift();
             if(this.queue.length == 0) {
                 this.playing = false;
-                this._stop()
+                this._stop();
                 return;
             }
             this.resume();

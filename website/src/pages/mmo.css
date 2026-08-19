@@ -1,0 +1,28 @@
+/*
+ * author thebadlorax
+ * created on 16-08-2026-09h-00m
+ * github: https://github.com/thebadlorax
+ * copyright 2026
+*/
+
+html {
+    font-family: "Jersey 20", sans-serif;
+    font-weight: 200;
+    font-size: 20px;
+    font-style: normal;
+    color: white;
+
+    background-color: black;
+    
+    overflow: hidden;
+    overscroll-behavior: none;
+    margin: 0;
+    padding: 0;
+}
+
+canvas {
+    image-rendering: pixelated;
+    position: fixed;
+    top: 0px;
+    left: 0px;
+}

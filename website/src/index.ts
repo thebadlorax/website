@@ -31,7 +31,6 @@
  *        superautopets battles (permadeath)
  *    garden simulation
  *        maybe fold pet ownership and garden into a life simulation
- *    military simulator (really complicated and long term (1 week+ runtime))
  * -------
  * make a toggle to make protected folders public but immutable
  *    also if you have the url protected is useless
@@ -46,10 +45,6 @@
  * refactor api code
  * port desktop app to windows & linux + autoupdater
  * sign in w/ google
- * 
- * 
- * ARG
- * when the browser is too small page - put something there
 */
 
 import { Glob, $, type ServerWebSocket } from "bun";
@@ -67,6 +62,7 @@ import { AuthorizationWizard, userToJSON } from "./backend/auth";
 import { TimeWizard } from "./backend/time";
 import { GameWizard } from "./backend/game";
 import { MusicWizard } from "./backend/music";
+import { MMOWizard } from "./backend/mmo";
 
 // PUZZLE STUFF
 type Rule =
@@ -109,10 +105,10 @@ const poem: Rule[] = [
 function normalize(s: string) {
   return s
       .normalize("NFKD")               // separate accented characters
-      .replace(/[\u0300-\u036f]/g, "") // remove accent marks
+      .replace(/[\u0300-\u036f]/g, "") // accent marks
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, "")     // remove punctuation
-      .replace(/\s+/g, " ")            // collapse whitespace
+      .replace(/[^a-z0-9\s]/g, "")     // punctuation
+      .replace(/\s+/g, " ")            // whitespace
       .trim();
 }
 
@@ -126,16 +122,10 @@ export function validatePoem(input: string): boolean {
 
   for (const rule of poem) {
       if (rule.type === "line") {
-          if (i >= lines.length) return false;
-          if (lines[i] !== normalize(rule.text)) return false;
-          i++;
+          if (i >= lines.length) return false; if (lines[i] !== normalize(rule.text)) return false; i++;
       }
 
-      else if (rule.type === "optional") {
-          if (i < lines.length && lines[i] === normalize(rule.text)) {
-              i++;
-          }
-      }
+      else if (rule.type === "optional") { if (i < lines.length && lines[i] === normalize(rule.text)) { i++; } }
 
       else if (rule.type === "unorderedPair") {
         if (i + 1 >= lines.length) return false;
@@ -146,15 +136,9 @@ export function validatePoem(input: string): boolean {
         const first = lines[i];
         const second = lines[i + 1];
     
-        if (
-            !(
-                (first === a && second === b) ||
-                (first === b && second === a)
-            )
-        ) {
+        if (!((first === a && second === b) || (first === b && second === a))) {
             return false;
         }
-    
         i += 2;
     }
   }
@@ -177,6 +161,7 @@ const game = new GameWizard(db);
 await game.init();
 const casino = new CasinoWizard(db);
 const music = new MusicWizard(db);
+const mmo = new MMOWizard(db);
 
 let news: any = undefined;
 const reset_news = async () => {
@@ -319,6 +304,7 @@ const server = Bun.serve({
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let req_json_9 = await req.json();
             let folder_2 = req_json_9["folder"];
+            if(!folder_2) folder_2 = "dont_put_anything_here"
             let name_2 = req_json_9["name"];
             let pass_2 = req_json_9["pass"];
 
@@ -945,7 +931,7 @@ const server = Bun.serve({
 
             return corsResponse(JSON.stringify(data), {
               headers: { "Content-Type": "application/json" },
-            });
+          });
           case "/game/data/fetch": {
             let data = Bun.file("src/res/game/data.json");
             let user_json = await req.json();
@@ -1095,7 +1081,19 @@ const server = Bun.serve({
             return corsResponse(null, { status: 200 });
             break;
           }
+          case "/mini/garden/files": {
+            const glob2 = new Glob(`src/res/mini/garden/**/*`);
+            var data = [];
+      
+            for (const file of glob2.scanSync(".")) {
+              data.push(file.replace("src/res/mini/garden/", ""));
+            }
 
+            return corsResponse(JSON.stringify(data), {
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+            
           case "/puzzle/validateStage1Password": {
             let json = await req.json(); 
             return corsResponse(JSON.stringify({"isValid": btoa(json.pass) == "cGEkJHcwcmQ="}), { status: 200 });
@@ -1139,9 +1137,16 @@ const server = Bun.serve({
             let all_keys = await db.fetch("stage2Keys") || [];
             return corsResponse(JSON.stringify({"isValid": all_keys.includes(json.key)}), { status: 200 });
           }
-          
-          case "/health":
-            return corsResponse("OK"); 
+
+          case "/mmo/live": {
+            const success = server.upgrade(req, {
+              data: { source: "/mmo/live" }, // Attach per-socket data
+            });
+            if(success) return undefined;
+            return corsResponse("WebSocket upgrade failed", { status: 400 });
+          }
+
+          case "/health": return corsResponse("OK"); 
           default: // dynamic route endpoints
             if(url.startsWith("/file/fetch/")) {
               let file_name = "public/" + url.split("fetch/")[1]
@@ -1182,12 +1187,16 @@ const server = Bun.serve({
             if(!disabled_features.includes("music")) return corsResponse(Bun.file("src/pages/music.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
+          case "/mmo": { 
+            if(!disabled_features.includes("mmo")) return corsResponse(Bun.file("src/pages/mmo.html"), { headers: { "Content-Type": "text/html" } }); 
+            else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
+          }
 
           case "/archive": return corsResponse(Bun.file("src/pages/archive.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles/particles.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/mini/thelongwalk": return corsResponse(Bun.file("src/pages/mini/thelongwalk/walk.html"), { headers: { "Content-Type": "text/html" } });
-          case "/mini/homelife": return corsResponse(Bun.file("src/pages/mini/homelife/hl.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/mini/garden": return corsResponse(Bun.file("src/pages/mini/garden/garden.html"), { headers: { "Content-Type": "text/html" } }); 
           
           case "/archive/emulator": return corsResponse(Bun.file("src/pages/mini/emulator/emulator.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/sand": return corsResponse(Bun.file("src/pages/mini/sand/sand.html"), { headers: { "Content-Type": "text/html" } }); 
@@ -1242,27 +1251,12 @@ websocket: {
   open(ws) {
     switch (ws.data.source) {
       case "/chat/live": break;
-
-      case "/chat/voice":
-        voice_websockets.push(ws);
-
-        const id = `user_${crypto.randomUUID()}`;
-        clientIds.set(ws, id);
-
-        const msg = JSON.stringify({ type: "voice-connect", clientId: id });
-        ws.send(JSON.stringify({type: "info", clientId: id}));
-        for (const client of voice_websockets) {
-          if (client.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: "voice-connect", clientId: clientIds.get(client) }))
-            client.send(msg);
-          }
-        }
-        break;
       
       case "/game/live": game.createSingleplayerConnection(ws); break;
 
-      default:
-        websockets.push(ws);
+      case "/mmo/live": mmo.connect(ws); break;
+
+      default: websockets.push(ws);
     }
   },
 
@@ -1274,6 +1268,8 @@ websocket: {
 
       case "/gambling/live": casino.handleMessage(ws, message); break;
 
+      case "/mmo/live": await mmo.routeIncomingData(ws, message); break;
+
       default:
         ws.send("where u come from :-(");
     }
@@ -1283,26 +1279,11 @@ websocket: {
     switch (ws.data.source) {
       case "/chat/live": chat.deregister(ws); break;
 
-      case "/chat/voice": {
-        const id = clientIds.get(ws);
-        clientIds.delete(ws);
-      
-        const index = voice_websockets.indexOf(ws);
-        if (index !== -1) voice_websockets.splice(index, 1);
-      
-        const msg = JSON.stringify({ type: "voice-disconnect", clientId: id });
-        for (const client of voice_websockets) {
-          if (client.readyState === WebSocket.OPEN) {
-            client.send(msg);
-          }
-        }
-        break;
-      }
-
       case "/gambling/live": casino.handleDisconnect(ws); break;
   
       case "/game/live": game.onClose(ws); break;
 
+      case "/mmo/live": mmo.disconnect(ws); break;
     }
   },
 

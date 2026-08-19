@@ -70,10 +70,8 @@ const cardValues: Map<number, number> = new Map([
 export class Deck {
     public cards: Array<number>;
     public id: string = generateRandomString(10)
-    private log: LogWizard = new LogWizard();
     constructor() {
         this.cards = [...range(0, 52)];
-        //this.log.log(`Deck initalized with id ${this.id}`, "GAMES")
     }
   
     public draw() {
