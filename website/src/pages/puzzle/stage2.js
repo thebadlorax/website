@@ -19,9 +19,7 @@ function formatTimeLeft(targetDate) {
         const now = new Date();
         const difference = new Date(targetDate) - now;
     
-        if (difference <= 0) {
-        return "0:0:0:0";
-        }
+        if (difference <= 0) return "0:0:0:0";
     
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
         const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -44,6 +42,6 @@ if(!json.isValid) {
     const countdown = document.createElement("p");
     d.appendChild(countdown);
     setInterval(() => {
-        countdown.textContent = formatTimeLeft("2026-08-31T00:00:00.000Z");
+        countdown.textContent = formatTimeLeft("2026-09-31T00:00:00.000Z");
     }, 100) 
 }

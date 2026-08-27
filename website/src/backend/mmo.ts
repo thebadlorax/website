@@ -49,13 +49,6 @@ const opposite_movements = [
     5, // southeast -> northwest
     4  // southwest -> northeast
 ]
-const encodeMapLocation = (loc: MapLocation, data: LocationData) => { return {"info": loc, "data": data} }
-const decodeMapLocation = (data: any) => {
-    return {
-        "location": data.info as MapLocation,
-        "data": data.data as LocationData
-    }
-}
 class LocationManager {
     public locations: Array<MapLocation> = new Array();
     public dataMap: Map<string, LocationData> = new Map();
@@ -125,58 +118,314 @@ enum EntityType {
     PLAYER
 }
 class Entity {
-    static decode(data: any) {
-        const e = new Entity(data.type);
-        e.pos.xySetIp(data.pos.x, data.pos.y);
-        return e;
-    }
     public pos: Vector2;
     public type: EntityType;
     public locID: string | null = null;
-    public id: string = generateRandomString(5);
+    public id: string;
 
     constructor(type: EntityType) {
         this.pos = Vector.two(0, 0);
         this.type = type;
-    }
-
-    encode() {
-        return {
-            "pos": {
-                "x": this.pos.x,
-                "y": this.pos.y
-            },
-            "type": this.type,
-            "locID": this.locID,
-            "entityID": this.id
-        }
+        this.id = generateRandomString(5);
     }
 }
 
 // WEBSOCKET/NETWORKING
-type Packet = {
-    type: string,
-    data: any
-}; const decodePacket = (formatted: string) => {
-    const a: Array<string> = atob(formatted).split(";");
-    return { type: a[0], data: JSON.parse(a[1]!) } as Packet;
-}; const encodePacket = (packet: Packet) => { return btoa(`${packet.type};${JSON.stringify(packet.data)}`); }
+enum PacketType {
+    UPDATE_ENTITY_POSITION = 0,
+    CREATE_ENTITY = 1,
+    DESTROY_ENTITY = 2,
+    MAP_UPDATE = 3,
+    TIMESTEP = 4,
+    ERROR = 5,
+    WELCOME = 6,
+    FETCH_INSTANCES = 7,
+    FORCE_HOMEPAGE = 8,
+    AUTHORIZATION_SUCCESS = 9,
+    AUTHORIZATION_REQUEST = 10,
+    FIND_INSTANCE = 11,
+    INSTANCE_CONNECTION = 12,
+    ACTION = 13
+}
+class PacketWriter {
+    public static EMPTY = (): Uint8Array => { return new Uint8Array(new ArrayBuffer(0)); }
+    private data: number[] = [];
+
+    writeUint8(value: number) { this.data.push(value & 0xFF) }
+    writeUint16(value: number) {
+        this.data.push(
+            (value >>> 8) & 0xFF,
+            value & 0xFF
+        );
+    }
+    writeUint32(value: number) { this.data.push(
+        (value >>> 24) & 0xFF,
+        (value >>> 16) & 0xFF,
+        (value >>> 8) & 0xFF,
+        value & 0xFF
+    ) }
+    writeString(value: string, sixteenBit: boolean = false) {
+        const bytes = new TextEncoder().encode(value);
+        sixteenBit ? this.writeUint16(bytes.length) : this.writeUint32(bytes.length)
+        for(const byte of bytes) this.data.push(byte);
+    }
+
+    toUint8Array(): Uint8Array { return new Uint8Array(this.data) }
+}
+class PacketReader {
+    private data: Uint8Array;
+    private offset: number = 0;
+
+    constructor(data: Uint8Array | ArrayBuffer) {
+        this.data = data instanceof Uint8Array ? data : new Uint8Array(data);
+    }
+
+    readUint8(): number { return this.data[this.offset++]!; }
+
+    readUint16(): number {
+        const value =
+            (this.data[this.offset]! << 8) |
+            this.data[this.offset + 1]!;
+
+        this.offset += 2;
+
+        return value;
+    }
+
+    readUint32(): number {
+        const value =
+            (this.data[this.offset]! << 24) |
+            (this.data[this.offset + 1]! << 16) |
+            (this.data[this.offset + 2]! << 8) |
+            this.data[this.offset + 3]!;
+
+        this.offset += 4;
+
+        return value >>> 0;
+    }
+
+    readString(sixteenBit: boolean = false): string {
+        const length = sixteenBit
+            ? this.readUint16()
+            : this.readUint32();
+
+        const bytes = this.data.slice(
+            this.offset,
+            this.offset + length
+        );
+
+        this.offset += length;
+
+        return new TextDecoder().decode(bytes);
+    }
+}
+abstract class AbstractPacket {
+    protected type: number;
+    constructor(type: number) { this.type = type; }
+
+    protected abstract getPayload(): Uint8Array;
+    public toBuffer(): ArrayBuffer {
+        const payload = this.getPayload();
+
+        const buffer = new ArrayBuffer(1 + payload.byteLength);
+        const view = new Uint8Array(buffer);
+
+        view[0] = this.type;
+        view.set(payload, 1);
+
+        return buffer;
+    }
+}
+class UpdateEntityPositionPacket extends AbstractPacket {
+    private entity: Entity;
+    constructor(entity: Entity) {
+        super(PacketType.UPDATE_ENTITY_POSITION);
+        this.entity = entity;
+    }
+
+    protected getPayload(): Uint8Array {
+        const writer = new PacketWriter()
+
+        writer.writeString(this.entity.id, true)
+        writer.writeUint32(this.entity.pos.x)
+        writer.writeUint32(this.entity.pos.y)
+
+        return writer.toUint8Array()
+    }
+}
+class CreateEntityPacket extends AbstractPacket {
+    private entity: Entity;
+    constructor(entity: Entity) {
+        super(PacketType.CREATE_ENTITY);
+        this.entity = entity;
+    }
+
+    protected getPayload(): Uint8Array {
+        const writer = new PacketWriter();
+
+        writer.writeString(this.entity.id, true);
+        writer.writeUint32(this.entity.pos.x);
+        writer.writeUint32(this.entity.pos.y);
+        writer.writeUint16(this.entity.type);
+        writer.writeString(this.entity.locID ?? "", true);
+
+        return writer.toUint8Array()
+    }
+}
+class DestroyEntityPacket extends AbstractPacket {
+    private entity: Entity;
+    constructor(entity: Entity) {
+        super(PacketType.DESTROY_ENTITY);
+        this.entity = entity;
+    }
+
+    protected getPayload(): Uint8Array {
+        const writer = new PacketWriter();
+
+        writer.writeString(this.entity.id);
+
+        return writer.toUint8Array()
+    }
+}
+class TimestepPacket extends AbstractPacket {
+    constructor() { super(PacketType.TIMESTEP); }
+
+    protected getPayload(): Uint8Array {
+        return PacketWriter.EMPTY();
+    }
+}
+class WelcomePacket extends AbstractPacket {
+    constructor() { super(PacketType.WELCOME); }
+
+    protected getPayload(): Uint8Array {
+        return PacketWriter.EMPTY();
+    }
+}
+class ForceHomepagePacket extends AbstractPacket {
+    constructor() { super(PacketType.FORCE_HOMEPAGE); }
+
+    protected getPayload(): Uint8Array {
+        return PacketWriter.EMPTY();
+    }
+}
+class AuthorizationSuccessPacket extends AbstractPacket {
+    constructor() { super(PacketType.AUTHORIZATION_SUCCESS); }
+
+    protected getPayload(): Uint8Array {
+        return PacketWriter.EMPTY();
+    }
+}
+class ErrorPacket extends AbstractPacket {
+    private reason: string;
+    constructor(reason: string) {
+        super(PacketType.ERROR);
+        this.reason = reason;
+    }
+
+    protected getPayload(): Uint8Array {
+        const writer = new PacketWriter();
+
+        writer.writeString(this.reason);
+
+        return writer.toUint8Array()
+    }
+}
+type TransmittableInstanceData = {
+    id: string,
+    canJoin: boolean,
+    playerCount: number
+}
+class FetchInstancesPacket extends AbstractPacket {
+    private instances: Array<TransmittableInstanceData>;
+    constructor(instances: Array<TransmittableInstanceData>) {
+        super(PacketType.FETCH_INSTANCES);
+        this.instances = instances;
+    }
+
+    protected getPayload(): Uint8Array {
+        const writer = new PacketWriter();
+
+        writer.writeUint32(this.instances.length);
+        for (const instance of this.instances) {
+            writer.writeString(instance.id, true);
+            writer.writeUint8(instance.canJoin ? 1 : 0);
+            writer.writeUint32(instance.playerCount);
+        }
+
+        return writer.toUint8Array();
+    }
+}
+class MapUpdatePacket extends AbstractPacket {
+    private location: MapLocation;
+    private data: LocationData;
+    constructor(location: MapLocation, data: LocationData) {
+        super(PacketType.MAP_UPDATE);
+        this.location = location;
+        this.data = data;
+    }
+
+    protected getPayload(): Uint8Array {
+        const writer = new PacketWriter();
+
+        writer.writeUint32(this.location.width);
+        writer.writeUint32(this.location.height);
+        writer.writeString(this.location.id, true);
+
+        writer.writeUint32(this.data.tiles.length);
+        for(const tile of this.data.tiles) {
+            writer.writeUint16(tile.type);
+            writer.writeUint16(tile.bg_color);
+            writer.writeUint16(tile.fg_color);
+        }
+        writer.writeUint32(this.data.entities.length);
+        for(const entity of this.data.entities) {
+            writer.writeString(entity.id);
+            writer.writeUint32(entity.pos.x);
+            writer.writeUint32(entity.pos.y);
+            writer.writeUint32(entity.type);
+            writer.writeString(entity.locID ?? "", true);
+        }
+
+        return writer.toUint8Array();
+    }
+}
+class InstanceConnectionPacket extends AbstractPacket {
+    private id: string;
+    private playerCount: number;
+    constructor(id: string, playerCount: number) {
+        super(PacketType.INSTANCE_CONNECTION);
+        this.id = id;
+        this.playerCount = playerCount;
+    }
+
+    protected getPayload(): Uint8Array {
+        const writer = new PacketWriter();
+
+        writer.writeString(this.id, true);
+        writer.writeUint16(this.playerCount)
+
+        return writer.toUint8Array();
+    }
+}
 
 class SocketConnection {
     public ws: ServerWebSocket<{ source: string; }>;
-    public onPacket: (packet: Packet) => any = (packet: Packet) => {};
+    public onPacket: (data: ArrayBuffer) => any = (data: ArrayBuffer) => {};
     public id: string = generateRandomString(5);
 
     constructor(ws: ServerWebSocket<{ source: string; }>) { 
         this.ws = ws;
     }
-    public async _onPacket(packet: Packet) { await this.onPacket(packet) }
-    public sendPacket(packet: Packet) { this.sendRaw(encodePacket(packet)) }
-    public sendRaw(data: string)      { this.ws.send(data) }
+    public async _onPacket(data: ArrayBuffer)  { await this.onPacket(data) }
+    public sendPacket(packet: AbstractPacket)  { this.sendRaw(packet.toBuffer()) }
+    public sendRaw(data: ArrayBuffer)          { this.ws.send(data) }
 }
 
+enum ActionType {
+    MOVE = 0
+}
 type Action = {
-    type: string,
+    type: ActionType,
     data: any
 }
 
@@ -216,7 +465,7 @@ class MMOInstance {
     executeAction(action: Action, player: Player) {
         const entity = player.entity;
         switch(action.type) {
-            case "move": {
+            case ActionType.MOVE: {
                 switch(action.data.direction) {
                     case 0: { this.moveEntity(entity, Vector.two(0, -1)); break; }  // north
                     case 1: { this.moveEntity(entity, Vector.two(1, 0)); break; }   // east
@@ -227,13 +476,6 @@ class MMOInstance {
                     case 6: { this.moveEntity(entity, Vector.two(1, 1)); break; }   // southeast
                     case 7: { this.moveEntity(entity, Vector.two(-1, 1)); break; }  // southwest
                 };
-                player.sock.sendPacket({
-                    "type": "removeBGOverride",
-                    "data": {
-                        "x": entity.pos.x,
-                        "y": entity.pos.y,
-                    }
-                } as Packet)
                 break;
             }
             default: {
@@ -247,13 +489,10 @@ class MMOInstance {
         entity.pos.addIp(offset);
         entity.pos.x = clamp(entity.pos.x, 0, info.width);
         entity.pos.y = clamp(entity.pos.y, 0, info.height);
-        this.broadcast({
-            type: "modifyEntity",
-            data: entity.encode()
-        } as Packet)
+        this.broadcast(new UpdateEntityPositionPacket(entity));
     }
 
-    private broadcast(packet: Packet, exclude: Array<Player>=new Array()) { this.players.forEach(p => { if(!exclude.includes(p)) { p.sock.sendPacket(packet) } }) }
+    private broadcast(packet: AbstractPacket, exclude: Array<Player>=new Array()) { this.players.forEach(p => { if(!exclude.includes(p)) { p.sock.sendPacket(packet) } }) }
 
     private timestep() {
         if(this.shouldKill) return;
@@ -264,12 +503,7 @@ class MMOInstance {
             }
         });
         this.next_timestep = Date.now()+this.timestepInterval;
-        this.broadcast({
-            "type": "timestep",
-            "data": {
-                "next": this.next_timestep
-            }
-        } as Packet)
+        this.broadcast(new TimestepPacket())
         setTimeout(() => {
             this.timestep();
         }, this.timestepInterval)
@@ -278,14 +512,8 @@ class MMOInstance {
     public connect(sock: SocketConnection) {
         const p = new Player(this.db, sock); this.players.push(p);
         p.entity.pos.xySetIp(1, 1); p.extra_data.queued_pos = p.entity.pos.copy();
-        sock.onPacket = (packet: Packet) => { this.onPlayerPacket(packet, p) };
-        sock.sendPacket({
-            "type": "instanceConnection",
-            "data": {
-                "id": this.id,
-                "players": this.playerCount()
-            }
-        } as Packet)
+        sock.onPacket = (data: ArrayBuffer) => { this.onPlayerPacket(data, p) };
+        sock.sendPacket(new InstanceConnectionPacket(this.id, this.playerCount()));
         this.onPlayerJoin(p);
     }
     public disconnect(sock: SocketConnection) { 
@@ -319,17 +547,9 @@ class MMOInstance {
             }
             player.queuedActions.push(action);
             const p = player.extra_data.queued_pos;
-            player.sock.sendPacket({
-                "type": "addBGOverride",
-                "data": {
-                    "x": p.x,
-                    "y": p.y,
-                    "color": TileColor.YELLOW
-                }
-            } as Packet)
         }
         switch(action.type) {
-            case "move": {
+            case ActionType.MOVE: {
                 switch(action.data.direction) {
                     case 0: { evaluateMovement(Vector.two(0, -1)); break; } // north
                     case 1: { evaluateMovement(Vector.two(1, 0)); break; } // east
@@ -345,46 +565,38 @@ class MMOInstance {
     }
 
     private onPlayerJoin(player: Player) {
-        this.loc.sendEntityToLocation(player.entity, this.loc.locations[0]!.id);
-        this.broadcast({
-            "type": "createEntity",
-            "data": player.entity.encode()
-        } as Packet, [player]);
+        const loc_id = this.loc.locations[0]!.id
+        this.loc.sendEntityToLocation(player.entity, loc_id);
+        const loc_data = this.loc.getAllData(loc_id);
+        this.broadcast(new CreateEntityPacket(player.entity), [player]);
         if(!player.entity.locID) return;
-        player.sock.sendPacket({
-            "type": "locationUpdate",
-            "data": encodeMapLocation(this.loc.getMapLocation(player.entity.locID)!, this.loc.getLocationData(player.entity.locID)!)
-        } as Packet);
-        player.sock.sendPacket({
-            "type": "timestep",
-            "data": {
-                "next": this.next_timestep
-            }
-        } as Packet)
+        player.sock.sendPacket(new MapUpdatePacket(loc_data[0], loc_data[1]));
     }
     private onPlayerLeave(player: Player) {
-        this.broadcast({
-            "type": "destroyEntity",
-            "data": {
-                "entityID": player.entity.id
-            }
-        } as Packet, [player])
+        this.broadcast(new DestroyEntityPacket(player.entity), [player])
     }
-    private onPlayerPacket(packet: Packet, player: Player) {
-        switch(packet.type) {
-            case "action": {
+    private onPlayerPacket(data: ArrayBuffer, player: Player) {
+        const reader = new PacketReader(data);
+        const type = reader.readUint8();
+        switch(type) {
+            case PacketType.ACTION: {
+                const action_type = reader.readUint8();
+                let action_data;
+                switch(action_type) {
+                    case ActionType.MOVE: {
+                        action_data = { "direction": reader.readUint8() } 
+                    }
+                }
+
                 const action = {
-                    "type": packet.data.type,
-                    "data": packet.data.data
+                    "type": action_type,
+                    "data": action_data
                 } as Action;
                 this.queueAction(player, action);
                 break;
             }
             default: {
-                player.sock.sendPacket({
-                    "type": "error",
-                    "data": `packet of type ${packet.type} doesn't have any behavior`
-                } as Packet);
+                player.sock.sendPacket(new ErrorPacket(`packet of type ${type}(${Object.values(PacketType)[type]}) doesn't have any behavior`));
                 break;
             }
         }
@@ -416,11 +628,8 @@ export class MMOWizard {
     public connect(ws: ServerWebSocket<{ source: string; }>)  {
         const sock = new SocketConnection(ws);
         this.wsToSockMap.set(ws, sock);
-        sock.onPacket = async (packet: Packet) => { await this.onPacket(packet, sock) };
-        sock.sendPacket({
-            "type": "welcome",
-            "data": "connected"
-        } as Packet)
+        sock.onPacket = async (data: ArrayBuffer) => { await this.onPacket(data, sock) };
+        sock.sendPacket(new WelcomePacket())
     }
     public disconnect(ws: ServerWebSocket<{ source: string; }>) {
         const sock = this.wsToSockMap.get(ws);
@@ -433,64 +642,48 @@ export class MMOWizard {
         this.sockToInstanceIDMap.delete(sock); this.sockToUserMap.delete(sock); this.wsToSockMap.delete(sock.ws);
         this.cullInstances()
     }
-    public async routeIncomingData(ws: ServerWebSocket<{ source: string; }>, data: string) {
+    public async routeIncomingData(ws: ServerWebSocket<{ source: string; }>, data: any) {
         const sock = this.wsToSockMap.get(ws);
         if(!sock) return; // TODO: error
-        await sock._onPacket(decodePacket(data));
+        await sock._onPacket(data);
     }
 
-    private async onPacket(packet: Packet, socket: SocketConnection) {
-        switch(packet.type) {
-            case "fetchInstances": {
-                socket.sendPacket({
-                    "type": "fetchInstances",
-                    "data": this.instances.map(i => {
-                        return {
-                            "playerCount": i.playerCount(),
-                            "id": i.id,
-                            "canJoin": i.canJoin()
-                        }
-                    })
-                } as Packet);
+    private async onPacket(data: ArrayBuffer, socket: SocketConnection) {
+        const reader = new PacketReader(data);
+        const type = reader.readUint8();
+        switch(type) {
+            case PacketType.FETCH_INSTANCES: {
+                const instances = this.instances.map(i => { return {
+                    playerCount: i.playerCount(),
+                    id: i.id,
+                    canJoin: i.canJoin()
+                } as TransmittableInstanceData });
+                socket.sendPacket(new FetchInstancesPacket(instances));
                 break;
             }
-            case "authorize": {
-                const user = await this.auth.fetchAccount(packet.data.name, packet.data.pass);
+            case PacketType.AUTHORIZATION_REQUEST: {
+                const name = reader.readString(); const pass = reader.readString();
+                const user = await this.auth.fetchAccount(name, pass);
                 if(!user) {
-                    socket.sendPacket({
-                        "type": "authError",
-                        "data": `incorrect information / no account`
-                    } as Packet); break;
+                    socket.sendPacket(new ErrorPacket(`incorrect information / no account`)); 
+                    break;
                 }
                 if(this.sockToUserMap.values().find(u => u.account.id == user.account.id)) {
-                    socket.sendPacket({
-                        "type": "forceHomepage",
-                        "data": `already connected`
-                    } as Packet); 
                     break;
                 }
                 this.sockToUserMap.set(socket, user);
-                socket.sendPacket({
-                    "type": "authorize",
-                    "data": `authorized!`
-                } as Packet); 
+                socket.sendPacket(new AuthorizationSuccessPacket()); 
                 break;
             }
-            case "findInstance": {
+            case PacketType.FIND_INSTANCE: {
                 if(!this.sockToUserMap.get(socket)) {
-                    socket.sendPacket({
-                        "type": "error",
-                        "data": `authorize before joining an instance`
-                    } as Packet); break;
+                    socket.sendPacket(new ErrorPacket(`authorize before joining an instance`)); break;
                 }
                 this.sendToInstance(socket);
                 break;
             }
             default: {
-                socket.sendPacket({
-                    "type": "error",
-                    "data": `packet of type ${packet.type} doesn't have any return behavior (try connecting to an instance?)`
-                } as Packet);
+                socket.sendPacket(new ErrorPacket(`packet of type ${type} doesn't have any return behavior (try connecting to an instance?)`));
                 break;
             }
         }

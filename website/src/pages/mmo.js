@@ -113,7 +113,10 @@ const Tile_Colors = {
         "name": "player",
         "tile": "PLAYER"
     }
-]
+];
+const ActionType = {
+    MOVE: 0
+}
 
 class Renderer {
     static TILE_SIZE = 32;
@@ -237,12 +240,7 @@ class Engine {
             "KeyZ", "KeyX", "KeyC", 
         ])
         const moveAction = (dir) => {
-            this.sock.sendPacket(new Packet("action", {
-                "type": "move",
-                "data": {
-                    "direction": dir
-                }
-            }));
+            this.sock.sendPacket(new ActionPacket(ActionType.MOVE, dir));
         }
         this.keyboard.setFunctionOnKeyPress("KeyQ", () => moveAction(5))
         this.keyboard.setFunctionOnKeyPress("KeyW", () => moveAction(0))
@@ -257,34 +255,35 @@ class Engine {
         const sock = this.sock;
 
         sock.open(() => {
-            sock.sendPacket(new Packet("authorize", { "name": user.account.name, "pass": user.account.pass }))
+            sock.sendPacket(new AuthorizationRequestPacket(user.account.name, user.account.pass))
         });
         sock.onMessage = (data) => {
-            const packet = Packet.fromFormatted(data)
+            const reader = new PacketReader(data);
+            const type = reader.readUint8();
         
-            switch(packet.type) {
-                case "authError": {
-                    alert("something went wrong authorizing your account (try logging out and in again)")
+            switch(type) {
+                case PacketType.ERROR: {
+                    const reason = reader.readString();
+                    alert(`ERROR: ${reason ?? "unspecified reason"}`)
                     window.location.href = "/";
                     break;
                 }
-                case "welcome": {
+                case PacketType.WELCOME: {
                     console.log("connected to server"); break;
                 }
-                case "authorize": {
-                    sock.sendPacket(new Packet("findInstance", "")); break;
+                case PacketType.AUTHORIZATION_SUCCESS: {
+                    sock.sendPacket(new FindInstancePacket()); break;
                 }
-                case "forceHomepage": {
-                    if(packet.data != "") alert(packet.data);
-                    window.location.href = "/";
-                }
-                case "instanceConnection": {
-                    const inst = new Instance(sock, packet.data, this);
+                case PacketType.INSTANCE_CONNECTION: {
+                    const inst = new Instance(sock, {
+                        "id": reader.readString(true),
+                        "playerCount": reader.readUint16()
+                    }, this);
                     inst.transferSocketControl();
                     this.data.current_instance = inst;
                     break;
                 }
-                default: console.warn(`unhandled packet:\n${packet.toString()}`)
+                default: console.warn(`unhandled packet:\n${Object.keys(PacketType)[type]}`)
             }
         }
 
@@ -323,22 +322,152 @@ class Engine {
     }
 }
 
-class Packet {
-    static fromFormatted(str) {
-        const a = atob(str).split(";");
-        return new Packet(a[0], JSON.parse(a[1]));
+const PacketType = {
+    UPDATE_ENTITY_POSITION: 0,
+    CREATE_ENTITY: 1,
+    DESTROY_ENTITY: 2,
+    MAP_UPDATE: 3,
+    TIMESTEP: 4,
+    ERROR: 5,
+    WELCOME: 6,
+    FETCH_INSTANCES: 7,
+    FORCE_HOMEPAGE: 8,
+    AUTHORIZATION_SUCCESS: 9,
+    AUTHORIZATION_REQUEST: 10,
+    FIND_INSTANCE: 11,
+    INSTANCE_CONNECTION: 12,
+    ACTION: 13
+}
+class PacketWriter {
+    static EMPTY = () => { return new Uint8Array(new ArrayBuffer(0)); }
+    data = [];
+
+    writeUint8(value) { this.data.push(value & 0xFF) }
+    writeUint16(value) {
+        this.data.push(
+            (value >>> 8) & 0xFF,
+            value & 0xFF
+        );
     }
-    
-    constructor(type, data) {
-        this.type = type;
-        this.data = data;
+    writeUint32(value) { this.data.push(
+        (value >>> 24) & 0xFF,
+        (value >>> 16) & 0xFF,
+        (value >>> 8) & 0xFF,
+        value & 0xFF
+    ) }
+    writeString(value, sixteenBit = false) {
+        const bytes = new TextEncoder().encode(value);
+        sixteenBit ? this.writeUint16(bytes.length) : this.writeUint32(bytes.length)
+        for(const byte of bytes) this.data.push(byte);
     }
 
-    getFormatted() {
-        return btoa(`${this.type};${JSON.stringify(this.data)}`);
+    toUint8Array() { return new Uint8Array(this.data) }
+}
+class PacketReader {
+    data;
+    offset = 0;
+
+    constructor(data) {
+        this.data = data instanceof Uint8Array ? data : new Uint8Array(data);
     }
-    toString() {
-        return `packet[${this.type}]: ${JSON.stringify(this.data)}`
+
+    readUint8() { return this.data[this.offset++]; }
+
+    readUint16() {
+        const value =
+            (this.data[this.offset] << 8) |
+            this.data[this.offset + 1];
+
+        this.offset += 2;
+
+        return value;
+    }
+
+    readUint32() {
+        const value =
+            (this.data[this.offset] << 24) |
+            (this.data[this.offset + 1] << 16) |
+            (this.data[this.offset + 2] << 8) |
+            this.data[this.offset + 3];
+
+        this.offset += 4;
+
+        return value >>> 0;
+    }
+
+    readString(sixteenBit = false) {
+        const length = sixteenBit
+            ? this.readUint16()
+            : this.readUint32();
+
+        const bytes = this.data.slice(
+            this.offset,
+            this.offset + length
+        );
+
+        this.offset += length;
+
+        return new TextDecoder().decode(bytes);
+    }
+}
+class AbstractPacket {
+    constructor(type) { this.type = type; }
+
+    getPayload() {};
+    toBuffer() {
+        const payload = this.getPayload();
+
+        const buffer = new ArrayBuffer(1 + payload.byteLength);
+        const view = new Uint8Array(buffer);
+
+        view[0] = this.type;
+        view.set(payload, 1);
+
+        return buffer;
+    }
+}
+class AuthorizationRequestPacket extends AbstractPacket {
+    constructor(name, pass) {
+        super(PacketType.AUTHORIZATION_REQUEST);
+        this.name = name; this.pass = pass;
+    }
+
+    getPayload() {
+        const writer = new PacketWriter()
+
+        writer.writeString(this.name)
+        writer.writeString(this.pass)
+
+        return writer.toUint8Array()
+    }
+}
+class FindInstancePacket extends AbstractPacket {
+    constructor() {
+        super(PacketType.FIND_INSTANCE);
+    }
+
+    getPayload() {
+        return PacketWriter.EMPTY()
+    }
+}
+class ActionPacket extends AbstractPacket {
+    constructor(actionType, data) {
+        super(PacketType.ACTION);
+        this.actionType = actionType; this.data = data;
+    }
+
+    getPayload() {
+        const writer = new PacketWriter()
+
+        writer.writeUint8(this.actionType)
+
+        switch(this.actionType) {
+            case ActionType.MOVE: {
+                writer.writeUint8(this.data)
+            }
+        }
+
+        return writer.toUint8Array()
     }
 }
 
@@ -352,11 +481,12 @@ class SocketConnection {
     }
     open(onOpen=()=>{}) {
         this.ws = new WebSocket(this.path);
+        this.ws.binaryType = "arraybuffer";
         this.ws.addEventListener("message", (msg) => { this.onMessage(msg.data) })
         this.ws.addEventListener("open", onOpen)
     }
 
-    sendPacket(packet) { this.sendRaw(packet.getFormatted()) }
+    sendPacket(packet) { this.sendRaw(packet.toBuffer()) }
     sendRaw(data)      { this.ws.send(data) }
 }
 
@@ -373,40 +503,82 @@ class Instance {
     transferSocketControl() {
         console.log(`swapping to instance ${this.id}'s control`)
         this.sock.onMessage = (data) => {
-            const packet = Packet.fromFormatted(data)
+            const reader = new PacketReader(data);
+            const type = reader.readUint8();
 
-            switch(packet.type) {
-                case "modifyEntity": {
-                    const e = this.location.data.entities.find(e => e.id === packet.data.entityID || e.entityID === packet.data.entityID);
-                    this.location.data.entities[this.location.data.entities.indexOf(e)] = packet.data;
+            switch(type) {
+                case PacketType.UPDATE_ENTITY_POSITION: {
+                    const entityID = reader.readString(true);
+                    const x = reader.readUint32();
+                    const y = reader.readUint32();
+                    
+                    const e = this.location.data.entities.find(e => e.id === entityID || e.entityID === entityID);
+                    e.pos.xySetIp(x, y);
                     break;
                 }
-                case "createEntity": {
-                    this.location.data.entities.push(packet.data);
+                case PacketType.CREATE_ENTITY: {
+                    this.location.data.entities.push({
+                        entityID: reader.readString(true),
+                        pos: Vector.two(reader.readUint32(), reader.readUint32()),
+                        type: EntityTypes[reader.readUint16()],
+                        locID: reader.readString(true)
+                    });
                     break;
                 }
-                case "destroyEntity": {
-                    const e = this.location.data.entities.find(e => e.id === packet.data.entityID || e.entityID === packet.data.entityID);
+                case PacketType.DESTROY_ENTITY: {
+                    const entityID = reader.readString(true);
+                    const e = this.location.data.entities.find(e => e.id === entityID || e.entityID === entityID);
                     this.location.data.entities.splice(this.location.data.entities.indexOf(e), 1);
                     break;
                 }
-                case "locationUpdate": {
-                    this.location = packet.data;
+                case PacketType.MAP_UPDATE: {
+                    const width = reader.readUint32();
+                    const height = reader.readUint32();
+                    const id = reader.readString(true);
+
+                    const tile_length = reader.readUint32();
+                    let tiles = [];
+                    for(let x = 0; x < tile_length; x++) {
+                        tiles.push({
+                            "type": reader.readUint16(),
+                            "bg_color": reader.readUint16(),
+                            "fg_color": reader.readUint16()
+                        })
+                    }
+
+                    const entities_length = reader.readUint32();
+                    let entities = [];
+                    for(let x = 0; x < entities_length; x++) {
+                        entities.push({
+                            "id": reader.readString(),
+                            "pos": Vector.two(reader.readUint32(), reader.readUint32()),
+                            "type": reader.readUint32(),
+                            "locID": reader.readString(true)
+                        })
+                    }
+                    this.location = {
+                        "info": {
+                            "width": width,
+                            "height": height,
+                            "id": id
+                        },
+                        "data": {
+                            "tiles": tiles,
+                            "entities": entities
+                        }
+                    }
                     break;
                 }
-                case "addBGOverride": {
-                    this.eng.renderer.render_info.map.bg_override.set(`${packet.data.x};${packet.data.y}`, Object.values(Tile_Colors)[packet.data.color]);
+                case PacketType.TIMESTEP: {
+                    this.next_timestep = Date.now()+1000;
                     break;
                 }
-                case "removeBGOverride": {
-                    this.eng.renderer.render_info.map.bg_override.delete(`${packet.data.x};${packet.data.y}`);
+                case PacketType.ERROR: {
+                    const reason = reader.readString();
+                    console.error(`SERVER ERROR: ${reason}`);
                     break;
                 }
-                case "timestep": {
-                    this.next_timestep = packet.data.next;
-                    break;
-                }
-                default: console.warn(`unhandled packet:\n${packet.toString()}`)
+                default: console.warn(`unhandled packet:\n${Object.keys(PacketType)[type]}`)
             }
         }
     }
