@@ -533,7 +533,8 @@ async function menuAction(action, rec_id) {
             })
         });
     } else if(action === "rename") {
-        ws.send(JSON.stringify({"type": "wizard", "method": "rename", "content": prompt("new name"), "id": rec_id, "user_id": JSON.parse(window.localStorage.getItem("user")).account.id}))
+        ws.send(JSON.stringify({"type": "wizard", "method": "rename", "content": prompt("new name (15 character max)").slice(0, 15), "id": rec_id, "user_id": JSON.parse(window.localStorage.getItem("user")).account.id}))
+        ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
     }
     hideMenu();
 }

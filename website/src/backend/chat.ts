@@ -190,7 +190,7 @@ export class ChatWizard {
                         ws.send(JSON.stringify({"type": "wizard", "method": "rename", "content": "NO"}));
                         return;
                     }
-                    await a.modifyProperty("display_name", json.content);
+                    await a.modifyProperty("display_name", json.content.slice(0, 15));
                     a.display_name = json.content;
                     ws.send(JSON.stringify({"type": "wizard", "method": "rename", "content": "OK"}));
                     break;
