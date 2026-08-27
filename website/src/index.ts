@@ -932,7 +932,7 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify(data), {
               headers: { "Content-Type": "application/json" },
           });
-          case "/game/data/fetch": {
+          case "/archive/game/data/fetch": {
             let data = Bun.file("src/res/game/data.json");
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
@@ -945,7 +945,7 @@ const server = Bun.serve({
             json = {...json, ...{"player_data": player_data}};
             return corsResponse(JSON.stringify(json), { status: 200 });
           }
-          case "/game/data/pushSettings": {
+          case "/archive/game/data/pushSettings": {
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
@@ -956,7 +956,7 @@ const server = Bun.serve({
             db.modify("game", d);
             return corsResponse(null, { status: 200 });
           }
-          case "/game/data/clearSettings": {
+          case "/archive/game/data/clearSettings": {
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
@@ -965,7 +965,7 @@ const server = Bun.serve({
             db.modify("game", d);
             return corsResponse(null, { status: 200 });
           }
-          case "/game/analytics/perfTest": {
+          case "/archive/game/analytics/perfTest": {
             let user_json = await req.json();
             let user = await auth.fetchAccount(user_json.name, user_json.pass);
             if(!user) return corsResponse(null, { status: 401 });
@@ -976,7 +976,7 @@ const server = Bun.serve({
             db.modify("game", d);
             return corsResponse(null, { status: 200 });
           }
-          case "/game/live": {
+          case "/archive/game/live": {
             const success = server.upgrade(req, {
               data: { source: "/game/live" }, // Attach per-socket data
             });
@@ -1179,10 +1179,6 @@ const server = Bun.serve({
             if(!disabled_features.includes("gambling")) return corsResponse(Bun.file("src/pages/gambling.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
-          case "/game": { 
-            if(!disabled_features.includes("game")) return corsResponse(Bun.file("src/pages/game/game.html"), { headers: { "Content-Type": "text/html" } }); 
-            else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
-          }
           case "/music": { 
             if(!disabled_features.includes("music")) return corsResponse(Bun.file("src/pages/music.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
@@ -1202,6 +1198,7 @@ const server = Bun.serve({
           case "/archive/sand": return corsResponse(Bun.file("src/pages/mini/sand/sand.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/milsim": return corsResponse(Bun.file("src/pages/mini/milsim/milsim.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/logclicker": return corsResponse(Bun.file("src/pages/mini/logclicker/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/archive/game": return corsResponse(Bun.file("src/pages/game/game.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
 

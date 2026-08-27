@@ -55,8 +55,8 @@ export class SinglePlayerServerConnection {
 
     start() {
         this.ws = new WebSocket(location.host.includes("66.65.25.15") ? 
-        `${location.protocol}//${location.host}/subdomain=api/game/live` : 
-        `${location.protocol}//api.${location.host}/game/live`);
+        `${location.protocol}//${location.host}/subdomain=api/archive/game/live` : 
+        `${location.protocol}//api.${location.host}/archive/game/live`);
 
         this.ws.addEventListener("message", (m) => { this._onrecieve(m.data); });
 

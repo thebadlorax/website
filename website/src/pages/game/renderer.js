@@ -1071,7 +1071,7 @@ export class MenuRegistry {
         }
         let ehb = em.createUIElement(0.05, 0.9, 0.9, 0.07, "textbutton", {"text":"exit to homepage"})
         ehb.onclick = () => {
-            if(confirm("are you sure")) window.location.href = "/";
+            if(confirm("are you sure")) window.location.href = "/archive";
         };
         let fb = em.createUIElement(0.05, 0.7, 0.9, 0.07, "textbutton", {"text":"forfeit","bg_color": "red"});
         fb.visible = false;
@@ -1415,7 +1415,7 @@ export class MenuRegistry {
             document.getElementById("perf_test").style.display = "none";
             for(let x = 0; x < 10; x++) { await nextFrame(); }
             const user = JSON.parse(window.localStorage.getItem("user"));
-            await fetch(getApiLink("/game/analytics/perfTest"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "data": {
+            await fetch(getApiLink("/archive/game/analytics/perfTest"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "data": {
                 "computer": {
                     logicalCores: navigator.hardwareConcurrency || "Unknown", // CPU threads
                     estimatedRAM: navigator.deviceMemory || "Unknown",        // RAM in GB (approximate)
@@ -1448,7 +1448,7 @@ export class MenuRegistry {
         let mpb = mm.createUIElement(0.525, 0.3, 0.25, 0.1, "textbutton", {"text":"multiplayer (wip)","fg_color":"rgba(128, 128, 128, 0.8)","fontSize":"20"})
         let bb = mm.createUIElement(0.375, 0.45, 0.25, 0.1, "textbutton", {"text":"exit","bg_color": "rgba(180, 0, 0, 0.65)","fontSize":"20"})
         bb.onclick = async () => {
-            window.location.href = "/"
+            window.location.href = "/archive"
         }
         const v = Engine.getVersion();
         mm.createUIElement(0, 0.92, 0.08, 0.1, "text", {"text":`v${v[0]}.${v[1]}.${v[2]}`,"fontSize":"25"});

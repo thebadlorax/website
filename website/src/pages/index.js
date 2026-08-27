@@ -12,7 +12,6 @@ const redirect = (loc) => {
 document.getElementById("files-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/files`) })
 document.getElementById("chat-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`) })
 document.getElementById("gambling-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/gambling`) })
-document.getElementById("game-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/game`) })
 document.getElementById("music-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/music`) })
 document.getElementById("mmo-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/mmo`) })
 
@@ -86,13 +85,9 @@ async function update_stats(do_fetch) {
     document.getElementById("files-link").style.display = data.disabled_features.includes("files") ? "none" : "block";
     document.getElementById("chat-link").style.display = data.disabled_features.includes("chat") ? "none" : "block";
     document.getElementById("gambling-link").style.display = data.disabled_features.includes("gambling") ? "none" : "block";
-    document.getElementById("game-link").style.display = data.disabled_features.includes("game") ? "none" : "block";
     document.getElementById("music-link").style.display = data.disabled_features.includes("music") ? "none" : "block";
     document.getElementById("mmo-link").style.display = data.disabled_features.includes("mmo") ? "none" : "block";
 }
-
-
-
 
 document.getElementById("sfb").addEventListener("click", async () => {
     let feedback = document.getElementById("fb").value;

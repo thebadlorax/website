@@ -203,11 +203,6 @@ gambling_feature_check.addEventListener("click", async () => {
     if(!gambling_feature_check.checked) await disable_feature("gambling");
     else await enable_feature("gambling");
 });
-const game_feature_check = document.getElementById("disable_game");
-game_feature_check.addEventListener("click", async () => {
-    if(!game_feature_check.checked) await disable_feature("game");
-    else await enable_feature("game");
-});
 const music_feature_check = document.getElementById("disable_music");
 music_feature_check.addEventListener("click", async () => {
     if(!music_feature_check.checked) await disable_feature("music");
@@ -265,8 +260,6 @@ const refresh_db_info = async () => {
         else files_feature_check.checked = true;
         if(disabled.includes("gambling")) gambling_feature_check.checked = false;
         else gambling_feature_check.checked = true;
-        if(disabled.includes("game")) game_feature_check.checked = false;
-        else game_feature_check.checked = true;
         if(disabled.includes("music")) music_feature_check.checked = false;
         else music_feature_check.checked = true;
         if(disabled.includes("mmo")) mmo_feature_check.checked = false;

@@ -1607,13 +1607,13 @@ export class EngineSettings {
 
     async updateStorage() {
         const user = JSON.parse(window.localStorage.getItem("user"));
-        let d = await fetch(getApiLink("/game/data/pushSettings"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "new": JSON.stringify(this.settings)})})
+        let d = await fetch(getApiLink("/archive/game/data/pushSettings"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "new": JSON.stringify(this.settings)})})
         return d.status;
     }
 
     async clearStorage() {
         const user = JSON.parse(window.localStorage.getItem("user"));
-        await fetch(getApiLink("/game/data/clearSettings"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})});
+        await fetch(getApiLink("/archive/game/data/clearSettings"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})});
     }
 
     isRecent() {
