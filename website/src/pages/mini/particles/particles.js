@@ -161,9 +161,9 @@ class Particle {
         this.color = `rgba(${Math.floor(100+Math.random()*155)}, ${Math.floor(100+Math.random()*155)}, ${Math.floor(100+Math.random()*155)}, 0.5)`;
     }
 
-    update(delta, bounds, radius) {
-        const GRAVITATIONAL_CONSTANT = 500;
-        const BOUNCINESS = .95;
+    update(delta, bounds, radius, bounciness, gravity) {
+        const GRAVITATIONAL_CONSTANT = gravity;
+        const BOUNCINESS = bounciness;
 
         this.velx += this.accx * delta;
         this.vely += (this.accy + GRAVITATIONAL_CONSTANT) * delta;
@@ -266,6 +266,8 @@ class Engine {
         this.PULL_STRENGTH = 3000;
         this.SPAWN_RATE = 3;
         this.WINDOW_SHAKE_AMP = 3;
+        this.BOUNCINESS = .95;
+        this.GRAVITY = 500;
     }
 
     getBounds() {
@@ -322,7 +324,7 @@ class Engine {
         const bounds = this.getBounds();
     
         for (const p of this.particles) {
-            p.update(delta, bounds, this.PARTICLERADIUS);
+            p.update(delta, bounds, this.PARTICLERADIUS, this.BOUNCINESS, this.GRAVITY);
         }
     
         this.buildGrid();
@@ -557,6 +559,8 @@ class Engine {
         this.renderer.createUIElement("slider", 0.25, 0.03, 0.1, 0.1, {"step": 1000, "max": 30000, "min": 1000, "progress": this.PULL_STRENGTH, "title": "right click strength", "showVal": true}).onchange = (t) => { this.PULL_STRENGTH = t.data.progress; }
         this.renderer.createUIElement("slider", 0.25, 0.13, 0.1, 0.1, {"step": 1, "max": 30, "min": 1, "progress": this.SPAWN_RATE, "title": "particle spawn rate", "showVal": true}).onchange = (t) => { this.SPAWN_RATE = t.data.progress; }
         this.renderer.createUIElement("slider", 0.25, 0.23, 0.1, 0.1, {"step": 1, "max": 10, "min": 0, "progress": this.WINDOW_SHAKE_AMP, "title": "window shake multiplier", "showVal": true}).onchange = (t) => { this.WINDOW_SHAKE_AMP = t.data.progress; }
+        this.renderer.createUIElement("slider", 0.4, 0.03, 0.1, 0.1, {"step": 0.05, "max": 3, "min": 0.1, "progress": this.BOUNCINESS, "title": "bounciness", "showVal": true}).onchange = (t) => { this.BOUNCINESS = t.data.progress; }
+        this.renderer.createUIElement("slider", 0.4, 0.13, 0.1, 0.1, {"step": 20, "max": 3000, "min": -1000, "progress": this.GRAVITY, "title": "gravity", "showVal": true}).onchange = (t) => { this.GRAVITY = t.data.progress; }
     }
 }
 
