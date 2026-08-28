@@ -129,7 +129,7 @@ export class ChatWizard {
                     
                     chat.registerUser(ws, json.content);
                     ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "OK"}));
-                    ws.send(JSON.stringify({"type": "wizard", "method": "data", "content": {"text_cooldown": chat.text_cooldown, "owner": chat.owner || ""}}));
+                    ws.send(JSON.stringify({"type": "wizard", "method": "data", "content": {"display_name_joinable": chat.display_name_joinable, "text_cooldown": chat.text_cooldown, "owner": chat.owner || "", "is_private": !this.check("*", chat)}}));
                     break;
                 case "unsubscribe":
                     this.fromID(json.id)?.deregisterUser(ws);
@@ -141,8 +141,17 @@ export class ChatWizard {
                     if(!chat) { ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "NO"})); return; }
                     chat.modifyProperty("text_cooldown", json.content.cooldown);
                     chat.text_cooldown = json.content.cooldown;
-                    chat.broadcast(JSON.stringify({"type": "wizard", "method": "data", "content": {"text_cooldown": chat.text_cooldown, "owner": chat.owner || ""}}));
+                    ws.send(JSON.stringify({"type": "wizard", "method": "data", "content": {"display_name_joinable": chat.display_name_joinable, "text_cooldown": chat.text_cooldown, "owner": chat.owner || "", "is_private": !this.check("*", chat)}}));
                     ws.send(JSON.stringify({"type": "wizard", "method": "change_cooldown", "content": "OK"}));
+                    break;
+                }
+                case "change_display_name_joining": {
+                    let chat = this.fromID(json.content.chat_id);
+                    if(!chat) { ws.send(JSON.stringify({"type": "wizard", "method": "subscribe", "content": "NO"})); return; }
+                    chat.modifyProperty("display_name_joinable", json.content.value);
+                    chat.display_name_joinable = json.content.value;
+                    ws.send(JSON.stringify({"type": "wizard", "method": "data", "content": {"display_name_joinable": chat.display_name_joinable, "text_cooldown": chat.text_cooldown, "owner": chat.owner || "", "is_private": !this.check("*", chat)}}));
+                    ws.send(JSON.stringify({"type": "wizard", "method": "change_display_name_joining", "content": "OK"}));
                     break;
                 }
                 case "create":
@@ -158,6 +167,29 @@ export class ChatWizard {
                     if(new_chat) ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "OK"}));
                     else ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "NO"}));
                     break;
+                case "join": {
+                    const display_name = json.content;
+                    const is_id = display_name.slice(0, 2) == "c_";
+                    const user_id = json.user.account.id;
+                    let found_instances = this.instances.filter(i => i.display_name_joinable && (is_id ? i.id == display_name : i.display_name == display_name));
+                    if(found_instances.length <= 0) {
+                        ws.send(JSON.stringify({"type": "wizard", "method": "join", "content": "ni"}));
+                        break;
+                    }
+                    if(found_instances.length > 1) {
+                        ws.send(JSON.stringify({"type": "wizard", "method": "join", "content": "nl"}));
+                        break;
+                    }
+                    const found_instance = found_instances[0]!;
+                    this.assign(user_id, found_instance);
+                    found_instance.send({
+                        type: "message",
+                        content: `${json.content} has joined using the name`,
+                        timestamp: Date.now()
+                    });
+                    ws.send(JSON.stringify({"type": "wizard", "method": "join", "content": "OK"}));
+                    break;
+                }
                 case "invite":
                     let req_id = await this.auth.fetchUserID(json.content);
                     if(!req_id) { ws.send(JSON.stringify({"type": "wizard", "method": "invite", "content": "NO"})); return; }
@@ -216,8 +248,8 @@ export class ChatWizard {
             await i.broadcast(msg);
         })
     }
-    deregister(ws:  ServerWebSocket<{ source: string }>) { this.instances.filter(i => i.users.keys().toArray().includes(ws)).forEach(i => 
-        { i.deregisterUser(ws); }) };
+    deregister(ws:  ServerWebSocket<{ source: string }>) 
+    { this.instances.filter(i => i.users.keys().toArray().includes(ws)).forEach(i => { i.deregisterUser(ws); }) };
 }
 
 export class ChatInstance {
@@ -229,6 +261,7 @@ export class ChatInstance {
     public display_name: string = "";
     public immutable: boolean = false;
     public text_cooldown: number = 1000;
+    public display_name_joinable: boolean = false;
     public owner: string = "";
 
     private queue: Array<message> = new Array();
@@ -244,6 +277,7 @@ export class ChatInstance {
             this.display_name = chats[this.id].display_name;
             this.immutable = chats[this.id].immutable;
             this.text_cooldown = chats[this.id].text_cooldown;
+            this.display_name_joinable = chats[this.id].display_name_joinable;
             this.owner = chats[this.id].owner || "";
             // @ts-expect-error
             chats[this.id].assignees.forEach(a => {

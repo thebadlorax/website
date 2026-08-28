@@ -10,7 +10,6 @@
         <link rel="stylesheet" href="ui.css">
 
         <script type="module" src="common.js"></script>
-        <!--<script type="module" src="voice.js"></script>-->
 
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,10 +35,20 @@
                     <div class="small-item" style="max-height: 33%;">
                         chat settings
                         <div></div>
-                        <p class="basic-text unselectable" id="not-owner-text" style="display: none; position: absolute; left: 6.5vw;  color: darkred; top: 6vw; font-size: 1.5vw;">not the owner</p>
-                        <input class="input" id="invite-input" placeholder="Account Name" maxlength="15" style="display: none; position: absolute; width: 10vw; left: 5.5vw; top: 5vw; margin-top: 0vw; margin-left: 0vw;"></input>
-                        <p id = "invite-input-button" class="basic-link clickable unselectable" style="display: none; position: absolute; left: 9vw; top: 5.5vw; font-size: 1.5vw;">Invite</p>
-                        <input class="input" id="cooldown-input" placeholder="Chat Cooldown (ms)" maxlength="5" style="display: none; position: absolute; width: 10vw; left: 5.5vw; top: 9vw; margin-top: 0vw; margin-left: 0vw;"></input>
+                        <div id="notowner" style="display: none;">
+                            <p class="basic-text unselectable" id="not-owner-text" style="position: absolute; left: 6.5vw;  color: darkred; top: 6vw; font-size: 1.5vw;">not the owner</p>
+                        </div>
+                        <div id="owner" style="display: none; flex-direction: column;">
+                            <input class="input" id="invite-input" placeholder="Account Name" maxlength="15" style="margin-left: 3vw; margin-right: 3vw; margin-bottom: 0.1vw;"></input>
+                            <p id = "invite-input-button" class="basic-link clickable unselectable" style="margin-top: 0.1vw; margin-bottom: 1vw;">Invite</p>
+                            <input class="input" id="cooldown-input" placeholder="Chat Cooldown (ms)" maxlength="5" style="margin-left: 3vw; margin-right: 3vw; margin-top: 0.1vw; margin-bottom: 2vw;"></input>
+                            <div id="private-owner" style="display: flex; justify-content: center; align-items: center;">
+                                <p class="basic-text unselectable">allow joining via <br>display name</p>
+                                <input id="display-name-joining" class="input" type="checkbox">
+                            </div>
+                            
+                        </div>
+
                     </div>
                     <div class="small-item" style="max-height: 33%;">
                         information
@@ -76,7 +85,8 @@
                     <input id="chat-name-input" class="input" placeholder="Chat Name" maxlength="15" style="width: 15vw; margin-top: 2vw; margin-left: 2vw;"></input>
                     <input id="private-room-check" type="checkbox" style="display: none; position: absolute; margin-top: 2.25vw; margin-left: 18vw;" checked></input>
                     <p id="private-room-text" class="basic-text" style="display: none; position: absolute; left: 19.5vw; top: 2.15vw; font-size: 1.3vw;">Private</p>
-                    <p id="create-room-button" class="basic-link clickable unselectable" style="display: none; position: absolute; left: 7vw; top: -3.5vw; font-size: 2vw;">Create Room</p>
+                    <p id="create-room-button" class="basic-link clickable unselectable" style="display: none; position: absolute; left: 0vw; top: -3.5vw; font-size: 2vw;">Create Room</p>
+                    <p id="join-room-button" class="basic-link clickable unselectable" style="display: none; position: absolute; left: 13vw; top: -3.5vw; font-size: 2vw;">Join Room</p>
                     <div class="large-item" style="image-rendering: pixelated;">
                         chat picker
                         <div id="chat-picker-list" class="grid-container"></div>

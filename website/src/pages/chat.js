@@ -83,11 +83,13 @@ document.getElementById("chat-name-input").value = "";
 document.getElementById("chat-name-input").addEventListener("input", () => {
     if(document.getElementById("chat-name-input").value != "") {
         document.getElementById("create-room-button").style.display = "block";
+        document.getElementById("join-room-button").style.display = "block";
         document.getElementById("private-room-check").style.display = "block";
         document.getElementById("private-room-text").style.display = "block";
     }
     else {
         document.getElementById("create-room-button").style.display = "none";
+        document.getElementById("join-room-button").style.display = "none";
         document.getElementById("private-room-check").style.display = "none";
         document.getElementById("private-room-text").style.display = "none";
     }
@@ -96,6 +98,10 @@ document.getElementById("chat-name-input").addEventListener("input", () => {
 document.getElementById("create-room-button").addEventListener("click", () => {
     if(document.getElementById("chat-name-input").value == "") return;
     ws.send(JSON.stringify({"type": "wizard", "method": "create", "user": JSON.parse(window.localStorage.getItem("user")), "content": document.getElementById("chat-name-input").value, "private": !document.getElementById("private-room-check").checked}));
+})
+document.getElementById("join-room-button").addEventListener("click", () => {
+    if(document.getElementById("chat-name-input").value == "") return;
+    ws.send(JSON.stringify({ "type": "wizard", "method": "join", "user": JSON.parse(window.localStorage.getItem("user")), "content": document.getElementById("chat-name-input").value }));
 })
 document.getElementById("invite-input-button").addEventListener("click", () => {
     if(document.getElementById("invite-input").value == "") { return; }
@@ -137,6 +143,20 @@ ws.addEventListener('message', (e) => {
                     });
                     document.getElementById("chat-name-input").dispatchEvent(event);
                     break;
+                case "join":
+                    switch(json.content) {
+                        case "ni": {
+                            alert("no instance found with that name"); break;
+                        }
+                        case "nl": {
+                            alert("there seems to be multiple chats with that name, ask to be invited instead (or ask for the chat id and put that in the box instead)"); break;
+                        }
+                        case "OK": {
+                            alert("joined successfully");
+                            ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
+                            break;
+                        }
+                    }; break;
                 case "invite":
                     if(json.content == "NO") {
                         alert("invalid name (account probably doesn't exist)");
@@ -149,16 +169,22 @@ ws.addEventListener('message', (e) => {
                     change_cooldown(json.content.text_cooldown);
                     is_owner = json.content.owner == JSON.parse(window.localStorage.getItem("user")).account.id;
                     if(!is_owner) {
-                        document.getElementById("invite-input").style.display = "none";
+                        document.getElementById("notowner").style.display = "flex";
+                        document.getElementById("owner").style.display = "none";
+                        /*document.getElementById("invite-input").style.display = "none";
                         document.getElementById("cooldown-input").style.display = "none";
                         document.getElementById("not-owner-text").style.display = "block";
-                        document.getElementById("invite-input-button").style.display = "none";
+                        document.getElementById("invite-input-button").style.display = "none";*/
                     } else {
-                        document.getElementById("invite-input").style.display = "block";
-                        document.getElementById("cooldown-input").style.display = "block";
+                        document.getElementById("notowner").style.display = "none";
+                        document.getElementById("owner").style.display = "flex";
                         document.getElementById("cooldown-input").value = json.content.text_cooldown;
+                        document.getElementById("private-owner").style.display = json.content.is_private ? "flex" : "none";
+                        document.getElementById("display-name-joining").checked = json.content.display_name_joinable
+                        /*document.getElementById("invite-input").style.display = "block";
+                        document.getElementById("cooldown-input").style.display = "block";
                         document.getElementById("invite-input-button").style.display = "block";
-                        document.getElementById("not-owner-text").style.display = "none";
+                        document.getElementById("not-owner-text").style.display = "none";*/
                     }
                     break;
                 case "sendHome":
@@ -209,6 +235,11 @@ document.getElementById("cooldown-input").addEventListener("change", () => {
     }
     ws.send(JSON.stringify({"type": "wizard", "method": "change_cooldown", "content": {"user_id": JSON.parse(window.localStorage.getItem("user")).account.id, "chat_id": id, "cooldown": document.getElementById("cooldown-input").value}}));
 })
+
+document.getElementById("display-name-joining").addEventListener("change", () => {
+    const checked = document.getElementById("display-name-joining").checked;
+    ws.send(JSON.stringify({"type": "wizard", "method": "change_display_name_joining", "content": {"user_id": JSON.parse(window.localStorage.getItem("user")).account.id, "chat_id": id, "value": checked}}));
+}) 
 
 const edits = [msg_input, name_input, color_input, document.getElementById("chat-name-input"), document.getElementById("invite-input")];
 let first_paste = window.localStorage.getItem("has_pasted") == null;
