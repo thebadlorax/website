@@ -193,7 +193,7 @@ export class ChatWizard {
                     this.assign(user_id, found_instance);
                     found_instance.send({
                         type: "message",
-                        content: `${json.content} has joined using the name`,
+                        content: `${json.user.settings.display_name} has joined using the name`,
                         timestamp: Date.now()
                     });
                     ws.send(JSON.stringify({"type": "wizard", "method": "join", "content": "OK"}));
