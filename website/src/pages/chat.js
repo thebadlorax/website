@@ -151,12 +151,19 @@ ws.addEventListener('message', (e) => {
                         case "nl": {
                             alert("there seems to be multiple chats with that name, ask to be invited instead (or ask for the chat id and put that in the box instead)"); break;
                         }
+                        case "na": {
+                            alert("already in specified chat"); break;
+                        }
                         case "OK": {
                             alert("joined successfully");
                             ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
                             break;
                         }
                     }; break;
+                case "refetch": {
+                    ws.send(JSON.stringify({"type": "wizard", "method": "fetch", "content": JSON.parse(window.localStorage.getItem("user")).account.id}));
+                    break;
+                }
                 case "invite":
                     if(json.content == "NO") {
                         alert("invalid name (account probably doesn't exist)");

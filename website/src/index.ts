@@ -1247,7 +1247,7 @@ websocket: {
 
   open(ws) {
     switch (ws.data.source) {
-      case "/chat/live": break;
+      case "/chat/live": chat.register(ws); break;
       
       case "/game/live": game.createSingleplayerConnection(ws); break;
 

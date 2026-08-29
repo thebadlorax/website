@@ -70,16 +70,18 @@ export class ChatWizard {
         if(i.immutable) return;
         let data; try { data = await this.db.fetch("chats"); }
         catch { return; }
-        if(this.assignees.get(u) == undefined) return;
+        const is_public = this.assignees.get("*")!.includes(i);
+        if(this.assignees.get(u) == undefined && !is_public) return;
 
-        this.assignees.get(u)!.splice(this.assignees.get(u)!.indexOf(i), 1);
-        if(this.assignees.get("*")!.includes(i)) {
+        if(is_public) {
             this.assignees.set("*", this.assignees.get("*")!.toSpliced(this.assignees.get("*")!.indexOf(i), 1));
+        } else {
+            this.assignees.get(u)!.splice(this.assignees.get(u)!.indexOf(i), 1);
         }
-
         delete this.instances[this.instances.indexOf(i)];
         delete data[i.id];
         this.db.modify("chats", data);
+        
         await this.revitalizeOldChats();
      };
     async assign(id: string, i: ChatInstance) { 
@@ -162,7 +164,10 @@ export class ChatWizard {
                     await new_chat.modifyProperty("owner", json.user.account.id);
                     new_chat.owner = json.user.account.id;
                     if(!json.private) await this.assign(json.user.account.id, new_chat);
-                    else await this.publicize(new_chat);
+                    else {
+                        await this.publicize(new_chat);
+                        this.broadcastToAllSync(JSON.stringify({"type": "wizard", "method": "delete", "content": "OK"}))
+                    }
                     await this.revitalizeOldChats();
                     if(new_chat) ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "OK"}));
                     else ws.send(JSON.stringify({"type": "wizard", "method": "create", "content": "NO"}));
@@ -181,6 +186,10 @@ export class ChatWizard {
                         break;
                     }
                     const found_instance = found_instances[0]!;
+                    if(this.check(user_id, found_instance)) {
+                        ws.send(JSON.stringify({"type": "wizard", "method": "join", "content": "na"}));
+                        break;
+                    }
                     this.assign(user_id, found_instance);
                     found_instance.send({
                         type: "message",
@@ -215,6 +224,7 @@ export class ChatWizard {
                     }
                     await this.destroy(e, json.id);
                     ws.send(JSON.stringify({"type": "wizard", "method": "delete", "content": "OK"}));
+                    this.broadcastToAllSync(JSON.stringify({"type": "wizard", "method": "delete", "content": "OK"}))
                     break;
                 case "rename":
                     let a = this.fromID(json.id)!
@@ -249,7 +259,10 @@ export class ChatWizard {
         })
     }
     deregister(ws:  ServerWebSocket<{ source: string }>) 
-    { this.instances.filter(i => i.users.keys().toArray().includes(ws)).forEach(i => { i.deregisterUser(ws); }) };
+    { this.instances.filter(i => i.users.keys().toArray().includes(ws)).forEach(i => { i.deregisterUser(ws); });
+      this.viewers.splice(this.viewers.indexOf(ws), 1) };
+    register(ws:  ServerWebSocket<{ source: string }>)
+    { this.viewers.push(ws); }
 }
 
 export class ChatInstance {
@@ -274,11 +287,11 @@ export class ChatInstance {
         setInterval(async () => {if(this.queue.length > 0) await this.writeQueueToDB()}, 3000);
         if(!chats) return;
         if(chats[this.id] != undefined) { // inherited chat
-            this.display_name = chats[this.id].display_name;
-            this.immutable = chats[this.id].immutable;
-            this.text_cooldown = chats[this.id].text_cooldown;
-            this.display_name_joinable = chats[this.id].display_name_joinable;
-            this.owner = chats[this.id].owner || "";
+            this.display_name = chats[this.id].display_name ?? "UNNAMED";
+            this.immutable = chats[this.id].immutable ?? false;
+            this.text_cooldown = chats[this.id].text_cooldown ?? 1000;
+            this.display_name_joinable = chats[this.id].display_name_joinable ?? false;
+            this.owner = chats[this.id].owner ?? "";
             // @ts-expect-error
             chats[this.id].assignees.forEach(a => {
                 this.w.assign(a, this.w.fromID(this.id)!);
