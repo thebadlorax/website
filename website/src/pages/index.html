@@ -11,18 +11,20 @@
     <link rel="stylesheet" href="hiding.css">
     <link href="font.css" rel="stylesheet">
     <link rel="icon" href="../res/favicon.ico" type="image/x-icon">
+
     <script type="module" src="index.js"></script>
     <script type="module" src="common.js"></script>
     <script type="module" src="account.js"></script>
-    <meta name="description" content="thebadlorax's website">
+
+    <meta name="description" content="thebadlorax's super cool awesome website">
   </head>
   <body>
     <p class="unhide" style="color: white;">this website really doesn't like small resolutions / non square viewports</p>
-    <p class="unhide" style="color: white;">there will someday be support for this but for now please try a device with a wider screen</p>
+    <p class="unhide" style="color: white;">there will (someday?) be support for this but for now please try a device with a wider screen</p>
     <p class="unhide" style="color: white;">:(</p>
-    <p class="unhide" style="color: white; font-size: 10px;">(if you really want to go for it directly going to a page will remove this popup)</p>
+    <p id="force-unhide" class="unhide basic-link" style="color: grey; font-size: 2vw; margin-top: 10vw;">grr I HATE YOU and i want to enter anyways! (will look bad)</p>
     <div class="ticker" id="ticker" style="position: absolute; width: 99%; top: 0.05%;"><div class="ticker-track"></div></div>
-    <div class="main-container" id="main-container">
+    <div class="main-container hide" id="main-container">
         <div class="banner-container unselectable" draggable="false">
             <img id="banner" src="../res/transparent_banner.png" class="banner-image" draggable="false">
         </div>
@@ -207,5 +209,6 @@
             </div>
         </div>
     </div>
+    <a class="basic-link" style="position: absolute; bottom: -31vw; left: 10vw;" href="/credits">credits & attributions</a>
   </body>
 </html>

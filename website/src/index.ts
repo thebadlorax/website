@@ -1201,6 +1201,7 @@ const server = Bun.serve({
           case "/archive/game": return corsResponse(Bun.file("src/pages/game/game.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
+          case "/credits": return corsResponse(Bun.file("src/pages/credits.html"), { headers: { "Content-Type": "text/html" } });
 
           case "/stage1": return corsResponse(Bun.file("src/pages/puzzle/stage1.html"), { headers: { "Content-Type": "text/html" } });
           case "/stage2": return corsResponse(Bun.file("src/pages/puzzle/stage2.html"), { headers: { "Content-Type": "text/html" } });

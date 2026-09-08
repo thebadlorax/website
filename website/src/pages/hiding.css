@@ -6,7 +6,7 @@
 */
 
 .hide {
-    display: block;
+    display: flex;
 }
 
 .unhide {
