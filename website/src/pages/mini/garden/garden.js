@@ -743,7 +743,7 @@ class Engine {
             else this.sand.simulation.typeToPlace = 1;
             this.sand.simulation.mousePressed = true;
 
-            this.onClick();
+            if(e.button === 0) this.onClick();
         });
         
         this.ctx.canvas.addEventListener("mouseup", () => {
