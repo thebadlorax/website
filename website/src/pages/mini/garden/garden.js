@@ -5,9 +5,78 @@
  * copyright 2026
 */
 
-import { Loader, drawRotatedImage } from "../mini-common.js";
+import { Loader, drawRotatedImage, getRandomName } from "../mini-common.js";
 import { Vector, Maths, Rect2D } from "../maths.js";
-import { getApiLink, clamp } from "../../common.js";
+import { getApiLink, clamp, getRandomFromList } from "../../common.js";
+
+const ALL_DIALOGUE = {
+    "shopkeep": {
+        "idle": [
+            {
+                "lines": [
+                    {
+                        "text": "this job is soooo boring"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "buy something or get out, punk"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "y'know what would be good right now"
+                    },
+                    {
+                        "text": "cottage cheese"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "we're out of stock of a lot of things right now"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "stop bothering me"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "why are you talking to me, peasant?"
+                    },
+                    {
+                        "text": "toil some more"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "have you ever noticed we live under a dome"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            }
+        ]
+    } 
+}
 
 export class Keyboard {
     _keys = {};
@@ -539,17 +608,7 @@ const sceneData = {
         "clickboxes": [
             new Clickbox(new Rect2D(Vector.two(0.49, 0.28), 0.1, 0.1), (eng) => { 
                 eng.spriteMap.shopkeep.anim.changeAnim("talk"); 
-                eng.openDialogue({
-                    "lines": [
-                        {
-                            "text": "this is a super long string of dialogue to test my beautiful dialogue system"
-                        },
-                        {
-                            "text": "this is a second super long string of dialogue to test my beautiful dialogue system"
-                        },
-                    ],
-                    "fns": { "onEnd": () => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
-                }); 
+                eng.openRandomDialogueFromList(ALL_DIALOGUE.shopkeep.idle)
             }),
             new Clickbox(new Rect2D(Vector.two(0.145, 0.275), 0.16, 0.12), (eng) => { console.log("a") }),
             new Clickbox(new Rect2D(Vector.two(0.19, 0.06), 0.12, 0.14), (eng) => { console.log("b") }),
@@ -603,7 +662,8 @@ class Engine {
             "dialogue": {
                 "active": false,
                 "line": 0,
-                "data": null
+                "data": null,
+                "last_dialogue": null
             }
         }
 
@@ -709,17 +769,24 @@ class Engine {
     }
 
     openDialogue(data) {
+        this.data.dialogue.last_dialogue = this.data.dialogue.data;
         this.data.dialogue.data = data;
         this.data.dialogue.line = 0;
         this.data.dialogue.active = true;
         this.setMovementBlocking(true);
+    }
+
+    openRandomDialogueFromList(l) {
+        let nlist = l.filter(l1 => l1 != this.data.dialogue.last_dialogue);
+        if(nlist.length == 0) nlist = l;
+        this.openDialogue(getRandomFromList(nlist));
     }
     progressDialogue() {
         this.data.dialogue.line += 1;
         if(this.data.dialogue.line >= this.data.dialogue.data.lines.length) this.closeDialogue();
     }
     closeDialogue() {
-        if(this.data.dialogue.data.fns.onEnd != null) this.data.dialogue.data.fns.onEnd();
+        if(this.data.dialogue.data.fns.onEnd != null) this.data.dialogue.data.fns.onEnd(this);
         this.data.dialogue.data = null;
         this.data.dialogue.line = 0;
         this.data.dialogue.active = false;
@@ -758,7 +825,7 @@ class Engine {
         this.spriteMap.down_arrow = down_arrow;
 
         let hand_animator = new Animator();
-        hand_animator.addAnim(new Animation(this.loader.imageSet("garden-art-27"), -1), "idle");
+        hand_animator.addAnim(new Animation(this.loader.imageSet("garden-art-26"), -1), "idle");
         const hands = this.createSprite(new Rect2D(Vector.two(0, 1), 1, 1), hand_animator, "garden");
         hand_animator.changeAnim("idle");
         this.spriteMap.hands = hands;
@@ -777,16 +844,19 @@ class Engine {
     }
     spawnCloud() {
         const anim = new Animator();
-        anim.addAnim(new Animation(this.loader.imageSet(Math.random() > 0.5 ? "garden-art-25" : "garden-art-26"), -1), "idle");
+        anim.addAnim(new Animation(this.loader.imageSet(getRandomFromList(["garden-art-23", "garden-art-24", "garden-art-25"])), -1), "idle");
         const size = clamp(Math.random()*2, 0.45, 0.55)
         const cloud = this.createSprite(new Rect2D(Vector.two(0.8 + (Math.random() * 0.2), -Math.random()*0.2), size, size), anim, "garden");
         cloud.layer = 0;
         cloud.extraData.cloudSpeed = clamp(Math.random(), 0.1, 0.3) * 0.2;
         cloud.extraData.updateFn = (delta) => {
-            cloud.rect.pos.x -= delta*cloud.extraData.cloudSpeed;
-            if(cloud.rect.pos < -1) this.allSprites.splice(this.allSprites.indexOf(cloud), 1);
-        }
-        if(this.data.scene == 6) cloud.extraData.opacity = 0.5;
+            cloud.rect.pos.x -= delta * cloud.extraData.cloudSpeed;
+        
+            if (cloud.rect.pos.x < -1) {
+                const index = this.allSprites.indexOf(cloud);
+                if (index !== -1) this.allSprites.splice(index, 1);
+            }
+        };
         cloud.anim.changeAnim("idle");
     }
 
@@ -1032,7 +1102,7 @@ class Engine {
 
         this.data.cloudTimer -= delta;
         if(this.data.cloudTimer < 0) {
-            if(scene < 5) this.spawnCloud()
+            this.spawnCloud()
             this.data.cloudTimer = Math.floor(Math.random()*30);
         }
 

@@ -189,7 +189,9 @@ export async function refreshAccount() {
     window.localStorage.setItem("user", JSON.stringify(json));
 }
 
-export const isOnlyDigits = (str) =>{ return /^\d+$/.test(str) }
+export const isOnlyDigits = (str) => { return /^\d+$/.test(str) }
+
+export const getRandomFromList = (l) => { return l[Math.floor(Math.random() * l.length)] };
 
 await updateId();
 
