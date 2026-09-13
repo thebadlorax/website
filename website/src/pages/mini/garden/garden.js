@@ -9,85 +9,6 @@ import { Loader, drawRotatedImage, getRandomName } from "../mini-common.js";
 import { Vector, Maths, Rect2D } from "../maths.js";
 import { getApiLink, clamp, getRandomFromList } from "../../common.js";
 
-const ALL_DIALOGUE = {
-    "shopkeep": {
-        "idle": [
-            {
-                "lines": [
-                    {
-                        "text": "this job is soooo boring"
-                    }
-                ],
-                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
-            },
-            {
-                "lines": [
-                    {
-                        "text": "buy something or get out, punk"
-                    }
-                ],
-                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
-            },
-            {
-                "lines": [
-                    {
-                        "text": "y'know what would be good right now"
-                    },
-                    {
-                        "text": "cottage cheese"
-                    }
-                ],
-                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
-            },
-            {
-                "lines": [
-                    {
-                        "text": "we're out of stock of a lot of things right now"
-                    }
-                ],
-                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
-            },
-            {
-                "lines": [
-                    {
-                        "text": "stop bothering me"
-                    }
-                ],
-                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
-            },
-            {
-                "lines": [
-                    {
-                        "text": "why are you talking to me, peasant?"
-                    },
-                    {
-                        "text": "toil some more"
-                    }
-                ],
-                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
-            },
-            {
-                "lines": [
-                    {
-                        "text": "have you ever noticed we live under a dome"
-                    }
-                ],
-                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
-            }
-        ]
-    } 
-}
-
-const PLANT_DATA = {
-    "grass": {
-        "display_name": "Grass",
-        "seed_name": "Grass Seeds",
-        "seed_art": "garden-art-29",
-        "shop_price": 100,
-        "description": "awesomely cheap and basic grass plant"
-    }
-}
-
 export class Keyboard {
     _keys = {};
     _key_functions = {};
@@ -176,12 +97,12 @@ class DirtSimulation {
         this.ctx = ctx;
         this._previousElapsed = null;
     
-        this.CELLSIZE = 6;
+        this.CELLSIZE = 10;
     
         this.bounds = { x: 0, y: 0,w: 0, h: 0 };
     
-        this.gridWidth = 150;
-        this.gridHeight = 150;
+        this.gridWidth = 135;
+        this.gridHeight = 135;
     
         const size = this.gridWidth * this.gridHeight;
         this.grid = new Uint8Array(size);
@@ -191,21 +112,26 @@ class DirtSimulation {
         this.types = new Uint8Array(size);
         this.updated = new Uint8Array(size);
 
+        this.image = this.ctx.createImageData(
+            this.gridWidth * this.CELLSIZE,
+            this.gridHeight * this.CELLSIZE
+        );
+
         this.canPlace = false;
         this.typeToPlace = 0;
 
         this.typeColors = [
             [ // dirt
-                "rgb(101, 67, 33)",
-                "rgb(121, 85, 48)",
-                "rgb(139, 99, 57)",
-                "rgb(158, 117, 72)" 
+                [101, 67, 33],
+                [121, 85, 48],
+                [139, 99, 57],
+                [158, 117, 72] 
             ],
             [ // sand
-                "rgb(193, 177, 133)",
-                "rgb(210, 194, 157)",
-                "rgb(220, 203, 171)",
-                "rgb(222, 204, 183)" 
+                [193, 177, 133],
+                [210, 194, 157],
+                [220, 203, 171],
+                [222, 204, 183] 
             ],
         ]
     
@@ -345,32 +271,37 @@ class DirtSimulation {
         }
     }
 
-    render(yOffset) {
+    render() {
         const ctx = this.ctx;
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        const image = this.image;
+        const pixels = image.data;
     
-        const cellDrawWidth = ctx.canvas.width / this.gridWidth;
-        const cellDrawHeight = ctx.canvas.height / this.gridHeight;
+        pixels.fill(0);
+    
+        const width = this.gridWidth * this.CELLSIZE;
     
         for (let y = 0; y < this.gridHeight; y++) {
             for (let x = 0; x < this.gridWidth; x++) {
                 const i = this.index(x, y);
                 if (this.grid[i] === 0) continue;
     
-                ctx.fillStyle = this.typeColors[this.types[i]][this.colors[i]];
-                ctx.fillRect(
-                    x * cellDrawWidth,
-                    y * cellDrawHeight + yOffset*ctx.canvas.height,
-                    cellDrawWidth + 0.5,
-                    cellDrawHeight + 0.5
-                );
+                const color = this.typeColors[this.types[i]][this.colors[i]];
+    
+                for (let py = 0; py < this.CELLSIZE; py++) {
+                    for (let px = 0; px < this.CELLSIZE; px++) {
+    
+                        const pixelIndex = ((y * this.CELLSIZE + py) * width + (x * this.CELLSIZE + px)) * 4;
+    
+                        pixels[pixelIndex] = color[0];
+                        pixels[pixelIndex + 1] = color[1];
+                        pixels[pixelIndex + 2] = color[2];
+                        pixels[pixelIndex + 3] = 255;
+                    }
+                }
             }
         }
-    }
-
-    tick(delta, yOffset) {
-        this.update(delta);
-        this.render(yOffset);
+    
+        ctx.putImageData(image, 0, 0);
     }
 
     serializeBinary() {
@@ -540,6 +471,7 @@ class Clickbox {
         this.rect = rect;
         this.onclick = onclick;
         this.active = true;
+        this.cursor = "pointer"
     }
 
     getBounds(bounds) {
@@ -556,7 +488,92 @@ class Clickbox {
         ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
         ctx.fillRect(bb.x, bb.y, bb.w, bb.h);
     }
+
+    withCursorStyle(cursor) {
+        this.cursor = cursor;
+        return this;
+    }
 }
+
+const ALL_DIALOGUE = {
+    "shopkeep": {
+        "idle": [
+            {
+                "lines": [
+                    {
+                        "text": "this job is soooo boring"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "buy something or get out, punk"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "y'know what would be good right now"
+                    },
+                    {
+                        "text": "cottage cheese"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "we're out of stock of a lot of things right now"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "stop bothering me"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "why are you talking to me, peasant?"
+                    },
+                    {
+                        "text": "toil some more"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "have you ever noticed we live under a dome"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
+            }
+        ]
+    } 
+}
+
+const PLANT_DATA = {
+    "grass": {
+        "display_name": "Grass",
+        "seed_name": "Grass Seeds",
+        "seed_art": "garden-art-29",
+        "shop_price": 100,
+        "description": "awesomely cheap and basic grass plant"
+    }
+}
+
 const sceneData = {
     "garden": {
         "renderFn": (eng, layer0Sprites) => {
@@ -591,7 +608,7 @@ const sceneData = {
         "clickboxes": [
             new Clickbox(new Rect2D(Vector.two(0.33, 0.28), 0.1, 0.1), (eng) => { 
                 eng.spriteMap.door.anim.changeAnim("open")
-            })
+            }).withCursorStyle("alias")
         ]
     },
     "shop": {
@@ -652,6 +669,7 @@ class Engine {
             "showClickboxes": false,
             "tabOutTime": 0,
             "cloudTimer": Math.floor(Math.random()*10),
+            "cursorOverride": null,
             "hands": {
                 "yVel": null,
                 "clamp": [null, null]
@@ -695,29 +713,32 @@ class Engine {
                 "yVel": this.data.hands.yVel != hand_amp*-1 ? hand_amp*-1 : hand_amp,
                 "clamp": this.data.hands.yVel != hand_amp*-1 ? [0, 1] : [-1, 1]
             };
+            const a = this.data.hands.yVel == hand_amp*-1
             this.sand.simulation.canPlace = this.data.hands.yVel == hand_amp*-1;
+
+            this.hand_clickboxes.forEach(c => c.active = a)
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyS", () => {
-            window.localStorage.setItem("sim_save", this.sand.simulation.serializeBinary());
+            window.localStorage.setItem("garden_save", this.serialize());
             alert("saved")
         })
         this.keyboard.setFunctionOnKeyPress("KeyL", () => {
-            this.sand.simulation.deserializeBinary(window.localStorage.getItem("sim_save"));
+            this.deserialize(window.localStorage.getItem("garden_save"));
+            alert("loaded")
         })
 
         window.addEventListener("resize", () => this.resize())
         this.ctx.canvas.addEventListener("mousemove", e => {
             this.mouse.pos.xySetIp(e.clientX, e.clientY);
         });
-        this.ctx.canvas.addEventListener("click", () => {
-            this.onClick();
-        })
 
         this.ctx.canvas.addEventListener("mousedown", e => {
             if(e.button === 0) this.sand.simulation.typeToPlace = 0
             else this.sand.simulation.typeToPlace = 1;
             this.sand.simulation.mousePressed = true;
+
+            this.onClick();
         });
         
         this.ctx.canvas.addEventListener("mouseup", () => {
@@ -750,9 +771,48 @@ class Engine {
 
         this.setupSprites();
         this.down_clickbox = new Clickbox(new Rect2D(Vector.two(0.45, 0.75), 0.18, 0.18), (eng) => { sceneData[eng.data.scene].movement.down(eng) })
+            .withCursorStyle("alias")
         this.down_clickbox.active = false;
         this.globalClickboxes.push(this.down_clickbox);
         this.refreshMovementArrows();
+
+        const timeouts = {}
+        const callHandler = (fn, key) => {
+            if(timeouts[key] == null) timeouts[key] = performance.now()-1000;
+            if(timeouts[key] > performance.now()-500) return;
+            fn();
+            timeouts[key] = performance.now();
+        }
+        const settings_handler = (eng) => {
+            console.log("settings");
+        }
+        const seeds_handler = (eng) => {
+            console.log("seeds");
+        }
+        const exit_handler = (eng) => {
+            window.location.href = "/"
+        }
+
+        this.hand_clickboxes = [
+            // seeds bracelet
+            new Clickbox(new Rect2D(Vector.two(0.05, 0.75), 0.25, 0.1),    () => { callHandler(seeds_handler, "seeds") }).withCursorStyle("pointer"),
+
+            // settings bracelet
+            new Clickbox(new Rect2D(Vector.two(0.71, 0.77), 0.045, 0.09),  () => { callHandler(settings_handler, "settings") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.76, 0.75), 0.055, 0.06),  () => { callHandler(settings_handler, "settings") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.825, 0.75), 0.04, 0.035), () => { callHandler(settings_handler, "settings") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.87, 0.725), 0.06, 0.04),  () => { callHandler(settings_handler, "settings") }).withCursorStyle("pointer"),
+
+            // exit bracelet
+            new Clickbox(new Rect2D(Vector.two(0.73, 0.88), 0.04, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            new Clickbox(new Rect2D(Vector.two(0.76, 0.875), 0.05, 0.025),  () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            new Clickbox(new Rect2D(Vector.two(0.78, 0.84), 0.05, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            new Clickbox(new Rect2D(Vector.two(0.82, 0.82), 0.05, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            new Clickbox(new Rect2D(Vector.two(0.86, 0.8), 0.05, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            new Clickbox(new Rect2D(Vector.two(0.9, 0.78), 0.05, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+        ]
+        this.hand_clickboxes.forEach(c => c.active = false)
+        this.globalClickboxes = this.globalClickboxes.concat(this.hand_clickboxes)
     }
     tick(elapsed) {
         if(this._previousElapsed === null) {
@@ -775,8 +835,8 @@ class Engine {
             if(this.sand.timeout_timer > 0 || this.sand.simulation.mousePressed) {
                 this.sand.timeout_timer -= delta;
                 this.sand.simulation.update(delta);
+                this.sand.simulation.render()
             }
-            this.sand.simulation.render(this.spriteMap.hands.rect.pos.y)
         } 
 
         this.update(delta);
@@ -852,10 +912,10 @@ class Engine {
             }
         }
         hands.extraData.renderFn = (ctx) => {
-            if(this.data.scenetime == 6) ctx.filter = "brightness(50%)";
+            //if(this.data.scenetime == 6) ctx.filter = "brightness(50%)";
             const bb = hands.getBounds(this.getBoundingBox());
             ctx.drawImage(hands.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
-            ctx.filter = "none";
+            //ctx.filter = "none";
         }
     }
 
@@ -1035,7 +1095,9 @@ class Engine {
         ctx.rect(bb.x, bb.y, bb.w, bb.h);
         ctx.clip();
 
+
         sceneData[this.data.scene].renderFn(this, this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 0));
+        if(this.data.scenetime == 6 && this.data.scene == "garden") ctx.filter = "brightness(50%)"
         this.allSprites.filter(s => s.scene == this.data.scene && s.layer > 0).sort((a, b) => a.layer - b.layer).forEach(s => s.render(ctx, bb));
         if(this.data.dialogue.active) {
             ctx.fillStyle = `rgba(255, 255, 255, 1)`
@@ -1052,7 +1114,7 @@ class Engine {
         ctx.restore(); // clip out everything beyond the bounds
         
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
-        ctx.drawImage(this.sand.canvas, bb.x, bb.y, bb.w, bb.h);
+        ctx.drawImage(this.sand.canvas, bb.x, bb.y + (this.spriteMap.hands.rect.pos.y*ctx.canvas.height), bb.w, bb.h);
         ctx.filter = `none`
 
         this.screenEffects.forEach(e => {
@@ -1082,20 +1144,37 @@ class Engine {
         });
 
         if(this.data.showClickboxes) {
-            sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
+            sceneData[this.data.scene].clickboxes.filter(c => c.active).forEach(c => {
                 c.render(ctx, bb)
+            })
+
+            this.globalClickboxes.filter(c => c.active).forEach(c => {
+                ctx.filter = "hue-rotate(180deg)"
+                c.render(ctx, bb)
+                ctx.filter = "none";
             })
         }
     }
 
     onClick() {
         const bounds = this.getBoundingBox();
+
+        /*const relx = (this.mouse.pos.x-bounds.x) / bounds.w;
+        const rely = (this.mouse.pos.y-bounds.y) / bounds.h;*/
+
         if(this.data.dialogue.active) {
             this.progressDialogue();
             return;
         }
         if(this.data.hands.yVel == null || this.data.hands.yVel > 0) {
             sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
+                const bb = c.getBounds(bounds);
+                if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
+                    c.onclick(this);
+                }
+            });
+        } else {
+            this.globalClickboxes.filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
                 if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
                     c.onclick(this);
@@ -1139,15 +1218,34 @@ class Engine {
 
         const bounds = this.getBoundingBox();
         document.body.style.cursor = "default"
+        if(this.sand.simulation.mousePressed && this.data.hands.yVel < 0) document.body.style.cursor = "none"
         if(this.data.hands.yVel == null || this.data.hands.yVel > 0) {
             sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
                 if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
-                    document.body.style.cursor = "pointer"
+                    document.body.style.cursor = c.cursor;
+                }
+            });
+        } else {
+            this.globalClickboxes.filter(c => c.active).forEach(c => {
+                const bb = c.getBounds(bounds);
+                if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
+                    document.body.style.cursor = c.cursor;
                 }
             });
         }
         if(this.data.dialogue.active) document.body.style.cursor = "pointer"
+    }
+
+    serialize() {
+        return JSON.stringify({
+            "dirt": this.sand.simulation.serializeBinary()
+        })
+    }
+
+    deserialize(jsonString) {
+        const json = JSON.parse(jsonString);
+        this.sand.simulation.deserializeBinary(json.dirt);
     }
 }
 
