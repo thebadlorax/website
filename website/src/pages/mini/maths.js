@@ -37,7 +37,6 @@ export class Circle2D extends Shape2D {
     }
 }
 
-
 export class Maths {
     static rectRect(x1, y1, w1, h1, x2, y2, w2, h2) {
         if (x1 + w1 <= x2 || x2 + w2 <= x1) return false;
@@ -107,11 +106,16 @@ export class Maths {
     }
 }
 
-
 export class Vector {
     static two(x=null, y=null) { return new Vector2(x, y) }
     static three(x=null, y=null, z=null) { return new Vector3(x, y, z) }
     static four(x=null, y=null, z=null, w=null) { return new Vector4(x, y, z, w) }
+    static dot(vector1, vector2) {
+        if(vector1.constructor !== vector2.constructor) throw new Error("cannot compute dot product of 2 different types of vectors");
+        if(vector1 instanceof Vector2) return vector1.x * vector2.x + vector1.y * vector2.y;
+        if(vector1 instanceof Vector3) return vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z;
+        if(vector1 instanceof Vector4) return vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z + vector1.w * vector2.w;
+    }
     constructor() { throw new Error("what the fuck are you doing") }
 }
 
@@ -168,7 +172,6 @@ export class Vector2 {
 
     toString()     { return `Vector2(${this.x}, ${this.y})` }
 }
-
 export class Vector3 {
     constructor(x=null, y=null, z=null) { this.x = x; this.y = y; this.z = z; }
 
@@ -222,7 +225,6 @@ export class Vector3 {
 
     toString()         { return `Vector3(${this.x}, ${this.y}, ${this.z})` }
 }
-
 export class Vector4 {
     constructor(x=null, y=null, z=null, w=null) { this.x = x; this.y = y; this.z = z; this.w = w; }
 

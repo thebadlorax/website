@@ -7,7 +7,90 @@
 
 import { Loader, drawRotatedImage } from "../mini-common.js";
 import { Vector, Maths, Rect2D } from "../maths.js";
-import { getApiLink } from "../../common.js";
+import { getApiLink, clamp } from "../../common.js";
+
+export class Keyboard {
+    _keys = {};
+    _key_functions = {};
+    constructor() {
+        window.addEventListener('keydown', this._onKeyDown.bind(this));
+        window.addEventListener('keyup', this._onKeyUp.bind(this));
+
+        window.addEventListener("blur", () => {
+            for (const key in this._keys) {
+                this._keys[key] = false;
+            }
+        });
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                for (const key in this._keys) {
+                    this._keys[key] = false;
+                }
+            }
+        });
+
+        this.waiting = false;
+    };
+
+    listenForEvents(keys) {
+        keys.forEach(function (key) {
+            this._keys[key] = false;
+        }.bind(this));
+    };
+
+    setFunctionOnKeyPress(key, fn) {
+        this._key_functions[key] = fn;
+    }
+
+    _onKeyDown(event) {
+        var keyCode = event.code;
+        if (keyCode in this._keys) {
+            event.preventDefault();
+            this._keys[keyCode] = true;
+            if(this._key_functions[keyCode] != undefined) this._key_functions[keyCode]();
+        }
+    };
+
+    _onKeyUp(event) {
+        var keyCode = event.code;
+        if (keyCode in this._keys) {
+            event.preventDefault();
+            this._keys[keyCode] = false;
+        }
+
+        if (keyCode === "MetaLeft" || keyCode === "MetaRight") {
+            for (const key in this._keys) {
+                if (key !== "MetaLeft" && key !== "MetaRight") {
+                    this._keys[key] = false;
+                }
+            }
+        }
+    };
+
+    isDown(keyCode) {
+        if (!(keyCode in this._keys)) {
+            throw new Error('Keycode ' + keyCode + ' is not being listened to');
+        }
+        return this._keys[keyCode];
+    }
+
+    waitForKeyPress() {
+        const toggle = () => {
+            this.waiting = false;
+        }
+        this.waiting = true;
+        return new Promise(resolve => {
+            function handler(event) {
+                window.removeEventListener("keydown", handler);
+                toggle();
+                resolve(event);
+            }
+    
+            window.addEventListener("keydown", handler);
+        });
+    }
+}
 
 class Animation {
     constructor(frames, speed) {
@@ -66,6 +149,13 @@ class Animator {
     changeAnim(key) {
         this.current = this.animations[key];
     }
+    resetAnim(key) {
+        this.animations[key].reset();
+    }
+    resetAndChangeAnim(key) {
+        this.resetAnim(key);
+        this.changeAnim(key);
+    }
     update(delta) {
         if(this.current.speed == -1) return;
         this.current.progress(delta);
@@ -79,7 +169,11 @@ class Animator {
 class Sprite {
     constructor(rect, animator, scene) {
         this.rect = rect; this.anim = animator;
-        this.scene = scene;
+        this.scene = scene; this.layer = 1;
+        this.extraData = {
+            "renderOffset": Vector.two(0, 0),
+            "updateFn": (delta) => {}
+        }
     }
 
     getBounds(bounds) {
@@ -98,8 +192,9 @@ class Sprite {
     }
 
     render(ctx, bounds) {
-        let bb = this.getBounds(bounds);
-        ctx.drawImage(this.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
+        const bb = this.getBounds(bounds);
+        const off = this.extraData.renderOffset;
+        ctx.drawImage(this.anim.get(), bb.pos.x + off.x, bb.pos.y + off.y, bb.w, bb.h);
     }
 }
 
@@ -127,13 +222,9 @@ class Clickbox {
 }
 const sceneData = {
     "garden": {
-        "renderFn": (eng) => {
+        "renderFn": (eng, layer0Sprites) => {
             const ctx = eng.ctx;
             const bb = eng.getBoundingBox();
-
-            ctx.save();
-            ctx.rect(bb.x, bb.y, bb.w, bb.h);
-            ctx.clip();
     
             const skyOffset = 155;
             const percent = (eng.data.time / eng.data.dayLength) * 100;
@@ -155,10 +246,10 @@ const sceneData = {
                 skyH,
                 degrees
             );
+
+            layer0Sprites.forEach(s => s.render(ctx, bb));
     
             ctx.drawImage(eng.data.gardenbg, 0, 0, 512, 512, bb.x, bb.y, bb.w, bb.h);
-    
-            ctx.restore()
         },
         "clickboxes": [
             new Clickbox(new Rect2D(Vector.two(0.33, 0.28), 0.1, 0.1), (eng) => { 
@@ -170,14 +261,8 @@ const sceneData = {
         "renderFn": (eng) => {
             const ctx = eng.ctx;
             const bb = eng.getBoundingBox();
-
-            ctx.save();
-            ctx.rect(bb.x, bb.y, bb.w, bb.h);
-            ctx.clip();
     
             ctx.drawImage(eng.loader.getImage("garden-art-07"), 0, 0, 512, 512, bb.x, bb.y, bb.w, bb.h);
-    
-            ctx.restore()
         },
         "clickboxes": [
             new Clickbox(new Rect2D(Vector.two(0.49, 0.28), 0.1, 0.1), (eng) => { 
@@ -185,9 +270,13 @@ const sceneData = {
                 eng.openDialogue({
                     "lines": [
                         {
-                            "text": "test"
-                        }
-                    ]
+                            "text": "this is a super long string of dialogue to test my beautiful dialogue system"
+                        },
+                        {
+                            "text": "this is a second super long string of dialogue to test my beautiful dialogue system"
+                        },
+                    ],
+                    "fns": { "onEnd": () => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
                 }); 
             }),
             new Clickbox(new Rect2D(Vector.two(0.145, 0.275), 0.16, 0.12), (eng) => { console.log("a") }),
@@ -209,6 +298,7 @@ class Engine {
     constructor(ctx) {
         this.ctx = ctx;
         this.loader = new Loader();
+        this.keyboard = new Keyboard();
 
         this.mouse = new Rect2D(Vector.two(0, 0), 10, 10);
         
@@ -223,6 +313,11 @@ class Engine {
             "time": 0,
             "showClickboxes": false,
             "tabOutTime": 0,
+            "cloudTimer": Math.floor(Math.random()*10),
+            "hands": {
+                "yVel": null,
+                "clamp": [null, null]
+            },
             "dialogue": {
                 "active": false,
                 "line": 0,
@@ -246,14 +341,22 @@ class Engine {
     async load() {
         let r = await fetch(getApiLink("/mini/garden/files"));
         r = await r.json();
-    
-        await Promise.all(
-            r.map(url => this.loader.loadImage(url.replace(".png", ""), `../res/mini/garden/${url}`))
-        );
+        await Promise.all(r.map(url => this.loader.loadImage(url.replace(".png", ""), `../res/mini/garden/${url}`)));
     }
     async init() {
+        this.ctx.webkitImageSmoothingEnabled = false;
+        this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
+        this.keyboard.listenForEvents(["Tab"]);
+        this.keyboard.setFunctionOnKeyPress("Tab", () => {
+            if(this.data.scene != "garden") return;
+            const hand_amp = 3;
+            this.data.hands = {
+                "yVel": this.data.hands.yVel != hand_amp*-1 ? hand_amp*-1 : hand_amp,
+                "clamp": this.data.hands.yVel != hand_amp*-1 ? [0, 1] : [-1, 1]
+            };
+        })
         window.addEventListener("resize", () => this.resize())
         this.ctx.canvas.addEventListener("mousemove", e => {
             this.mouse.pos.xySetIp(e.clientX, e.clientY);
@@ -316,6 +419,17 @@ class Engine {
         this.data.dialogue.active = true;
         this.setMovementBlocking(true);
     }
+    progressDialogue() {
+        this.data.dialogue.line += 1;
+        if(this.data.dialogue.line >= this.data.dialogue.data.lines.length) this.closeDialogue();
+    }
+    closeDialogue() {
+        if(this.data.dialogue.data.fns.onEnd != null) this.data.dialogue.data.fns.onEnd();
+        this.data.dialogue.data = null;
+        this.data.dialogue.line = 0;
+        this.data.dialogue.active = false;
+        this.setMovementBlocking(false);
+    }
 
     offlineProgress(ms) {
         this.update(ms/1000);
@@ -347,12 +461,37 @@ class Engine {
         const down_arrow = this.createSprite(new Rect2D(Vector.two(0.17, 0.2), 0.8, 0.8), down_arrow_animator, "");
         down_arrow_animator.changeAnim("idle")
         this.spriteMap.down_arrow = down_arrow;
+
+        let hand_animator = new Animator();
+        hand_animator.addAnim(new Animation(this.loader.imageSet("garden-art-27"), -1), "idle");
+        const hands = this.createSprite(new Rect2D(Vector.two(0, 1), 1, 1), hand_animator, "garden");
+        hand_animator.changeAnim("idle");
+        this.spriteMap.hands = hands;
+        hands.extraData.updateFn = (delta) => {
+            if(this.data.hands.yVel != null) {
+                hands.rect.pos.y = clamp(hands.rect.pos.y + delta*this.data.hands.yVel, this.data.hands.clamp[0], this.data.hands.clamp[1])
+            }
+
+        }
     }
 
     createSprite(rect, animator, scene) {
         let s = new Sprite(rect, animator, scene)
         this.allSprites.push(s)
         return s;
+    }
+    spawnCloud() {
+        const anim = new Animator();
+        anim.addAnim(new Animation(this.loader.imageSet(Math.random() > 0.5 ? "garden-art-25" : "garden-art-26"), -1), "idle");
+        const size = clamp(Math.random()*2, 0.45, 0.55)
+        const cloud = this.createSprite(new Rect2D(Vector.two(0.8 + (Math.random() * 0.2), -Math.random()*0.2), size, size), anim, "garden");
+        cloud.layer = 0;
+        cloud.extraData.cloudSpeed = clamp(Math.random(), 0.1, 0.3) * 0.2;
+        cloud.extraData.updateFn = (delta) => {
+            cloud.rect.pos.x -= delta*cloud.extraData.cloudSpeed;
+            if(cloud.rect.pos < -1) this.allSprites.splice(this.allSprites.indexOf(cloud), 1);
+        }
+        cloud.anim.changeAnim("idle");
     }
 
     setSceneTime(time) {
@@ -466,12 +605,37 @@ class Engine {
         });
     }
 
+    drawTextWrap(text, x, y, maxWidth, lineHeight) {
+        const ctx = this.ctx;
+        const words = text.split(' ');
+        let line = '';
+        
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          const metrics = ctx.measureText(testLine);
+          const testWidth = metrics.width;
+          
+          if (testWidth > maxWidth && n > 0) {
+            ctx.fillText(line, x, y);
+            line = words[n] + ' ';
+            y += lineHeight;
+          } else line = testLine;
+          
+        }
+        ctx.fillText(line, x, y);
+    }
+
     render() {
         const ctx = this.ctx;
         const bb = this.getBoundingBox();
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-        sceneData[this.data.scene].renderFn(this);
-        this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => s.render(ctx, bb));
+
+        ctx.save();
+        ctx.rect(bb.x, bb.y, bb.w, bb.h);
+        ctx.clip();
+
+        sceneData[this.data.scene].renderFn(this, this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 0));
+        this.allSprites.filter(s => s.scene == this.data.scene && s.layer > 0).sort((a, b) => a.layer - b.layer).forEach(s => s.render(ctx, bb));
         if(this.data.dialogue.active) {
             ctx.fillStyle = `rgba(255, 255, 255, 1)`
             ctx.fillRect(bb.x+50, ctx.canvas.height-225, bb.w-100, 200)
@@ -479,8 +643,12 @@ class Engine {
             ctx.strokeRect(bb.x+50, ctx.canvas.height-225, bb.w-100, 200)
 
             ctx.fillStyle = `rgba(0, 0, 0, 1)`;
-            ctx.fillText(this.data.dialogue.data.lines[this.data.dialogue.data.line], bb.x+50, ctx.canvas.height-225)
+            ctx.font = `30px Arial`;
+            const line = this.data.dialogue.data.lines[this.data.dialogue.line].text;
+            this.drawTextWrap(line, bb.x+60, ctx.canvas.height-190, bb.w-90, 40)
         }
+
+        ctx.restore(); // clip out everything beyond the bounds
 
         this.screenEffects.forEach(e => {
             switch(e.type) {
@@ -517,12 +685,18 @@ class Engine {
 
     onClick() {
         const bounds = this.getBoundingBox();
-        sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
-            const bb = c.getBounds(bounds);
-            if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
-                c.onclick(this);
-            }
-        })
+        if(this.data.dialogue.active) {
+            this.progressDialogue();
+            return;
+        }
+        if(this.data.hands.yVel == null || this.data.hands.yVel > 0) {
+            sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
+                const bb = c.getBounds(bounds);
+                if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
+                    c.onclick(this);
+                }
+            });
+        }
     }
     
     update(delta) {
@@ -534,6 +708,7 @@ class Engine {
 
         this.updateEffects(delta);
     
+        // modify bg for shadows
         let scene = 6;
         if (percent >= 15) scene = 1;
         if (percent >= 25) scene = 2;
@@ -544,16 +719,30 @@ class Engine {
     
         if (scene !== this.data.scenetime) this.setSceneTime(scene);
 
-        this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => s.anim.update(delta));
+        this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => {
+            s.anim.update(delta);
+        });
+        this.allSprites.forEach(s => {
+            s.extraData.updateFn(delta);
+        })
+
+        this.data.cloudTimer -= delta;
+        if(this.data.cloudTimer < 0) {
+            if(scene < 4) this.spawnCloud()
+            this.data.cloudTimer = Math.floor(Math.random()*30);
+        }
 
         const bounds = this.getBoundingBox();
         document.body.style.cursor = "default"
-        sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
-            const bb = c.getBounds(bounds);
-            if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
-                document.body.style.cursor = "pointer"
-            }
-        })
+        if(this.data.hands.yVel == null || this.data.hands.yVel > 0) {
+            sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
+                const bb = c.getBounds(bounds);
+                if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
+                    document.body.style.cursor = "pointer"
+                }
+            });
+        }
+        if(this.data.dialogue.active) document.body.style.cursor = "pointer"
     }
 }
 
