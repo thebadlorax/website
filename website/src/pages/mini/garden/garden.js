@@ -511,7 +511,7 @@ class Sprite {
         this.extraData = {
             "renderOffset": Vector.two(0, 0),
             "updateFn": (delta) => {},
-            "opacity": 1
+            "renderFn": null
         }
     }
 
@@ -533,9 +533,11 @@ class Sprite {
     render(ctx, bounds) {
         const bb = this.getBounds(bounds);
         const off = this.extraData.renderOffset;
-        ctx.globalAlpha = this.extraData.opacity;
+        if(this.extraData.renderFn != null) {
+            this.extraData.renderFn(ctx);
+            return;
+        }
         ctx.drawImage(this.anim.get(), bb.pos.x + off.x, bb.pos.y + off.y, bb.w, bb.h);
-        ctx.globalAlpha = 1;
     }
 }
 
@@ -833,7 +835,12 @@ class Engine {
             if(this.data.hands.yVel != null) {
                 hands.rect.pos.y = clamp(hands.rect.pos.y + delta*this.data.hands.yVel, this.data.hands.clamp[0], this.data.hands.clamp[1])
             }
-
+        }
+        hands.extraData.renderFn = (ctx) => {
+            if(this.data.scenetime == 6) ctx.filter = "brightness(50%)";
+            const bb = hands.getBounds(this.getBoundingBox());
+            ctx.drawImage(hands.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
+            ctx.filter = "none";
         }
     }
 
@@ -857,6 +864,12 @@ class Engine {
                 if (index !== -1) this.allSprites.splice(index, 1);
             }
         };
+        cloud.extraData.renderFn = (ctx) => {
+            if(this.data.scenetime == 6) ctx.filter = "brightness(50%)";
+            const bb = cloud.getBounds(this.getBoundingBox());
+            ctx.drawImage(cloud.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
+            ctx.filter = "none";
+        }
         cloud.anim.changeAnim("idle");
     }
 
@@ -1022,7 +1035,10 @@ class Engine {
         }
 
         ctx.restore(); // clip out everything beyond the bounds
+        
+        if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
         ctx.drawImage(this.sand.canvas, bb.x, bb.y, bb.w, bb.h);
+        ctx.filter = `none`
 
         this.screenEffects.forEach(e => {
             switch(e.type) {
