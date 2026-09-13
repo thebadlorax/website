@@ -23,7 +23,7 @@ export class Keyboard {
         });
 
         document.addEventListener("visibilitychange", () => {
-            if (document.hidden) {
+            if(document.hidden) {
                 for (const key in this._keys) {
                     this._keys[key] = false;
                 }
@@ -45,7 +45,7 @@ export class Keyboard {
 
     _onKeyDown(event) {
         var keyCode = event.code;
-        if (keyCode in this._keys) {
+        if(keyCode in this._keys) {
             event.preventDefault();
             this._keys[keyCode] = true;
             if(this._key_functions[keyCode] != undefined) this._key_functions[keyCode]();
@@ -54,14 +54,14 @@ export class Keyboard {
 
     _onKeyUp(event) {
         var keyCode = event.code;
-        if (keyCode in this._keys) {
+        if(keyCode in this._keys) {
             event.preventDefault();
             this._keys[keyCode] = false;
         }
 
-        if (keyCode === "MetaLeft" || keyCode === "MetaRight") {
+        if(keyCode === "MetaLeft" || keyCode === "MetaRight") {
             for (const key in this._keys) {
-                if (key !== "MetaLeft" && key !== "MetaRight") {
+                if(key !== "MetaLeft" && key !== "MetaRight") {
                     this._keys[key] = false;
                 }
             }
@@ -69,7 +69,7 @@ export class Keyboard {
     };
 
     isDown(keyCode) {
-        if (!(keyCode in this._keys)) {
+        if(!(keyCode in this._keys)) {
             throw new Error('Keycode ' + keyCode + ' is not being listened to');
         }
         return this._keys[keyCode];
@@ -89,6 +89,239 @@ export class Keyboard {
     
             window.addEventListener("keydown", handler);
         });
+    }
+}
+
+class DirtSimulation {
+    constructor(ctx) {
+        this.ctx = ctx;
+        this._previousElapsed = null;
+    
+        this.CELLSIZE = 6;
+    
+        this.bounds = { x: 0, y: 0,w: 0, h: 0 };
+    
+        this.gridWidth = 0;
+        this.gridHeight = 0;
+    
+        this.grid = null;
+        this.velocity = null;
+        this.progress = null;
+        this.colors = null;
+
+        this.canPlace = false;
+
+        this.allColors = [
+            "rgb(101, 67, 33)",
+            "rgb(121, 85, 48)",
+            "rgb(139, 99, 57)",
+            "rgb(158, 117, 72)" 
+        ]
+    
+        this.mousePressed = false;
+        this.mousePos = [0, 0];
+        this.flip = false;
+    }
+
+    setBounds(bounds) {
+        this.bounds = bounds;
+    
+        this.gridWidth = Math.floor(bounds.w / this.CELLSIZE);
+        this.gridHeight = Math.floor(bounds.h / this.CELLSIZE);
+    
+        const size = this.gridWidth * this.gridHeight;
+    
+        this.grid =     new Uint8Array(size);
+        this.velocity = new Float32Array(size);
+        this.progress = new Float32Array(size);
+        this.colors =   new Uint8Array(size);
+    }
+
+    index(x, y) {
+        return y * this.gridWidth + x;
+    }
+
+    isInside(x, y) {
+        const cx = this.gridWidth / 2;
+        const radius = this.gridWidth / 2;
+        const cy = 25;
+    
+        const dx = x + 0.5 - cx;
+        const dy = y + 0.5 - cy;
+    
+        return dx * dx + dy * dy <= radius * radius;
+    }
+
+    isSolid(x, y) {
+        if(
+            x < 0 || x >= this.gridWidth ||
+            y < 0 || y >= this.gridHeight
+        ) return true;
+    
+        if(!this.isInside(x, y)) return true;
+        else return this.grid[this.index(x, y)] === 1;
+    }
+
+    get(x, y) {
+        if(
+            x < 0 || x >= this.gridWidth ||
+            y < 0 || y >= this.gridHeight
+        ) return 1;
+    
+        return this.grid[this.index(x, y)];
+    }
+
+    set(x, y, value) {
+        if(
+            x < 0 || x >= this.gridWidth ||
+            y < 0 || y >= this.gridHeight
+        ) return;
+    
+        if(value === 1 && !this.isInside(x, y)) return;
+        const i = this.index(x, y);
+        this.grid[i] = value;
+        if(value === 1) this.colors[i] = Math.floor(Math.random() * this.allColors.length);
+        
+    }
+
+    init() {
+        window.addEventListener("mousedown", e => {
+            if(e.button === 0) this.mousePressed = true;
+        });
+        
+        window.addEventListener("mouseup", e => {
+            if(e.button === 0) this.mousePressed = false;
+        });
+
+        window.addEventListener("mousemove", e => {
+            this.mousePos = [e.clientX, e.clientY];
+        })
+    }
+
+    updateCell(x, y, delta) {
+        if(this.get(x, y) !== 1) return;
+    
+        const i = this.index(x, y);
+    
+        // gravity
+        this.velocity[i] += 200 * delta;
+    
+        // accumulate falling
+        this.progress[i] += this.velocity[i] * delta;
+    
+        let cellsToMove = Math.floor(this.progress[i]);
+    
+        if(cellsToMove > 8) cellsToMove = 8;
+    
+        let moved = 0;
+    
+        for (let d = 1; d <= cellsToMove; d++) {
+            if(this.isSolid(x, y + d) !== 0) break;
+            moved = d;
+        }
+    
+        if(moved > 0) {
+            const v = this.velocity[i];
+            const p = this.progress[i] - moved;
+            const color = this.colors[i];
+
+            this.set(x, y, 0);
+            this.set(x, y + moved, 1);
+    
+            const ni = this.index(x, y + moved);
+            
+            this.colors[ni] = color;
+
+            this.velocity[ni] = v;
+            this.progress[ni] = p;
+    
+            this.velocity[i] = 0;
+            this.progress[i] = 0;
+    
+            return;
+        }
+    
+        const leftOpen =  !this.isSolid(x - 1, y + 1);
+        const rightOpen = !this.isSolid(x + 1, y + 1);
+    
+        if(leftOpen || rightOpen) {
+            const dir = leftOpen && rightOpen ? (Math.random() < 0.5 ? -1 : 1) : leftOpen ? -1 : 1;
+    
+            const v = this.velocity[i];
+            const p = this.progress[i];
+            const color = this.colors[i];
+
+            this.set(x, y, 0);
+            this.set(x + dir, y + 1, 1);
+    
+            const ni = this.index(x + dir, y + 1);
+
+            this.colors[ni] = color;
+    
+            this.velocity[ni] = v * 0.94;
+            this.progress[ni] = p;
+    
+            this.velocity[i] = 0;
+            this.progress[i] = 0;
+    
+            return;
+        }
+    
+        // resting
+        this.velocity[i] = 0;
+        this.progress[i] = 0;
+    }
+
+    update(delta) {
+        if(this.mousePressed && this.canPlace) {
+            const gx = Math.floor((this.mousePos[0] - this.bounds.x) / this.CELLSIZE);
+            const gy = Math.floor((this.mousePos[1] - this.bounds.y) / this.CELLSIZE);
+        
+            for (let y = -4; y <= 4; y++) {
+                for (let x = -4; x <= 4; x++) {
+                    if(Math.random() > 0.8) this.set(gx + x, gy + y, 1);
+                }
+            }
+        };
+
+        this.flip = !this.flip;
+    
+        for (let y = this.gridHeight - 2; y >= 0; y--) {
+            if(this.flip) {
+                for (let x = 0; x < this.gridWidth; x++) {
+                    this.updateCell(x, y, delta);
+                }
+            } else {
+                for (let x = this.gridWidth - 1; x >= 0; x--) {
+                    this.updateCell(x, y, delta);
+                }
+            }
+        }
+    }
+    render(yOffset) {
+        const ctx = this.ctx;
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    
+        for (let y = 0; y < this.gridHeight; y++) {
+            for (let x = 0; x < this.gridWidth; x++) {
+                const i = this.index(x, y);
+                const c = this.grid[i];
+                if(c === 0) continue;
+    
+                ctx.fillStyle = this.allColors[this.colors[i]];
+                ctx.fillRect(
+                    x * this.CELLSIZE,
+                    (y * this.CELLSIZE) + (yOffset*ctx.canvas.height),
+                    this.CELLSIZE,
+                    this.CELLSIZE
+                );
+            }
+        }
+    }
+
+    tick(delta, yOffset) {
+        this.update(delta);
+        this.render(yOffset);
     }
 }
 
@@ -172,7 +405,8 @@ class Sprite {
         this.scene = scene; this.layer = 1;
         this.extraData = {
             "renderOffset": Vector.two(0, 0),
-            "updateFn": (delta) => {}
+            "updateFn": (delta) => {},
+            "opacity": 1
         }
     }
 
@@ -194,7 +428,9 @@ class Sprite {
     render(ctx, bounds) {
         const bb = this.getBounds(bounds);
         const off = this.extraData.renderOffset;
+        ctx.globalAlpha = this.extraData.opacity;
         ctx.drawImage(this.anim.get(), bb.pos.x + off.x, bb.pos.y + off.y, bb.w, bb.h);
+        ctx.globalAlpha = 1;
     }
 }
 
@@ -300,6 +536,12 @@ class Engine {
         this.loader = new Loader();
         this.keyboard = new Keyboard();
 
+        const scan = document.createElement("canvas");
+        this.sand = {
+            "canvas": scan,
+            "simulation": new DirtSimulation(scan.getContext("2d"))
+        }
+
         this.mouse = new Rect2D(Vector.two(0, 0), 10, 10);
         
         this.fps_data = [];
@@ -356,6 +598,7 @@ class Engine {
                 "yVel": this.data.hands.yVel != hand_amp*-1 ? hand_amp*-1 : hand_amp,
                 "clamp": this.data.hands.yVel != hand_amp*-1 ? [0, 1] : [-1, 1]
             };
+            this.sand.simulation.canPlace = this.data.hands.yVel == hand_amp*-1;
         })
         window.addEventListener("resize", () => this.resize())
         this.ctx.canvas.addEventListener("mousemove", e => {
@@ -365,10 +608,10 @@ class Engine {
             this.onClick();
         })
         document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "hidden") {
+            if(document.visibilityState === "hidden") {
                 this.tabOutTime = performance.now(); 
-            } else if (document.visibilityState === "visible") {
-                if (this.tabOutTime > 0) {
+            } else if(document.visibilityState === "visible") {
+                if(this.tabOutTime > 0) {
                     const durationMs = performance.now() - this.tabOutTime;
                     
                     this.offlineProgress(durationMs)
@@ -376,6 +619,8 @@ class Engine {
                 }
             }
         });
+
+        this.sand.simulation.init();
 
 
         document.addEventListener("contextmenu", e => { e.preventDefault(); })
@@ -408,6 +653,7 @@ class Engine {
         this.fps_data.push(delta || 0);
 
         this.update(delta);
+        this.sand.simulation.tick(delta, this.spriteMap.hands.rect.pos.y);
         this.render();
 
         window.requestAnimationFrame(this.tick.bind(this));
@@ -491,6 +737,7 @@ class Engine {
             cloud.rect.pos.x -= delta*cloud.extraData.cloudSpeed;
             if(cloud.rect.pos < -1) this.allSprites.splice(this.allSprites.indexOf(cloud), 1);
         }
+        if(this.data.scene == 6) cloud.extraData.opacity = 0.5;
         cloud.anim.changeAnim("idle");
     }
 
@@ -550,7 +797,11 @@ class Engine {
             "y": Math.floor(total_ypadding/2),
             "w": Math.floor(bg_size*scale),
             "h": Math.floor(bg_size*scale)
-        }
+        };
+
+        this.sand.simulation.setBounds(this.data.bb);
+        this.sand.canvas.width = this.sand.simulation.gridWidth * this.sand.simulation.CELLSIZE;
+        this.sand.canvas.height = this.sand.simulation.gridHeight * this.sand.simulation.CELLSIZE;
     }
 
     getBoundingBox() {
@@ -595,7 +846,7 @@ class Engine {
                         e.onBlack();
                     }
 
-                    if (elapsed >= e.ms+200) {
+                    if(elapsed >= e.ms+200) {
                         this.screenEffects.splice(index, 1);
                         return; 
                     }
@@ -615,7 +866,7 @@ class Engine {
           const metrics = ctx.measureText(testLine);
           const testWidth = metrics.width;
           
-          if (testWidth > maxWidth && n > 0) {
+          if(testWidth > maxWidth && n > 0) {
             ctx.fillText(line, x, y);
             line = words[n] + ' ';
             y += lineHeight;
@@ -649,6 +900,7 @@ class Engine {
         }
 
         ctx.restore(); // clip out everything beyond the bounds
+        ctx.drawImage(this.sand.canvas, bb.x, bb.y, bb.w, bb.h);
 
         this.screenEffects.forEach(e => {
             switch(e.type) {
@@ -657,9 +909,9 @@ class Engine {
         
                     let alpha = 0;
         
-                    if (elapsed < e.fadeOutTime) {
+                    if(elapsed < e.fadeOutTime) {
                         alpha = elapsed / e.fadeOutTime;
-                    } else if (elapsed < e.fadeOutTime + e.blackTime) {
+                    } else if(elapsed < e.fadeOutTime + e.blackTime) {
                         alpha = 1;
                     } else {
                         const fadeBackElapsed = elapsed - (e.fadeOutTime + e.blackTime);
@@ -700,24 +952,24 @@ class Engine {
     }
     
     update(delta) {
-        if (!delta) return;
+        if(!delta) return;
         this.data.time += delta * 1000;
     
-        if (this.data.time >= this.data.dayLength) this.data.time %= this.data.dayLength;
+        if(this.data.time >= this.data.dayLength) this.data.time %= this.data.dayLength;
         const percent = (this.data.time / this.data.dayLength) * 100;
 
         this.updateEffects(delta);
     
         // modify bg for shadows
         let scene = 6;
-        if (percent >= 15) scene = 1;
-        if (percent >= 25) scene = 2;
-        if (percent >= 42) scene = 3;
-        if (percent >= 50) scene = 4;
-        if (percent >= 55) scene = 5;
-        if (percent >= 78) scene = 6;
+        if(percent >= 15) scene = 1;
+        if(percent >= 25) scene = 2;
+        if(percent >= 42) scene = 3;
+        if(percent >= 50) scene = 4;
+        if(percent >= 55) scene = 5;
+        if(percent >= 78) scene = 6;
     
-        if (scene !== this.data.scenetime) this.setSceneTime(scene);
+        if(scene !== this.data.scenetime) this.setSceneTime(scene);
 
         this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => {
             s.anim.update(delta);
@@ -728,7 +980,7 @@ class Engine {
 
         this.data.cloudTimer -= delta;
         if(this.data.cloudTimer < 0) {
-            if(scene < 4) this.spawnCloud()
+            if(scene < 5) this.spawnCloud()
             this.data.cloudTimer = Math.floor(Math.random()*30);
         }
 
