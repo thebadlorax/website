@@ -78,6 +78,16 @@ const ALL_DIALOGUE = {
     } 
 }
 
+const PLANT_DATA = {
+    "grass": {
+        "display_name": "Grass",
+        "seed_name": "Grass Seeds",
+        "seed_art": "garden-art-29",
+        "shop_price": 100,
+        "description": "awesomely cheap and basic grass plant"
+    }
+}
+
 export class Keyboard {
     _keys = {};
     _key_functions = {};
@@ -240,22 +250,6 @@ class DirtSimulation {
             this.types[i] = type;
             this.colors[i] = Math.floor(Math.random() * this.typeColors[type].length);
         } else { this.types[i] = 0; this.colors[i] = 0; }
-    }
-
-    init() {
-        window.addEventListener("mousedown", e => {
-            if(e.button === 0) this.typeToPlace = 0
-            else this.typeToPlace = 1;
-            this.mousePressed = true;
-        });
-        
-        window.addEventListener("mouseup", e => {
-            this.mousePressed = false;
-        });
-
-        window.addEventListener("mousemove", e => {
-            this.mousePos = [e.clientX, e.clientY];
-        })
     }
 
     moveCell(x1, y1, x2, y2) {
@@ -640,7 +634,8 @@ class Engine {
         scanctx.imageSmoothingEnabled = false;
         this.sand = {
             "canvas": scan,
-            "simulation": new DirtSimulation(scanctx)
+            "simulation": new DirtSimulation(scanctx),
+            "timeout_timer": 5
         }
 
         this.mouse = new Rect2D(Vector.two(0, 0), 10, 10);
@@ -718,6 +713,22 @@ class Engine {
         this.ctx.canvas.addEventListener("click", () => {
             this.onClick();
         })
+
+        this.ctx.canvas.addEventListener("mousedown", e => {
+            if(e.button === 0) this.sand.simulation.typeToPlace = 0
+            else this.sand.simulation.typeToPlace = 1;
+            this.sand.simulation.mousePressed = true;
+        });
+        
+        this.ctx.canvas.addEventListener("mouseup", () => {
+            this.sand.simulation.mousePressed = false;
+            this.sand.timeout_timer = 5;
+        });
+
+        this.ctx.canvas.addEventListener("mousemove", e => {
+            this.sand.simulation.mousePos = [e.clientX, e.clientY];
+        })
+
         document.addEventListener("visibilitychange", () => {
             if(document.visibilityState === "hidden") {
                 this.tabOutTime = performance.now(); 
@@ -730,9 +741,6 @@ class Engine {
                 }
             }
         });
-
-        this.sand.simulation.init();
-
 
         document.addEventListener("contextmenu", e => { e.preventDefault(); })
         this.data.sky_img = this.loader.getImage("garden-art-06");
@@ -763,8 +771,15 @@ class Engine {
         if(this.fps_data.length == 5) this.fps_data.pop();
         this.fps_data.push(delta || 0);
 
+        if(delta > 0) {
+            if(this.sand.timeout_timer > 0 || this.sand.simulation.mousePressed) {
+                this.sand.timeout_timer -= delta;
+                this.sand.simulation.update(delta);
+            }
+            this.sand.simulation.render(this.spriteMap.hands.rect.pos.y)
+        } 
+
         this.update(delta);
-        this.sand.simulation.tick(delta, this.spriteMap.hands.rect.pos.y);
         this.render();
 
         window.requestAnimationFrame(this.tick.bind(this));
