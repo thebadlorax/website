@@ -108,14 +108,25 @@ class DirtSimulation {
         this.velocity = null;
         this.progress = null;
         this.colors = null;
+        this.types = null;
+        this.updated = null;
 
         this.canPlace = false;
+        this.typeToPlace = 0;
 
-        this.allColors = [
-            "rgb(101, 67, 33)",
-            "rgb(121, 85, 48)",
-            "rgb(139, 99, 57)",
-            "rgb(158, 117, 72)" 
+        this.typeColors = [
+            [ // dirt
+                "rgb(101, 67, 33)",
+                "rgb(121, 85, 48)",
+                "rgb(139, 99, 57)",
+                "rgb(158, 117, 72)" 
+            ],
+            [ // sand
+                "rgb(193, 177, 133)",
+                "rgb(210, 194, 157)",
+                "rgb(220, 203, 171)",
+                "rgb(222, 204, 183)" 
+            ],
         ]
     
         this.mousePressed = false;
@@ -135,11 +146,11 @@ class DirtSimulation {
         this.velocity = new Float32Array(size);
         this.progress = new Float32Array(size);
         this.colors =   new Uint8Array(size);
+        this.types =    new Uint8Array(size);
+        this.updated =  new Uint8Array(size);
     }
 
-    index(x, y) {
-        return y * this.gridWidth + x;
-    }
+    index(x, y) { return y * this.gridWidth + x; }
 
     isInside(x, y) {
         const cx = this.gridWidth / 2;
@@ -152,45 +163,38 @@ class DirtSimulation {
         return dx * dx + dy * dy <= radius * radius;
     }
 
-    isSolid(x, y) {
-        if(
-            x < 0 || x >= this.gridWidth ||
-            y < 0 || y >= this.gridHeight
-        ) return true;
-    
-        if(!this.isInside(x, y)) return true;
-        else return this.grid[this.index(x, y)] === 1;
-    }
-
     get(x, y) {
-        if(
-            x < 0 || x >= this.gridWidth ||
-            y < 0 || y >= this.gridHeight
-        ) return 1;
-    
+        if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) return 0;
         return this.grid[this.index(x, y)];
+    }
+    
+    isSolid(x, y) {
+        if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) return true;
+        if (!this.isInside(x, y)) return true;
+        return this.grid[this.index(x, y)] === 1;
     }
 
     set(x, y, value) {
-        if(
-            x < 0 || x >= this.gridWidth ||
-            y < 0 || y >= this.gridHeight
-        ) return;
-    
-        if(value === 1 && !this.isInside(x, y)) return;
+        if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) return;
+
         const i = this.index(x, y);
         this.grid[i] = value;
-        if(value === 1) this.colors[i] = Math.floor(Math.random() * this.allColors.length);
-        
+        if (value === 1) {
+            const type = this.typeToPlace;
+            this.types[i] = type;
+            this.colors[i] = Math.floor(Math.random() * this.typeColors[type].length);
+        } else { this.types[i] = 0; this.colors[i] = 0; }
     }
 
     init() {
         window.addEventListener("mousedown", e => {
-            if(e.button === 0) this.mousePressed = true;
+            if(e.button === 0) this.typeToPlace = 0
+            else this.typeToPlace = 1;
+            this.mousePressed = true;
         });
         
         window.addEventListener("mouseup", e => {
-            if(e.button === 0) this.mousePressed = false;
+            this.mousePressed = false;
         });
 
         window.addEventListener("mousemove", e => {
@@ -198,106 +202,92 @@ class DirtSimulation {
         })
     }
 
-    updateCell(x, y, delta) {
-        if(this.get(x, y) !== 1) return;
+    moveCell(x1, y1, x2, y2) {
+        const from = this.index(x1, y1);
+        const to = this.index(x2, y2);
     
+        this.grid[from] = 0;
+        this.grid[to] = 1;
+    
+        this.types[to] = this.types[from];
+        this.colors[to] = this.colors[from];
+    
+        this.velocity[to] = this.velocity[from];
+        this.progress[to] = this.progress[from];
+    
+        this.types[from] = 0;
+        this.colors[from] = 0;
+        this.velocity[from] = 0;
+        this.progress[from] = 0;
+    }
+
+    updateCell(x, y, delta) {    
         const i = this.index(x, y);
     
-        // gravity
-        this.velocity[i] += 200 * delta;
+        if (this.updated[i]) return;
+        if (this.grid[i] !== 1) return;
     
-        // accumulate falling
+        if (!this.isInside(x, y)) {
+            this.set(x, y, 0);
+            return;
+        }
+    
+        this.updated[i] = 1;
+    
+        this.velocity[i] = clamp(this.velocity[i] + 50 * delta, 0, 10);
         this.progress[i] += this.velocity[i] * delta;
     
         let cellsToMove = Math.floor(this.progress[i]);
-    
-        if(cellsToMove > 8) cellsToMove = 8;
+        if (cellsToMove > 8) cellsToMove = 8;
     
         let moved = 0;
     
         for (let d = 1; d <= cellsToMove; d++) {
-            if(this.isSolid(x, y + d) !== 0) break;
+            if (this.isSolid(x, y + d)) break;
             moved = d;
-        }
+}
     
-        if(moved > 0) {
-            const v = this.velocity[i];
-            const p = this.progress[i] - moved;
-            const color = this.colors[i];
-
-            this.set(x, y, 0);
-            this.set(x, y + moved, 1);
+        if (moved > 0) { this.moveCell(x, y, x, y + moved); return; }
     
-            const ni = this.index(x, y + moved);
-            
-            this.colors[ni] = color;
-
-            this.velocity[ni] = v;
-            this.progress[ni] = p;
-    
-            this.velocity[i] = 0;
-            this.progress[i] = 0;
-    
-            return;
-        }
-    
-        const leftOpen =  !this.isSolid(x - 1, y + 1);
+        const leftOpen = !this.isSolid(x - 1, y + 1);
         const rightOpen = !this.isSolid(x + 1, y + 1);
     
-        if(leftOpen || rightOpen) {
-            const dir = leftOpen && rightOpen ? (Math.random() < 0.5 ? -1 : 1) : leftOpen ? -1 : 1;
+        if (leftOpen || rightOpen) {
+            let dir; if (leftOpen && rightOpen) dir = Math.random() < 0.5 ? -1 : 1;
+            else dir = leftOpen ? -1 : 1;
     
-            const v = this.velocity[i];
-            const p = this.progress[i];
-            const color = this.colors[i];
-
-            this.set(x, y, 0);
-            this.set(x + dir, y + 1, 1);
-    
-            const ni = this.index(x + dir, y + 1);
-
-            this.colors[ni] = color;
-    
-            this.velocity[ni] = v * 0.94;
-            this.progress[ni] = p;
-    
-            this.velocity[i] = 0;
-            this.progress[i] = 0;
-    
+            this.moveCell(x, y, x + dir, y + 1);
             return;
         }
     
-        // resting
         this.velocity[i] = 0;
         this.progress[i] = 0;
     }
 
     update(delta) {
-        if(this.mousePressed && this.canPlace) {
+        this.updated.fill(0);
+    
+        if (this.mousePressed && this.canPlace) {
             const gx = Math.floor((this.mousePos[0] - this.bounds.x) / this.CELLSIZE);
             const gy = Math.floor((this.mousePos[1] - this.bounds.y) / this.CELLSIZE);
-        
+    
             for (let y = -4; y <= 4; y++) {
                 for (let x = -4; x <= 4; x++) {
-                    if(Math.random() > 0.8) this.set(gx + x, gy + y, 1);
-                }
-            }
-        };
-
-        this.flip = !this.flip;
-    
-        for (let y = this.gridHeight - 2; y >= 0; y--) {
-            if(this.flip) {
-                for (let x = 0; x < this.gridWidth; x++) {
-                    this.updateCell(x, y, delta);
-                }
-            } else {
-                for (let x = this.gridWidth - 1; x >= 0; x--) {
-                    this.updateCell(x, y, delta);
+                    if (Math.random() > 0.8) this.set(gx + x, gy + y, 1);
                 }
             }
         }
+    
+        for (let y = this.gridHeight - 1; y >= 0; y--) {
+            const leftToRight = Math.random() < 0.5;
+            const xStart = leftToRight ? 0 : this.gridWidth - 1;
+            const xEnd = leftToRight ? this.gridWidth : -1;
+            const xStep = leftToRight ? 1 : -1;
+    
+            for (let x = xStart; x !== xEnd; x += xStep) this.updateCell(x, y, delta);
+        }
     }
+
     render(yOffset) {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -308,7 +298,7 @@ class DirtSimulation {
                 const c = this.grid[i];
                 if(c === 0) continue;
     
-                ctx.fillStyle = this.allColors[this.colors[i]];
+                ctx.fillStyle = this.typeColors[this.types[i]][this.colors[i]];
                 ctx.fillRect(
                     x * this.CELLSIZE,
                     (y * this.CELLSIZE) + (yOffset*ctx.canvas.height),
@@ -590,7 +580,7 @@ class Engine {
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
-        this.keyboard.listenForEvents(["Tab"]);
+        this.keyboard.listenForEvents(["Tab", "Space"]);
         this.keyboard.setFunctionOnKeyPress("Tab", () => {
             if(this.data.scene != "garden") return;
             const hand_amp = 3;
