@@ -645,10 +645,13 @@ class Engine {
         this.keyboard = new Keyboard();
 
         const scan = document.createElement("canvas");
-        const scanctx = scan.getContext("2d");
+        const scanctx = scan.getContext("2d", {
+            willReadFrequently: true
+        });
         scanctx.webkitImageSmoothingEnabled = false;
         scanctx.mozImageSmoothingEnabled = false;
         scanctx.imageSmoothingEnabled = false;
+        
         this.sand = {
             "canvas": scan,
             "simulation": new DirtSimulation(scanctx),
@@ -672,7 +675,8 @@ class Engine {
             "cursorOverride": null,
             "hands": {
                 "yVel": null,
-                "clamp": [null, null]
+                "clamp": [null, null],
+                "active": false
             },
             "dialogue": {
                 "active": false,
@@ -709,14 +713,15 @@ class Engine {
         this.keyboard.setFunctionOnKeyPress("Tab", () => {
             if(this.data.scene != "garden") return;
             const hand_amp = 3;
-            this.data.hands = {
-                "yVel": this.data.hands.yVel != hand_amp*-1 ? hand_amp*-1 : hand_amp,
-                "clamp": this.data.hands.yVel != hand_amp*-1 ? [0, 1] : [-1, 1]
-            };
-            const a = this.data.hands.yVel == hand_amp*-1
-            this.sand.simulation.canPlace = this.data.hands.yVel == hand_amp*-1;
 
-            this.hand_clickboxes.forEach(c => c.active = a)
+            this.data.hands = {
+                "yVel": !this.data.hands.active ? hand_amp*-1 : hand_amp,
+                "clamp": !this.data.hands.active ? [0, 1] : [-1, 1],
+                "active": !this.data.hands.active
+            };
+
+            this.sand.simulation.canPlace = this.data.hands.active;
+            this.hand_clickboxes.forEach(c => c.active = this.data.hands.active)
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyS", () => {
@@ -986,6 +991,11 @@ class Engine {
             this.data.scene = newScene;
             if(onSwap != null) onSwap();
             this.refreshMovementArrows();
+
+            if(this.data.hands.active) {
+                this.data.hands.yVel = 100;
+                this.data.hands.active = false;
+            }
         }
     }
 
@@ -1091,19 +1101,14 @@ class Engine {
         const bb = this.getBoundingBox();
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-        ctx.save();
-        ctx.rect(bb.x, bb.y, bb.w, bb.h);
-        ctx.clip();
-
-
         sceneData[this.data.scene].renderFn(this, this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 0));
         if(this.data.scenetime == 6 && this.data.scene == "garden") ctx.filter = "brightness(50%)"
         this.allSprites.filter(s => s.scene == this.data.scene && s.layer > 0).sort((a, b) => a.layer - b.layer).forEach(s => s.render(ctx, bb));
         if(this.data.dialogue.active) {
-            ctx.fillStyle = `rgba(255, 255, 255, 1)`
-            ctx.fillRect(bb.x+50, ctx.canvas.height-225, bb.w-100, 200)
-            ctx.strokeStyle = `rgba(0, 0, 0, 1)`
-            ctx.strokeRect(bb.x+50, ctx.canvas.height-225, bb.w-100, 200)
+            ctx.fillStyle = `rgba(255, 255, 255, 1)`;
+            ctx.fillRect(bb.x+50, ctx.canvas.height-225, bb.w-100, 200);
+            ctx.strokeStyle = `rgba(0, 0, 0, 1)`;
+            ctx.strokeRect(bb.x+50, ctx.canvas.height-225, bb.w-100, 200);
 
             ctx.fillStyle = `rgba(0, 0, 0, 1)`;
             ctx.font = `30px Arial`;
@@ -1111,11 +1116,14 @@ class Engine {
             this.drawTextWrap(line, bb.x+60, ctx.canvas.height-190, bb.w-90, 40)
         }
 
-        ctx.restore(); // clip out everything beyond the bounds
-        
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
         ctx.drawImage(this.sand.canvas, bb.x, bb.y + (this.spriteMap.hands.rect.pos.y*ctx.canvas.height), bb.w, bb.h);
-        ctx.filter = `none`
+        ctx.filter = `none`;
+
+        ctx.clearRect(0, 0, ctx.canvas.width, bb.y);
+        ctx.clearRect(0, bb.y + bb.h, ctx.canvas.width, ctx.canvas.height);
+        ctx.clearRect(0, bb.y, bb.x, bb.h);
+        ctx.clearRect(bb.x + bb.w, bb.y, ctx.canvas.width, bb.h);
 
         this.screenEffects.forEach(e => {
             switch(e.type) {
@@ -1166,7 +1174,7 @@ class Engine {
             this.progressDialogue();
             return;
         }
-        if(this.data.hands.yVel == null || this.data.hands.yVel > 0) {
+        if(!this.data.hands.active) {
             sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
                 if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
@@ -1218,8 +1226,8 @@ class Engine {
 
         const bounds = this.getBoundingBox();
         document.body.style.cursor = "default"
-        if(this.sand.simulation.mousePressed && this.data.hands.yVel < 0) document.body.style.cursor = "none"
-        if(this.data.hands.yVel == null || this.data.hands.yVel > 0) {
+        if(this.sand.simulation.mousePressed && this.data.hands.active) document.body.style.cursor = "none"
+        if(!this.data.hands.active) {
             sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
                 if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
