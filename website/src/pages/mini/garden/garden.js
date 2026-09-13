@@ -101,15 +101,16 @@ class DirtSimulation {
     
         this.bounds = { x: 0, y: 0,w: 0, h: 0 };
     
-        this.gridWidth = 0;
-        this.gridHeight = 0;
+        this.gridWidth = 150;
+        this.gridHeight = 150;
     
-        this.grid = null;
-        this.velocity = null;
-        this.progress = null;
-        this.colors = null;
-        this.types = null;
-        this.updated = null;
+        const size = this.gridWidth * this.gridHeight;
+        this.grid = new Uint8Array(size);
+        this.velocity = new Float32Array(size);
+        this.progress = new Float32Array(size);
+        this.colors = new Uint8Array(size);
+        this.types = new Uint8Array(size);
+        this.updated = new Uint8Array(size);
 
         this.canPlace = false;
         this.typeToPlace = 0;
@@ -134,21 +135,7 @@ class DirtSimulation {
         this.flip = false;
     }
 
-    setBounds(bounds) {
-        this.bounds = bounds;
-    
-        this.gridWidth = Math.floor(bounds.w / this.CELLSIZE);
-        this.gridHeight = Math.floor(bounds.h / this.CELLSIZE);
-    
-        const size = this.gridWidth * this.gridHeight;
-    
-        this.grid =     new Uint8Array(size);
-        this.velocity = new Float32Array(size);
-        this.progress = new Float32Array(size);
-        this.colors =   new Uint8Array(size);
-        this.types =    new Uint8Array(size);
-        this.updated =  new Uint8Array(size);
-    }
+    setBounds(bounds) { this.bounds = bounds; }
 
     index(x, y) { return y * this.gridWidth + x; }
 
@@ -268,8 +255,15 @@ class DirtSimulation {
         this.updated.fill(0);
     
         if (this.mousePressed && this.canPlace) {
-            const gx = Math.floor((this.mousePos[0] - this.bounds.x) / this.CELLSIZE);
-            const gy = Math.floor((this.mousePos[1] - this.bounds.y) / this.CELLSIZE);
+            const scaleX = this.gridWidth / this.bounds.w;
+            const scaleY = this.gridHeight / this.bounds.h;
+    
+            // Subtract bounds.x and bounds.y before scaling to map screen mouse to grid coords
+            const localMouseX = this.mousePos[0] - this.bounds.x;
+            const localMouseY = this.mousePos[1] - this.bounds.y;
+    
+            const gx = Math.floor(localMouseX * scaleX);
+            const gy = Math.floor(localMouseY * scaleY);
     
             for (let y = -4; y <= 4; y++) {
                 for (let x = -4; x <= 4; x++) {
@@ -292,18 +286,20 @@ class DirtSimulation {
         const ctx = this.ctx;
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     
+        const cellDrawWidth = ctx.canvas.width / this.gridWidth;
+        const cellDrawHeight = ctx.canvas.height / this.gridHeight;
+    
         for (let y = 0; y < this.gridHeight; y++) {
             for (let x = 0; x < this.gridWidth; x++) {
                 const i = this.index(x, y);
-                const c = this.grid[i];
-                if(c === 0) continue;
+                if (this.grid[i] === 0) continue;
     
                 ctx.fillStyle = this.typeColors[this.types[i]][this.colors[i]];
                 ctx.fillRect(
-                    x * this.CELLSIZE,
-                    (y * this.CELLSIZE) + (yOffset*ctx.canvas.height),
-                    this.CELLSIZE,
-                    this.CELLSIZE
+                    x * cellDrawWidth,
+                    y * cellDrawHeight + yOffset*ctx.canvas.height,
+                    cellDrawWidth + 0.5,
+                    cellDrawHeight + 0.5
                 );
             }
         }
@@ -312,6 +308,56 @@ class DirtSimulation {
     tick(delta, yOffset) {
         this.update(delta);
         this.render(yOffset);
+    }
+
+    serializeBinary() {
+        const bufferToBase64 = (buf) => {
+            let binary = '';
+            const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        };
+    
+        return JSON.stringify({
+            width: this.gridWidth,
+            height: this.gridHeight,
+            grid: bufferToBase64(this.grid),
+            types: bufferToBase64(this.types),
+            colors: bufferToBase64(this.colors)
+        });
+    }
+    
+    deserializeBinary(jsonString) {
+        if (!jsonString) return;
+    
+        const base64ToUint8 = (base64) => {
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            return bytes;
+        };
+    
+        try {
+            const data = JSON.parse(jsonString);
+    
+            const loadedGrid = base64ToUint8(data.grid);
+            const loadedTypes = base64ToUint8(data.types);
+            const loadedColors = base64ToUint8(data.colors);
+    
+            this.grid.set(loadedGrid);
+            this.types.set(loadedTypes);
+            this.colors.set(loadedColors);
+            
+            this.velocity.fill(0);
+            this.progress.fill(0);
+            this.updated.fill(0);
+        } catch (err) {
+            console.error("Failed to load binary simulation state:", err);
+        }
     }
 }
 
@@ -527,9 +573,13 @@ class Engine {
         this.keyboard = new Keyboard();
 
         const scan = document.createElement("canvas");
+        const scanctx = scan.getContext("2d");
+        scanctx.webkitImageSmoothingEnabled = false;
+        scanctx.mozImageSmoothingEnabled = false;
+        scanctx.imageSmoothingEnabled = false;
         this.sand = {
             "canvas": scan,
-            "simulation": new DirtSimulation(scan.getContext("2d"))
+            "simulation": new DirtSimulation(scanctx)
         }
 
         this.mouse = new Rect2D(Vector.two(0, 0), 10, 10);
@@ -580,7 +630,7 @@ class Engine {
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
-        this.keyboard.listenForEvents(["Tab", "Space"]);
+        this.keyboard.listenForEvents(["Tab", "KeyS", "KeyL"]);
         this.keyboard.setFunctionOnKeyPress("Tab", () => {
             if(this.data.scene != "garden") return;
             const hand_amp = 3;
@@ -590,6 +640,15 @@ class Engine {
             };
             this.sand.simulation.canPlace = this.data.hands.yVel == hand_amp*-1;
         })
+
+        this.keyboard.setFunctionOnKeyPress("KeyS", () => {
+            window.localStorage.setItem("sim_save", this.sand.simulation.serializeBinary());
+            alert("saved")
+        })
+        this.keyboard.setFunctionOnKeyPress("KeyL", () => {
+            this.sand.simulation.deserializeBinary(window.localStorage.getItem("sim_save"));
+        })
+
         window.addEventListener("resize", () => this.resize())
         this.ctx.canvas.addEventListener("mousemove", e => {
             this.mouse.pos.xySetIp(e.clientX, e.clientY);
@@ -740,6 +799,9 @@ class Engine {
         const canvas = this.ctx.canvas;
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+
+        this.sand.canvas.width = window.innerWidth;
+        this.sand.canvas.height = window.innerHeight;
         this.refreshBounds();
     }
 
