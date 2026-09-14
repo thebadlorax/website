@@ -1081,6 +1081,7 @@ const server = Bun.serve({
             return corsResponse(null, { status: 200 });
             break;
           }
+
           case "/mini/garden/files": {
             const glob2 = new Glob(`src/res/mini/garden/**/*`);
             var data = [];
@@ -1092,6 +1093,54 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify(data), {
               headers: { "Content-Type": "application/json" },
             });
+          }
+          case "/mini/garden/saves/set": {
+            const json = await req.json();
+            let user = await auth.fetchAccount(json.name, json.pass);
+            
+            if(json.save_slot < 0 || json.save_slot > 3) return corsResponse(null, { status: 400 });
+            if(json.save == null) return corsResponse(null, { status: 400 });
+            if(!user) return corsResponse(null, { status: 401 });
+
+            let data = await db.fetch("garden") ?? { "player_data": {} };
+            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null] }
+            pd.saves[json.save_slot] = json.save;
+            data.player_data[user.account.id] = pd;
+            db.modify("garden", data);
+            return corsResponse(null, { status: 200 });
+          }
+          case "/mini/garden/saves/get": {
+            const json = await req.json();
+            let user = await auth.fetchAccount(json.name, json.pass);
+            
+            if(json.save_slot < 0 || json.save_slot > 3) return corsResponse(null, { status: 400 });
+            if(!user) return corsResponse(null, { status: 401 });
+
+            let data = await db.fetch("garden") ?? { "player_data": {} };
+            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null] }
+            const save = pd.saves[json.save_slot];
+            if(save == null) return corsResponse(null, { status: 404 });
+            return corsResponse(save, { status: 200 });
+          }
+          case "/mini/garden/saves/list": {
+            const json = await req.json();
+            let user = await auth.fetchAccount(json.name, json.pass);
+            
+            if(!user) return corsResponse(null, { status: 401 });
+
+            let data = await db.fetch("garden") ?? { "player_data": {} };
+            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null] }
+            return corsResponse(JSON.stringify([
+              {
+                "exists": pd.saves[0] != null
+              },
+              {
+                "exists": pd.saves[0] != null
+              },
+              {
+                "exists": pd.saves[0] != null
+              }
+            ]), { status: 200 });
           }
             
           case "/puzzle/validateStage1Password": {

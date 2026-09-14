@@ -5,9 +5,9 @@
  * copyright 2026
 */
 
-import { Loader, drawRotatedImage, getRandomName } from "../mini-common.js";
+import { Loader, drawRotatedImage, getRandomFromList } from "../mini-common.js";
 import { Vector, Maths, Rect2D } from "../maths.js";
-import { getApiLink, clamp, getRandomFromList } from "../../common.js";
+import { getApiLink, clamp } from "../../common.js";
 
 export class Keyboard {
     _keys = {};
@@ -104,13 +104,7 @@ class DirtSimulation {
         this.gridWidth = 135;
         this.gridHeight = 135;
     
-        const size = this.gridWidth * this.gridHeight;
-        this.grid = new Uint8Array(size);
-        this.velocity = new Float32Array(size);
-        this.progress = new Float32Array(size);
-        this.colors = new Uint8Array(size);
-        this.types = new Uint8Array(size);
-        this.updated = new Uint8Array(size);
+        this.resetArrays();
 
         this.image = this.ctx.createImageData(
             this.gridWidth * this.CELLSIZE,
@@ -138,6 +132,16 @@ class DirtSimulation {
         this.mousePressed = false;
         this.mousePos = [0, 0];
         this.flip = false;
+    }
+
+    resetArrays() {
+        const size = this.gridWidth * this.gridHeight;
+        this.grid = new Uint8Array(size);
+        this.velocity = new Float32Array(size);
+        this.progress = new Float32Array(size);
+        this.colors = new Uint8Array(size);
+        this.types = new Uint8Array(size);
+        this.updated = new Uint8Array(size);
     }
 
     setBounds(bounds) { this.bounds = bounds; }
@@ -709,7 +713,7 @@ class Engine {
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
-        this.keyboard.listenForEvents(["Tab", "KeyS", "KeyL"]);
+        this.keyboard.listenForEvents(["Tab", "KeyS", "KeyC"]);
         this.keyboard.setFunctionOnKeyPress("Tab", () => {
             if(this.data.scene != "garden") return;
             const hand_amp = 3;
@@ -724,18 +728,19 @@ class Engine {
             this.hand_clickboxes.forEach(c => c.active = this.data.hands.active)
         })
 
-        this.keyboard.setFunctionOnKeyPress("KeyS", () => {
-            window.localStorage.setItem("garden_save", this.serialize());
+        this.keyboard.setFunctionOnKeyPress("KeyS", async () => {
+            await this.uploadSaveData(0)
             alert("saved")
         })
-        this.keyboard.setFunctionOnKeyPress("KeyL", () => {
-            this.deserialize(window.localStorage.getItem("garden_save"));
-            alert("loaded")
+        this.keyboard.setFunctionOnKeyPress("KeyC", async () => {
+            this.sand.simulation.resetArrays();
         })
+        this.deserialize(JSON.stringify(await this.fetchSaveData(0)));
 
         window.addEventListener("resize", () => this.resize())
         this.ctx.canvas.addEventListener("mousemove", e => {
             this.mouse.pos.xySetIp(e.clientX, e.clientY);
+            this.sand.simulation.mousePos = [e.clientX, e.clientY];
         });
 
         this.ctx.canvas.addEventListener("mousedown", e => {
@@ -750,10 +755,6 @@ class Engine {
             this.sand.simulation.mousePressed = false;
             this.sand.timeout_timer = 5;
         });
-
-        this.ctx.canvas.addEventListener("mousemove", e => {
-            this.sand.simulation.mousePos = [e.clientX, e.clientY];
-        })
 
         document.addEventListener("visibilitychange", () => {
             if(document.visibilityState === "hidden") {
@@ -1249,6 +1250,32 @@ class Engine {
         return JSON.stringify({
             "dirt": this.sand.simulation.serializeBinary()
         })
+    }
+
+    async uploadSaveData(slot) {
+        const user = JSON.parse(window.localStorage.getItem("user"));
+        await fetch(getApiLink("/mini/garden/saves/set"), {
+            method: "POST",
+            body: JSON.stringify({
+                "name": user.account.name,
+                "pass": user.account.pass,
+                "save_slot": slot,
+                "save": this.serialize()
+            })
+        });
+    }
+
+    async fetchSaveData(slot) {
+        const user = JSON.parse(window.localStorage.getItem("user"));
+        const req = await fetch(getApiLink("/mini/garden/saves/get"), {
+            method: "POST",
+            body: JSON.stringify({
+                "name": user.account.name,
+                "pass": user.account.pass,
+                "save_slot": slot
+            })
+        });
+        return await req.json();
     }
 
     deserialize(jsonString) {
