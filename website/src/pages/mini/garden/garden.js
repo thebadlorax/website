@@ -99,10 +99,10 @@ class DirtSimulation {
     
         this.CELLSIZE = 10;
     
-        this.bounds = { x: 0, y: 0,w: 0, h: 0 };
+        this.bounds = { x: 0, y: 0, w: 0, h: 0 };
     
-        this.gridWidth = 135;
-        this.gridHeight = 135;
+        this.gridWidth = 200;
+        this.gridHeight = 200;
     
         this.resetArrays();
 
@@ -713,7 +713,7 @@ class Engine {
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
-        this.keyboard.listenForEvents(["Tab", "KeyS", "KeyC"]);
+        this.keyboard.listenForEvents(["Tab", "KeyS", "KeyC", "KeyD"]);
         this.keyboard.setFunctionOnKeyPress("Tab", () => {
             if(this.data.scene != "garden") return;
             const hand_amp = 3;
@@ -734,8 +734,14 @@ class Engine {
         })
         this.keyboard.setFunctionOnKeyPress("KeyC", async () => {
             this.sand.simulation.resetArrays();
+            this.sand.timeout_timer = 5;
         })
-        this.deserialize(JSON.stringify(await this.fetchSaveData(0)));
+        this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
+            this.data.showClickboxes = !this.data.showClickboxes
+        })
+        const save_data = await this.fetchSaveData(0);
+        if(save_data != null) this.deserialize(JSON.stringify(save_data));
+        else console.log("fresh save!")
 
         window.addEventListener("resize", () => this.resize())
         this.ctx.canvas.addEventListener("mousemove", e => {
@@ -782,12 +788,14 @@ class Engine {
         this.globalClickboxes.push(this.down_clickbox);
         this.refreshMovementArrows();
 
-        const timeouts = {}
-        const callHandler = (fn, key) => {
-            if(timeouts[key] == null) timeouts[key] = performance.now()-1000;
-            if(timeouts[key] > performance.now()-500) return;
+
+        
+        let timeout;
+        const callHandler = (fn) => {
+            if(timeout == null) timeout = performance.now()-1000;
+            if(timeout > performance.now()-500) return;
             fn();
-            timeouts[key] = performance.now();
+            timeout = performance.now();
         }
         const settings_handler = (eng) => {
             console.log("settings");
@@ -797,6 +805,12 @@ class Engine {
         }
         const exit_handler = (eng) => {
             window.location.href = "/"
+        }
+        const saves_handler = (eng) => {
+            console.log("saves")
+        }
+        const unlocks_handler = (eng) => {
+            console.log("unlocks")
         }
 
         this.hand_clickboxes = [
@@ -810,15 +824,31 @@ class Engine {
             new Clickbox(new Rect2D(Vector.two(0.87, 0.725), 0.06, 0.04),  () => { callHandler(settings_handler, "settings") }).withCursorStyle("pointer"),
 
             // exit bracelet
-            new Clickbox(new Rect2D(Vector.two(0.73, 0.88), 0.04, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
-            new Clickbox(new Rect2D(Vector.two(0.76, 0.875), 0.05, 0.025),  () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
-            new Clickbox(new Rect2D(Vector.two(0.78, 0.84), 0.05, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
-            new Clickbox(new Rect2D(Vector.two(0.82, 0.82), 0.05, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            new Clickbox(new Rect2D(Vector.two(0.73, 0.88), 0.04, 0.03),   () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            new Clickbox(new Rect2D(Vector.two(0.76, 0.875), 0.05, 0.025), () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            new Clickbox(new Rect2D(Vector.two(0.78, 0.84), 0.05, 0.03),   () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            new Clickbox(new Rect2D(Vector.two(0.82, 0.82), 0.05, 0.03),   () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
             new Clickbox(new Rect2D(Vector.two(0.86, 0.8), 0.05, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
             new Clickbox(new Rect2D(Vector.two(0.9, 0.78), 0.05, 0.03),    () => { callHandler(exit_handler, "exit") }).withCursorStyle("alias"),
+            
+            // saves bracelet
+            new Clickbox(new Rect2D(Vector.two(0.75, 0.93), 0.04, 0.03),   () => { callHandler(saves_handler, "saves") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.78, 0.925), 0.05, 0.025), () => { callHandler(saves_handler, "saves") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.8, 0.89), 0.05, 0.03),    () => { callHandler(saves_handler, "saves") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.84, 0.87), 0.05, 0.03),   () => { callHandler(saves_handler, "saves") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.88, 0.85), 0.05, 0.03),   () => { callHandler(saves_handler, "saves") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.92, 0.83), 0.05, 0.03),   () => { callHandler(saves_handler, "saves") }).withCursorStyle("pointer"),
+
+            // unlocks bracelet
+            new Clickbox(new Rect2D(Vector.two(0.75, 0.98), 0.04, 0.03),   () => { callHandler(unlocks_handler, "unlocks") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.78, 0.975), 0.05, 0.025), () => { callHandler(unlocks_handler, "unlocks") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.8, 0.94), 0.05, 0.03),    () => { callHandler(unlocks_handler, "unlocks") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.84, 0.92), 0.05, 0.03),   () => { callHandler(unlocks_handler, "unlocks") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.88, 0.9), 0.05, 0.03),    () => { callHandler(unlocks_handler, "unlocks") }).withCursorStyle("pointer"),
+            new Clickbox(new Rect2D(Vector.two(0.92, 0.88), 0.05, 0.03),   () => { callHandler(unlocks_handler, "unlocks") }).withCursorStyle("pointer"),
         ]
         this.hand_clickboxes.forEach(c => c.active = false)
-        this.globalClickboxes = this.globalClickboxes.concat(this.hand_clickboxes)
+        this.globalClickboxes = this.globalClickboxes.concat(this.hand_clickboxes).reverse()
     }
     tick(elapsed) {
         if(this._previousElapsed === null) {
@@ -1158,7 +1188,7 @@ class Engine {
             })
 
             this.globalClickboxes.filter(c => c.active).forEach(c => {
-                ctx.filter = "hue-rotate(180deg)"
+                ctx.filter = "hue-rotate(0deg)"
                 c.render(ctx, bb)
                 ctx.filter = "none";
             })
@@ -1275,6 +1305,7 @@ class Engine {
                 "save_slot": slot
             })
         });
+        if(req.status == 404) return null;
         return await req.json();
     }
 

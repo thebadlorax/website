@@ -104,6 +104,62 @@ export class Maths {
         const distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
         return distanceSquared <= (r * r);
     }
+
+    static SAT(x1, y1, x2, y2, verts1, verts2) {
+        const getAxes = (verts) => {
+            const axes = new Array();
+            for(let i = 0; i < verts.length; i++) {
+                const p1 = verts[i];
+                const p2 = verts[(i+1) % verts.length];
+                const edge =   { x: p2.x - p1.x, y: p2.y - p1.y};
+                const normal = { x: -edge.y, y: edge.x};
+                const len = Math.hypot(normal.x, normal.y);
+                axes.push({ x: normal.x / len, y: normal.y / len});
+            }
+            return axes;
+        }
+        const project = (verts, axis) => {
+            let min = Infinity, max = -Infinity;
+            verts.forEach(v => {
+                const dot = v.x * axis.x + v.y * axis.y;
+                if(dot < min) min = dot;
+                if(dot > max) max = dot;
+            });
+            return { min, max };
+        }
+
+        const axes = [...getAxes(verts1), ...getAxes(verts2)];
+        let minOverlap = Infinity;
+        let collisionAxis = null;
+
+        for(let axis of axes) {
+            const proj1 = project(verts1, axis);
+            const proj2 = project(verts2, axis);
+
+            const overlap = Math.min(proj1.max, proj2.max) - Math.max(proj1.min, proj2.min);
+            if(overlap <= 0) return null;
+
+            if(overlap < minOverlap) { minOverlap = overlap; collisionAxis = axis; }
+            
+            const dir = { x: x2 - x1, y: y2 - y1};
+            if(dir.x * collisionAxis.x + dir.y * collisionAxis.y < 0) {
+                collisionAxis = {x: -collisionAxis.x, y: -collisionAxis.y};
+            }
+
+            let contactPoint = { x: 0, y: 0};
+            let bestDist = Infinity;
+            const allVerts = [...verts1, ...verts2];
+            allVerts.forEach(v => {
+                const d = Math.hypot(v.x - (x1 + x2)/2, v.y - (y1 + y2)/2);
+                if(d < bestDist) {
+                    bestDist = d;
+                    contactPoint = v;
+                }
+            });
+
+            return { axis: collisionAxis, overlap: minOverlap, point: contactPoint };
+        }
+    }
 }
 
 export class Vector {
@@ -277,4 +333,154 @@ export class Vector4 {
     dist(vector)           { return Math.sqrt(Math.pow(vector.x-this.x,2) + Math.pow(vector.y-this.y,2) + Math.pow(vector.z-this.z,2) + Math.pow(vector.w-this.w,2)) }
 
     toString()             { return `Vector4(${this.x}, ${this.y}, ${this.z}, ${this.w})` }
+}
+
+
+export class PhysicsShape2D {
+    constructor() {}
+
+    getVertices() {}
+    draw(ctx) {}
+}
+export class PhysicsSquare2D extends PhysicsShape2D {
+    constructor(pos, size) {
+        super();
+        this.pos = pos;
+        this.size = size;
+        this.angle = 0;
+
+        this.vel = Vector.two(0, 0);
+        this.angularVel = 0;
+
+        this.mass = this.size * this.size;
+        this.invMass = 1 / this.mass;
+        this.inertia = (this.mass * this.size * this.size) / 6;
+        this.invInertia = 1/this.inertia;
+    }
+
+    getVertices() {
+        const half = this.size / 2;
+        const cos = Math.cos(this.angle);
+        const sin = Math.sin(this.angle);
+
+        const localVertices = [
+            Vector.two(-half, -half),
+            Vector.two(half,  -half),
+            Vector.two(half,  half),
+            Vector.two(-half, half),
+        ]
+        return localVertices.map(v => Vector.two(
+            this.pos.x + (v.x * cos - v.y * sin),
+            this.pos.y + (v.x * sin + v.y * cos)
+        ))
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.pos.x, this.pos.y);
+        ctx.rotate(this.angle);
+        ctx.fillStyle = "red";
+        const invHalf = -this.size / 2;
+        ctx.fillRect(invHalf, invHalf, this.size, this.size);
+        ctx.restore();
+    }
+
+    update(bounds, simVariables, delta) {
+        if(!Number.isFinite(delta)) return;
+        // bounds = vec4(x, y, w, h)
+        //               x  y  z  w
+        this.vel.y += simVariables.GRAVITY * delta;
+        this.pos.addIp(this.vel.sMul(delta));
+        this.angle += this.angularVel * delta;
+        this.vel.sMulIp(1-simVariables.VEL_DAMPENING);
+        this.angularVel *= 1-(simVariables.VEL_DAMPENING*2)
+
+        const vertices = this.getVertices();
+        vertices.forEach(v => {
+            if(v.y >= bounds.w) {
+                const overlap = v.y - bounds.w;
+                this.pos.y -= overlap;
+
+                const r = v.sub(this.pos);
+                const vX = this.vel.x - this.angularVel * r.y;
+                const vY = this.vel.y + this.angularVel * r.x;
+
+                if(vY > bounds.y) {
+                    const impulseY = -(1 + simVariables.RESTITUTION) * vY / (this.invMass + (r.x * r.x) * this.invInertia);
+                    this.vel.y += impulseY * this.invMass;
+                    this.angularVel += r.x * impulseY * this.invInertia;
+                    this.vel.x *= (1 - simVariables.FRICTION);
+                }
+            }
+            if(v.x <= bounds.x || v.x >= bounds.z) {
+                const overlap = v.x <= bounds.x ? v.x : v.x - v.z;
+                this.pos.x -= overlap;
+                this.vel.x = -this.vel.x * simVariables.RESTITUTION;
+                this.angularVel *= 0.9;
+            }
+        })
+    }
+}
+
+export class PhysicsContext2D {
+    constructor(bounds) {
+        this.physicsObjects = new Array();
+        this.bounds = bounds;
+
+        this.simulationVariables = {
+            GRAVITY: 1000,
+            RESTITUTION: 0.5,
+            FRICTION: 0.1,
+            VEL_DAMPENING: 0.01
+        }
+    }
+
+    addObject(object) { this.physicsObjects.push(object) }
+    addObjects(...objects) { objects.forEach(o => this.addObject(o)) }
+
+    resolveCollision(obj1, obj2, info) {
+        const normal = info.axis;
+
+        const percent = 0.4;
+        const correction = Vector.two(normal.x * info.overlap * percent, normal.y * info.overlap * percent);
+        obj1.pos.xySubIp(correction.x * 0.5, correction.y * 0.5);
+        obj2.pos.xyAddIp(correction.x * 0.5, correction.y * 0.5);
+
+        const r1 = Vector.two(info.point.x - obj1.pos.x, info.point.y - obj1.pos.y);
+        const r2 = Vector.two(info.point.x - obj2.pos.x, info.point.y - obj2.pos.y);
+
+        const v1 = Vector.two(obj1.vel.x - obj1.angularVel * r1.y, obj1.vel.y + obj1.angularVel * r1.x)
+        const v2 = Vector.two(obj2.vel.x - obj2.angularVel * r2.y, obj2.vel.y + obj2.angularVel * r2.x)
+        const relVel = Vector.two(v2.x - v1.x, v2.y - v1.y);
+
+        const velAlongNormal = relVel.x * normal.x + relVel.y * normal.y;
+        if(velAlongNormal > 0) return;
+
+        const r1CrossN = r1.x * normal.y - r1.y * normal.x;
+        const r2CrossN = r2.x * normal.y - r2.y * normal.x;
+
+        const invMassSum = obj1.invMass + obj2.invMass + (r1CrossN * r1CrossN) * obj1.invInertia + (r2CrossN * r2CrossN) * obj2.invInertia;
+        let j = -(1 + this.simulationVariables.RESTITUTION) * velAlongNormal / invMassSum;
+
+        obj1.vel.xySubIp(j * normal.x * obj1.invMass, j * normal.y * obj1.invMass);
+        obj1.angularVel -= r1CrossN * j * obj1.invInertia;
+
+        obj2.vel.xyAddIp(j * normal.x * obj2.invMass, j * normal.y * obj2.invMass);
+        obj2.angularVel += r2CrossN * j * obj2.invInertia;
+    }
+
+    step(delta) {
+        this.physicsObjects.forEach(o => o.update(this.bounds, this.simulationVariables, delta));
+
+        for(let i = 0; i < this.physicsObjects.length; i++) {
+            for(let j = i + 1; j < this.physicsObjects.length; j++) {
+                const a = this.physicsObjects[i]; const b = this.physicsObjects[j];
+                const info = Maths.SAT(a.pos.x, a.pos.y, b.pos.x, b.pos.y, a.getVertices(), b.getVertices());
+                if(info) this.resolveCollision(a, b, info);
+            }
+        }
+    }
+    draw(ctx) {
+        this.physicsObjects.forEach(o => o.draw(ctx));
+    }
 }

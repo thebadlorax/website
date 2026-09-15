@@ -56,9 +56,8 @@ const change_site_based_on_is_admin = (data, force_false=false) => {
 }
 
 let saved_data = JSON.parse(window.localStorage.getItem("user"));
-if(saved_data != undefined) {
-    change_site_based_on_is_admin(saved_data);
-}
+if(saved_data != undefined) change_site_based_on_is_admin(saved_data);
+
 let clicks = 0;
 let last_click_time = 0;
 let in_cool_mode = false;
@@ -70,9 +69,7 @@ document.getElementById("banner").addEventListener("click", () => {
         in_cool_mode = true;
     }
 })
-setInterval(() => {
-    if(Date.now() - last_click_time > 3) clicks = 0;
-}, 1000);
+setInterval(() => { if(Date.now() - last_click_time > 3) clicks = 0; }, 1000);
 
 function create_cool_mode_image(src, x, y, size) {
     let img = document.createElement("img");
@@ -86,7 +83,7 @@ function create_cool_mode_image(src, x, y, size) {
 
 function cool_mode() {
     create_cool_mode_image("../res/wooper.jpg", "40vw", "45vw", "10vw");
-    create_cool_mode_image("../res//meowl_cursor.png", "20vw", "20vw", "10vw");
+    create_cool_mode_image("../res/meowl_cursor.png", "20vw", "20vw", "10vw");
 
     document.getElementById("banner").src = "../res/transparent_banner_pride.png"
 
@@ -108,7 +105,6 @@ function cool_mode() {
         ]
     );
 }   
-
 
 async function updateManagementValues() {
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
@@ -265,8 +261,12 @@ handle_ticker_speed_change();
 
 export async function openMenu() {
     let user = window.localStorage.getItem("user");
-    main_am_div.style.display = "block";
+    main_am_div.style.display = "none";
     settings_am_div.style.display = "none";
+    document.getElementById("loading-page").style.display = "block";
+    main_container.style.display = "none"
+    account_menu.style.display = "block"
+
     let menu_to_open = 0
     if(user !== null) {
         try {
@@ -278,6 +278,8 @@ export async function openMenu() {
             if(req.status == 200) menu_to_open = 1
         } catch {}
     }
+    document.getElementById("loading-page").style.display = "none";
+    main_am_div.style.display = "block";
     password = ""
     if(menu_to_open == 0) {
         sign_in_div.style.display = "block"
@@ -289,8 +291,6 @@ export async function openMenu() {
         account_management.style.display = "block"
         updateManagementValues();
     }
-    main_container.style.display = "none"
-    account_menu.style.display = "block"
     account_button.textContent = "Homepage"
     account_button.style.left = "83vw"
     menu_is_open = true;
