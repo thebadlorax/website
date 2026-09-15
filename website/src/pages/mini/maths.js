@@ -433,8 +433,10 @@ export class PhysicsSquare2D extends PhysicsShape2D {
         this.vel.y += simVariables.GRAVITY * delta;
         this.pos.addIp(this.vel.sMul(delta));
         this.angle += this.angularVel * delta;
-        this.vel.sMulIp(1-simVariables.VEL_DAMPENING);
-        this.angularVel *= 1-(simVariables.VEL_DAMPENING*2)
+        const damping = Math.exp(-simVariables.VEL_DAMPENING * delta);
+        
+        this.vel.sMulIp(damping);
+        this.angularVel *= damping;
 
         const vertices = this.getVertices();
         vertices.forEach(v => {
@@ -470,9 +472,9 @@ export class PhysicsContext2D {
 
         this.simulationVariables = {
             GRAVITY: 1000,
-            RESTITUTION: 0.5,
+            RESTITUTION: 0.1,
             FRICTION: 0.1,
-            VEL_DAMPENING: 0.01
+            VEL_DAMPENING: 1
         }
     }
 
@@ -482,10 +484,18 @@ export class PhysicsContext2D {
     resolveCollision(obj1, obj2, info) {
         const normal = info.axis;
 
-        const percent = 0.4;
-        const correction = Vector.two(normal.x * info.overlap * percent, normal.y * info.overlap * percent);
-        obj1.pos.xySubIp(correction.x * 0.5, correction.y * 0.5);
-        obj2.pos.xyAddIp(correction.x * 0.5, correction.y * 0.5);
+        const percent = 0.8;
+        const slop = 0.01;
+        const penetration = Math.max(info.overlap - slop, 0);
+        const invMassSum = obj1.invMass + obj2.invMass;
+
+        if (invMassSum > 0 && penetration > 0) {
+            const magnitude =penetration * percent / invMassSum;
+            const correction = Vector.two(normal.x * magnitude, normal.y * magnitude);
+        
+            obj1.pos.xySubIp(correction.x * obj1.invMass, correction.y * obj1.invMass);
+            obj2.pos.xyAddIp(correction.x * obj2.invMass, correction.y * obj2.invMass);
+        }
 
         const r1 = Vector.two(info.point.x - obj1.pos.x, info.point.y - obj1.pos.y);
         const r2 = Vector.two(info.point.x - obj2.pos.x, info.point.y - obj2.pos.y);
@@ -496,12 +506,13 @@ export class PhysicsContext2D {
 
         const velAlongNormal = relVel.x * normal.x + relVel.y * normal.y;
         if(velAlongNormal > 0) return;
+        if (Math.abs(velAlongNormal) < 0.5) return;
 
         const r1CrossN = r1.x * normal.y - r1.y * normal.x;
         const r2CrossN = r2.x * normal.y - r2.y * normal.x;
 
-        const invMassSum = obj1.invMass + obj2.invMass + (r1CrossN * r1CrossN) * obj1.invInertia + (r2CrossN * r2CrossN) * obj2.invInertia;
-        let j = -(1 + this.simulationVariables.RESTITUTION) * velAlongNormal / invMassSum;
+        const invMassSum2 = obj1.invMass + obj2.invMass + (r1CrossN * r1CrossN) * obj1.invInertia + (r2CrossN * r2CrossN) * obj2.invInertia;
+        let j = -(1 + this.simulationVariables.RESTITUTION) * velAlongNormal / invMassSum2;
 
         obj1.vel.xySubIp(j * normal.x * obj1.invMass, j * normal.y * obj1.invMass);
         obj1.angularVel -= r1CrossN * j * obj1.invInertia;
@@ -511,16 +522,23 @@ export class PhysicsContext2D {
     }
 
     step(delta) {
-        this.physicsObjects.forEach(o => o.update(this.bounds, this.simulationVariables, delta));
-
-        for(let i = 0; i < this.physicsObjects.length; i++) {
-            for(let j = i + 1; j < this.physicsObjects.length; j++) {
-                const a = this.physicsObjects[i]; const b = this.physicsObjects[j];
-                const info = Maths.SAT(a.pos.x, a.pos.y, b.pos.x, b.pos.y, a.getVertices(), b.getVertices());
-                if(info) this.resolveCollision(a, b, info);
+        for (const obj of this.physicsObjects) { obj.update(this.bounds, this.simulationVariables, delta)}
+    
+        const iterations = 10;
+    
+        for (let iteration = 0; iteration < iterations; iteration++) {
+            for (let i = 0; i < this.physicsObjects.length; i++) {
+                for (let j = i + 1; j < this.physicsObjects.length; j++) {
+                    const a = this.physicsObjects[i];
+                    const b = this.physicsObjects[j];
+    
+                    const info = Maths.SAT(a.pos.x, a.pos.y, b.pos.x, b.pos.y, a.getVertices(), b.getVertices());
+                    if (info) this.resolveCollision(a, b, info);
+                }
             }
         }
     }
+    
     draw(ctx) {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         this.physicsObjects.forEach(o => o.draw(ctx));

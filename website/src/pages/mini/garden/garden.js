@@ -666,7 +666,8 @@ class Engine {
         this.physics = {
             "canvas": pcan,
             "ctx": pcanctx,
-            "simulation": new PhysicsContext2D(Vector.four(0, 0, pcan.width, pcan.height))
+            "simulation": new PhysicsContext2D(Vector.four(0, 0, 512, 512)),
+            "size": 512
         }
         this.sand = {
             "canvas": scan,
@@ -813,17 +814,21 @@ class Engine {
             console.log("settings");
         }
         const seeds_handler = (eng) => {
-            const w = 150;
-            const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random()*this.physics.simulation.bounds.z), w, this.physics.simulation.bounds.z-w), -w), w);
-            o.draw = (ctx) => {
-                ctx.save();
-                ctx.translate(o.pos.x, o.pos.y);
-                ctx.rotate(o.angle);
-                const invHalf = -o.size / 2;
-                ctx.drawImage(this.loader.getImage("garden-art-29"), invHalf, invHalf, o.size, o.size)
-                ctx.restore();
-            }
-            this.physics.simulation.addObjects(o)
+            const w = 100
+            
+            for(let a = 0; a < 10; a++) {
+                const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w), (2*-w) + Math.random()*(2*w)), w);
+                o.art = Math.random() > 0.5 ? this.loader.getImage("garden-art-29") : this.loader.getImage("garden-art-28")
+                o.draw = (ctx) => {
+                    ctx.save();
+                    ctx.translate(o.pos.x, o.pos.y);
+                    ctx.rotate(o.angle);
+                    const invHalf = -o.size / 2;
+                    ctx.drawImage(o.art, invHalf, invHalf, o.size, o.size)
+                    ctx.restore();
+                }
+                this.physics.simulation.addObject(o)
+            };
         }
         const exit_handler = (eng) => {
             window.location.href = "/"
@@ -1024,6 +1029,7 @@ class Engine {
 
         this.sand.canvas.width = window.innerWidth;
         this.sand.canvas.height = window.innerHeight;
+
         this.refreshBounds();
     }
 
@@ -1081,8 +1087,30 @@ class Engine {
         this.sand.simulation.setBounds(this.data.bb);
         this.sand.canvas.width = this.sand.simulation.gridWidth * this.sand.simulation.CELLSIZE;
         this.sand.canvas.height = this.sand.simulation.gridHeight * this.sand.simulation.CELLSIZE;
-        this.physics.simulation.bounds = Vector.four(0, 0, this.data.bb.w, this.data.bb.h);
-        this.physics.canvas.width = this.data.bb.w; this.physics.canvas.height = this.data.bb.h;
+
+        this.physics.canvas.width = this.data.bb.w;
+        this.physics.canvas.height = this.data.bb.h;
+
+        const oldW = this.physics.simulation.bounds.z;
+        const oldH = this.physics.simulation.bounds.w;
+
+        const scaleX = this.data.bb.w / oldW;
+        const scaleY = this.data.bb.h / oldH;
+
+        for (const obj of this.physics.simulation.physicsObjects) {
+            obj.pos.x *= scaleX;
+            obj.pos.y *= scaleY;
+
+            obj.size.x *= scaleX;
+            obj.size.y *= scaleY;
+        }
+
+        this.physics.simulation.bounds = Vector.four(
+            0,
+            0,
+            this.data.bb.w,
+            this.data.bb.h
+        );
     }
 
     getBoundingBox() {
