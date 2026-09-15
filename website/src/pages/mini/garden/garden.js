@@ -6,7 +6,7 @@
 */
 
 import { Loader, drawRotatedImage, getRandomFromList } from "../mini-common.js";
-import { Vector, Maths, Rect2D } from "../maths.js";
+import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D } from "../maths.js";
 import { getApiLink, clamp } from "../../common.js";
 
 export class Keyboard {
@@ -655,7 +655,19 @@ class Engine {
         scanctx.webkitImageSmoothingEnabled = false;
         scanctx.mozImageSmoothingEnabled = false;
         scanctx.imageSmoothingEnabled = false;
-        
+
+        const pcan = document.createElement("canvas");
+        const pcanctx = pcan.getContext("2d");
+        pcan.width = window.innerWidth;
+        pcan.height = window.innerHeight;
+        pcanctx.webkitImageSmoothingEnabled = false;
+        pcanctx.mozImageSmoothingEnabled = false;
+        pcanctx.imageSmoothingEnabled = false;
+        this.physics = {
+            "canvas": pcan,
+            "ctx": pcanctx,
+            "simulation": new PhysicsContext2D(Vector.four(0, 0, pcan.width, pcan.height))
+        }
         this.sand = {
             "canvas": scan,
             "simulation": new DirtSimulation(scanctx),
@@ -801,7 +813,17 @@ class Engine {
             console.log("settings");
         }
         const seeds_handler = (eng) => {
-            console.log("seeds");
+            const w = 150;
+            const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random()*this.physics.simulation.bounds.z), w, this.physics.simulation.bounds.z-w), -w), w);
+            o.draw = (ctx) => {
+                ctx.save();
+                ctx.translate(o.pos.x, o.pos.y);
+                ctx.rotate(o.angle);
+                const invHalf = -o.size / 2;
+                ctx.drawImage(this.loader.getImage("garden-art-29"), invHalf, invHalf, o.size, o.size)
+                ctx.restore();
+            }
+            this.physics.simulation.addObjects(o)
         }
         const exit_handler = (eng) => {
             window.location.href = "/"
@@ -867,13 +889,19 @@ class Engine {
         if(this.fps_data.length == 5) this.fps_data.pop();
         this.fps_data.push(delta || 0);
 
-        if(delta > 0) {
-            if(this.sand.timeout_timer > 0 || this.sand.simulation.mousePressed) {
-                this.sand.timeout_timer -= delta;
-                this.sand.simulation.update(delta);
-                this.sand.simulation.render()
-            }
-        } 
+        if(!Number.isFinite(delta)) {
+            window.requestAnimationFrame(this.tick.bind(this));
+            return;
+        };
+
+        if(this.sand.timeout_timer > 0 || this.sand.simulation.mousePressed) {
+            this.sand.timeout_timer -= delta;
+            this.sand.simulation.update(delta);
+            this.sand.simulation.render()
+        }
+
+        this.physics.simulation.step(delta);
+        this.physics.simulation.draw(this.physics.ctx);
 
         this.update(delta);
         this.render();
@@ -1053,6 +1081,8 @@ class Engine {
         this.sand.simulation.setBounds(this.data.bb);
         this.sand.canvas.width = this.sand.simulation.gridWidth * this.sand.simulation.CELLSIZE;
         this.sand.canvas.height = this.sand.simulation.gridHeight * this.sand.simulation.CELLSIZE;
+        this.physics.simulation.bounds = Vector.four(0, 0, this.data.bb.w, this.data.bb.h);
+        this.physics.canvas.width = this.data.bb.w; this.physics.canvas.height = this.data.bb.h;
     }
 
     getBoundingBox() {
@@ -1149,6 +1179,7 @@ class Engine {
 
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
         ctx.drawImage(this.sand.canvas, bb.x, bb.y + (this.spriteMap.hands.rect.pos.y*ctx.canvas.height), bb.w, bb.h);
+        ctx.drawImage(this.physics.canvas, bb.x, bb.y);
         ctx.filter = `none`;
 
         ctx.clearRect(0, 0, ctx.canvas.width, bb.y);
@@ -1276,12 +1307,6 @@ class Engine {
         if(this.data.dialogue.active) document.body.style.cursor = "pointer"
     }
 
-    serialize() {
-        return JSON.stringify({
-            "dirt": this.sand.simulation.serializeBinary()
-        })
-    }
-
     async uploadSaveData(slot) {
         const user = JSON.parse(window.localStorage.getItem("user"));
         await fetch(getApiLink("/mini/garden/saves/set"), {
@@ -1294,7 +1319,6 @@ class Engine {
             })
         });
     }
-
     async fetchSaveData(slot) {
         const user = JSON.parse(window.localStorage.getItem("user"));
         const req = await fetch(getApiLink("/mini/garden/saves/get"), {
@@ -1308,7 +1332,11 @@ class Engine {
         if(req.status == 404) return null;
         return await req.json();
     }
-
+    serialize() {
+        return JSON.stringify({
+            "dirt": this.sand.simulation.serializeBinary()
+        })
+    }
     deserialize(jsonString) {
         const json = JSON.parse(jsonString);
         this.sand.simulation.deserializeBinary(json.dirt);

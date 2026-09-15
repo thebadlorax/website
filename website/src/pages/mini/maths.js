@@ -107,58 +107,99 @@ export class Maths {
 
     static SAT(x1, y1, x2, y2, verts1, verts2) {
         const getAxes = (verts) => {
-            const axes = new Array();
-            for(let i = 0; i < verts.length; i++) {
+            const axes = [];
+            for (let i = 0; i < verts.length; i++) {
                 const p1 = verts[i];
-                const p2 = verts[(i+1) % verts.length];
-                const edge =   { x: p2.x - p1.x, y: p2.y - p1.y};
-                const normal = { x: -edge.y, y: edge.x};
-                const len = Math.hypot(normal.x, normal.y);
-                axes.push({ x: normal.x / len, y: normal.y / len});
-            }
-            return axes;
-        }
-        const project = (verts, axis) => {
-            let min = Infinity, max = -Infinity;
-            verts.forEach(v => {
-                const dot = v.x * axis.x + v.y * axis.y;
-                if(dot < min) min = dot;
-                if(dot > max) max = dot;
-            });
-            return { min, max };
-        }
+                const p2 = verts[(i + 1) % verts.length];
 
+                const edge = {
+                    x: p2.x - p1.x,
+                    y: p2.y - p1.y
+                };
+    
+                const normal = {
+                    x: -edge.y,
+                    y: edge.x
+                };
+    
+                const len = Math.hypot(
+                    normal.x,
+                    normal.y
+                );
+    
+                axes.push({
+                    x: normal.x / len,
+                    y: normal.y / len
+                });
+            }
+    
+            return axes;
+        };
+    
+        const project = (verts, axis) => {
+            let min = Infinity;
+            let max = -Infinity;
+    
+            for (const v of verts) {
+                const dot = v.x * axis.x + v.y * axis.y;
+    
+                min = Math.min(min, dot);
+                max = Math.max(max, dot);
+            }
+    
+            return { min, max };
+        };
+    
         const axes = [...getAxes(verts1), ...getAxes(verts2)];
+    
         let minOverlap = Infinity;
         let collisionAxis = null;
 
-        for(let axis of axes) {
+        for (const axis of axes) {
             const proj1 = project(verts1, axis);
             const proj2 = project(verts2, axis);
 
             const overlap = Math.min(proj1.max, proj2.max) - Math.max(proj1.min, proj2.min);
-            if(overlap <= 0) return null;
 
-            if(overlap < minOverlap) { minOverlap = overlap; collisionAxis = axis; }
-            
-            const dir = { x: x2 - x1, y: y2 - y1};
-            if(dir.x * collisionAxis.x + dir.y * collisionAxis.y < 0) {
-                collisionAxis = {x: -collisionAxis.x, y: -collisionAxis.y};
+            if (overlap <= 0) return null;
+
+            if (overlap < minOverlap) {
+                minOverlap = overlap;
+                collisionAxis = { x: axis.x, y: axis.y };
             }
-
-            let contactPoint = { x: 0, y: 0};
-            let bestDist = Infinity;
-            const allVerts = [...verts1, ...verts2];
-            allVerts.forEach(v => {
-                const d = Math.hypot(v.x - (x1 + x2)/2, v.y - (y1 + y2)/2);
-                if(d < bestDist) {
-                    bestDist = d;
-                    contactPoint = v;
-                }
-            });
-
-            return { axis: collisionAxis, overlap: minOverlap, point: contactPoint };
         }
+
+        if (!collisionAxis || !Number.isFinite(minOverlap)) return null;
+    
+        const dir = { x: x2 - x1, y: y2 - y1 };
+    
+        if (dir.x * collisionAxis.x + dir.y * collisionAxis.y < 0) {
+            collisionAxis.x *= -1;
+            collisionAxis.y *= -1;
+        }
+    
+        const center = { x: (x1 + x2) * 0.5, y: (y1 + y2) * 0.5 };
+    
+        let contactPoint = null;
+        let bestDist = Infinity;
+    
+        for (const v of [...verts1, ...verts2]) {
+            const dx = v.x - center.x;
+            const dy = v.y - center.y;
+    
+            const d = dx * dx + dy * dy;
+    
+            if (d < bestDist) {
+                bestDist = d;
+                contactPoint = v;
+            }
+        }
+    
+        return {
+            axis: collisionAxis,
+            overlap: minOverlap,
+            point: contactPoint
+        };
     }
 }
 
@@ -413,7 +454,7 @@ export class PhysicsSquare2D extends PhysicsShape2D {
                 }
             }
             if(v.x <= bounds.x || v.x >= bounds.z) {
-                const overlap = v.x <= bounds.x ? v.x : v.x - v.z;
+                const overlap = v.x <= bounds.x ? v.x : v.x - bounds.z;
                 this.pos.x -= overlap;
                 this.vel.x = -this.vel.x * simVariables.RESTITUTION;
                 this.angularVel *= 0.9;
@@ -481,6 +522,7 @@ export class PhysicsContext2D {
         }
     }
     draw(ctx) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
         this.physicsObjects.forEach(o => o.draw(ctx));
     }
 }
