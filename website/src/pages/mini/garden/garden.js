@@ -717,23 +717,21 @@ class Engine {
         const loadStartTime = performance.now();
         let dots = 0;
         const dot_interval = setInterval(() => {
-            if(dots === 16) return;
-            else if(dots === 4) {
+            if(dots === 21) return;
+            else if(dots === 6) {
                 const ele = document.createElement("p");
                 ele.id = "filler-text"
                 ele.textContent = "this is taking a while...";
                 loading_div.appendChild(ele);
             }
-            else if(dots === 10) {
-                document.getElementById("filler-text").textContent = "this is taking a REALLY LONG TIME!"
-            }
-            else if(dots === 15) {
+            else if(dots === 12) document.getElementById("filler-text").textContent = "this is taking a REALLY LONG TIME!"
+            else if(dots === 20) {
                 loading_text.textContent = "(:-[)|￣|_"
                 document.getElementById("filler-text").textContent = "something is probably wrong :("
                 dots += 1;
                 return;
             }
-            loading_text.textContent += "."
+            loading_text.textContent += ".";
             dots += 1;
         }, 500)
         await this.load();
@@ -845,12 +843,23 @@ class Engine {
         }
         const settings_handler = (eng) => {
             console.log("settings");
-        }
+        };
+        let spawn = 0;
         const seeds_handler = (eng) => {
-            const w = 100
+            const w = 100;
+
+            spawn += 1;
+            const current_spawn = spawn;
+            this.physics.simulation.simulationVariables.FLOOR_COLLISION = false;
+            const old_objects = new Array().concat(this.physics.simulation.physicsObjects);
+            setTimeout(() => {
+                if(current_spawn != spawn) return;
+                this.physics.simulation.physicsObjects = this.physics.simulation.physicsObjects.filter(o => !old_objects.includes(o))
+                this.physics.simulation.simulationVariables.FLOOR_COLLISION = true;
+            }, 1000);
             
             for(let a = 0; a < 10; a++) {
-                const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w), (2*-w) + Math.random()*(2*w)), w);
+                const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (2*-w) + Math.random()*(2*w)), w);
                 o.art = Math.random() > 0.5 ? this.loader.getImage("garden-art-29") : this.loader.getImage("garden-art-28")
                 o.draw = (ctx) => {
                     ctx.save();
