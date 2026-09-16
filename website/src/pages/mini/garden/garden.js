@@ -712,8 +712,38 @@ class Engine {
     }
 
     async run() {
-        await this.load()
+        const loading_div = document.getElementById("loading");
+        const loading_text = document.getElementById("loading-text")
+        const loadStartTime = performance.now();
+        let dots = 0;
+        const dot_interval = setInterval(() => {
+            if(dots === 16) return;
+            else if(dots === 4) {
+                const ele = document.createElement("p");
+                ele.id = "filler-text"
+                ele.textContent = "this is taking a while...";
+                loading_div.appendChild(ele);
+            }
+            else if(dots === 10) {
+                document.getElementById("filler-text").textContent = "this is taking a REALLY LONG TIME!"
+            }
+            else if(dots === 15) {
+                loading_text.textContent = "(:-[)|￣|_"
+                document.getElementById("filler-text").textContent = "something is probably wrong :("
+                dots += 1;
+                return;
+            }
+            loading_text.textContent += "."
+            dots += 1;
+        }, 500)
+        await this.load();
         await this.init();
+        const loadTime = performance.now() - loadStartTime;
+        console.log(`loaded in ${loadTime/1000}s!`);
+        clearInterval(dot_interval);
+
+        loading_div.remove();
+        this.ctx.canvas.style.display = "block";
         window.requestAnimationFrame(this.tick.bind(this));
     }
     async load() {
@@ -751,6 +781,9 @@ class Engine {
         })
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
             this.data.showClickboxes = !this.data.showClickboxes
+        })
+        this.keyboard.setFunctionOnKeyPress("KeyF", () => {
+
         })
         const save_data = await this.fetchSaveData(0);
         if(save_data != null) this.deserialize(JSON.stringify(save_data));
@@ -875,7 +908,7 @@ class Engine {
             new Clickbox(new Rect2D(Vector.two(0.92, 0.88), 0.05, 0.03),   () => { callHandler(unlocks_handler, "unlocks") }).withCursorStyle("pointer"),
         ]
         this.hand_clickboxes.forEach(c => c.active = false)
-        this.globalClickboxes = this.globalClickboxes.concat(this.hand_clickboxes).reverse()
+        this.globalClickboxes = this.globalClickboxes.concat(this.hand_clickboxes).reverse();
     }
     tick(elapsed) {
         if(this._previousElapsed === null) {

@@ -1,8 +1,12 @@
 <!--
  * author thebadlorax
- * created on 25-06-2026-18h-28m
  * github: https://github.com/thebadlorax
  * copyright 2026
+-->
+
+<!--
+maybe the real garden
+was the friends we made along the way
 -->
 
 <!DOCTYPE html>
@@ -32,8 +36,33 @@
       image-rendering: -webkit-optimize-contrast;
       -ms-interpolation-mode: nearest-neighbor;
     }
+
+    div {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+
+      width: 100vw;
+      height: 100vh;
+    }
+
+
+    #loading h1 {
+      font-size: 10vw;
+      color: white;
+      margin-bottom: 2vw;
+    }
+
+    #loading p {
+      margin-top: 1vw;
+      font-size: 3vw;
+      font-weight: 300;
+      color: grey;
+    }
   </style>
   <body>
-    <canvas id="canvas"></canvas>
+    <div id="loading"><h1 id="loading-text">loading</h1></div>
+    <canvas style="display: none" id="canvas"></canvas>
   </body>
 </html>
