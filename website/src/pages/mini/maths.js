@@ -466,18 +466,20 @@ export class PhysicsSquare2D extends PhysicsShape2D {
 }
 
 export class PhysicsContext2D {
-    static DEFAULT_SIM_VARIABLES = {
-        GRAVITY: 1000,
-        RESTITUTION: 0.1,
-        FRICTION: 0.1,
-        VEL_DAMPENING: 1,
-        FLOOR_COLLISION: true
+    static DEFAULT_SIM_VARIABLES = () => {
+        return {
+            GRAVITY: 1000,
+            RESTITUTION: 0.1,
+            FRICTION: 0.1,
+            VEL_DAMPENING: 1,
+            FLOOR_COLLISION: true
+        }
     }
     constructor(bounds) {
         this.physicsObjects = new Array();
         this.bounds = bounds;
 
-        this.simulationVariables = PhysicsContext2D.DEFAULT_SIM_VARIABLES;
+        this.simulationVariables = PhysicsContext2D.DEFAULT_SIM_VARIABLES();
     }
 
     addObject(object) { this.physicsObjects.push(object) }

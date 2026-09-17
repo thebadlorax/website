@@ -726,8 +726,8 @@ class Engine {
             }
             else if(dots === 12) document.getElementById("filler-text").textContent = "this is taking a REALLY LONG TIME!"
             else if(dots === 20) {
-                loading_text.textContent = "(:-[)|￣|_"
-                document.getElementById("filler-text").textContent = "something is probably wrong :("
+                loading_text.textContent = "(:-[)|￣|_";
+                document.getElementById("filler-text").textContent = "something is probably wrong :(";
                 dots += 1;
                 return;
             }
@@ -767,6 +767,17 @@ class Engine {
 
             this.sand.simulation.canPlace = this.data.hands.active;
             this.hand_clickboxes.forEach(c => c.active = this.data.hands.active)
+            if(!this.data.hands.active) {
+                this.physics.simulation.simulationVariables.FLOOR_COLLISION = false;
+                setTimeout(() => {
+                    this.physics.simulation.physicsObjects = new Array();
+                }, 1500);
+                this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY*4;
+                console.log(this.physics.simulation.simulationVariables.GRAVITY)
+            } else {
+                this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY;
+                console.log(this.physics.simulation.simulationVariables.GRAVITY)
+            }
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyS", async () => {
@@ -853,7 +864,7 @@ class Engine {
             this.physics.simulation.simulationVariables.FLOOR_COLLISION = false;
             const old_objects = new Array().concat(this.physics.simulation.physicsObjects);
             setTimeout(() => {
-                if(current_spawn != spawn) return;
+                if(current_spawn != spawn || !this.data.hands.active) return;
                 this.physics.simulation.physicsObjects = this.physics.simulation.physicsObjects.filter(o => !old_objects.includes(o))
                 this.physics.simulation.simulationVariables.FLOOR_COLLISION = true;
             }, 1000);
