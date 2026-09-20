@@ -783,8 +783,8 @@ class Engine {
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
-        this.keyboard.listenForEvents(["Tab", "KeyS", "KeyC", "KeyD"]);
-        this.keyboard.setFunctionOnKeyPress("Tab", () => {
+        this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD"]);
+        this.keyboard.setFunctionOnKeyPress("Space", () => {
             if(this.data.scene != "garden") return;
             const hand_amp = 3;
 
@@ -797,11 +797,8 @@ class Engine {
             this.dirt.simulation.canPlace = this.data.hands.active;
             this.hand_clickboxes.forEach(c => c.active = this.data.hands.active)
             if(!this.data.hands.active) {
-                this.physics.simulation.simulationVariables.FLOOR_COLLISION = false;
-                setTimeout(() => { // TODO: change out real time timeouts for deltatime based ones
-                    this.physics.simulation.physicsObjects = new Array();
-                }, 1500);
                 this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY*4;
+                this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
             } else this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY;
         })
 
@@ -884,15 +881,9 @@ class Engine {
             const w = 150;
 
             spawn += 1;
-            const current_spawn = spawn;
-            this.physics.simulation.simulationVariables.FLOOR_COLLISION = false;
-            const old_objects = new Array().concat(this.physics.simulation.physicsObjects);
-            setTimeout(() => {
-                if(current_spawn != spawn || !this.data.hands.active) return;
-                this.physics.simulation.physicsObjects = this.physics.simulation.physicsObjects.filter(o => !old_objects.includes(o))
-                this.physics.simulation.simulationVariables.FLOOR_COLLISION = true;
-            }, 1000);
+            this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
             
+            console.log(this.physics.size)
             for(let a = 0; a < 10; a++) {
                 const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
                 o.art = Math.random() > 0.5 ? this.loader.getImage("garden-art-29") : this.loader.getImage("garden-art-28")
@@ -1349,7 +1340,10 @@ class Engine {
                     has_clicked = true;
                 }
             })
-            if(has_clicked) return;
+            if(has_clicked) {
+                this.dirt.simulation.mousePressed = false;
+                return;
+            }
         }
 
         if(this.data.dialogue.active) { this.progressDialogue(); return; }
@@ -1400,6 +1394,12 @@ class Engine {
         }
 
         const bounds = this.getBoundingBox();
+        this.physics.simulation.physicsObjects.forEach(o => {
+            if(bounds.h - o.pos.y < o.size*-1.1) this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1)
+        })
+
+
+        // cursor effects
         document.body.style.cursor = "default";
         if(this.data.dialogue.active) {
             document.body.style.cursor = "pointer";

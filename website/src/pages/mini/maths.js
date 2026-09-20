@@ -398,6 +398,10 @@ export class PhysicsSquare2D extends PhysicsShape2D {
         this.invMass = 1 / this.mass;
         this.inertia = (this.mass * this.size * this.size) / 6;
         this.invInertia = 1/this.inertia;
+
+        this.extraData = {
+            floorCollision: true
+        }
     }
 
     getVertices() { return getSquareAsVertices(this.pos, this.size, this.angle) }
@@ -426,7 +430,7 @@ export class PhysicsSquare2D extends PhysicsShape2D {
 
         const vertices = this.getVertices();
         vertices.forEach(v => {
-            if(v.y >= bounds.w && simVariables.FLOOR_COLLISION) {
+            if(v.y >= bounds.w && this.extraData.floorCollision) {
                 const overlap = v.y - bounds.w;
                 this.pos.y -= overlap;
 
@@ -457,8 +461,7 @@ export class PhysicsContext2D {
             GRAVITY: 1000,
             RESTITUTION: 0.1,
             FRICTION: 0.1,
-            VEL_DAMPENING: 1,
-            FLOOR_COLLISION: true
+            VEL_DAMPENING: 1
         }
     }
     constructor(bounds) {
