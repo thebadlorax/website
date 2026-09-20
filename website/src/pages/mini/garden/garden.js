@@ -408,18 +408,20 @@ class Animator {
     constructor() {
         this.animations = {};
         this.current = null;
+        this.current_key = null;
     }
     addAnim(animation, key) {
         this.animations[key] = animation;
     }
     changeAnim(key) {
         this.current = this.animations[key];
+        this.current_key = key;
     }
-    resetAnim(key) {
-        this.animations[key].reset();
+    resetAnim(...keys) {
+        keys.forEach(key => this.animations[key].reset())
     }
     resetAndChangeAnim(key) {
-        this.resetAnim(key);
+        this.resetAnim(key, this.current_key); 
         this.changeAnim(key);
     }
     update(delta) {
@@ -564,6 +566,118 @@ const ALL_DIALOGUE = {
                 "fns": { "onEnd": (eng) => { eng.spriteMap.shopkeep.anim.resetAndChangeAnim("idle") } }
             }
         ]
+    }, 
+    "stopgo": {
+        "idle": [
+            {
+                "lines": [
+                    {
+                        "text": "i am son of himself"
+                    },
+                    {
+                        "text": "created by himself"
+                    },
+                    {
+                        "text": "revere me"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "one does not mess around with cosmic forces like you do, at least without punishment"
+                    },
+                    {
+                        "text": "your punishment will come"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "i will impart some humor upon you from my acquaintance in 263CE"
+                    },
+                    {
+                        "text": 'Someone needled a jokester:'
+                    },
+                    {
+                        "text": `"I had your wife, without paying a dime."`
+                    },
+                    {
+                        "text": 'He replied:'
+                    },
+                    {
+                        "text": `"It's my duty as a husband to couple with such a monstrosity.`
+                    },
+                    {
+                        "text": `What made you do it?"`
+                    },
+                    {
+                        "text": "he spoke of how it would be funny for eternity"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "your parents had to walk uphill both ways"
+                    },
+                    {
+                        "text": "i watched her closely, i would know"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "divinity isn't all it's made to be, young lad"
+                    },
+                    {
+                        "text": "i remember my own garden, growing between my hands as a young deity"
+                    },
+                    {
+                        "text": "ohhh, my haands................ how i miss them."
+                    },
+                    {
+                        "text": "now i must tend to time and space instead of my plants"
+                    },
+                    {
+                        "text": "but i do not forget"
+                    }
+                    
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "sometimes lads try to mess with spacetime, you know"
+                    },
+                    {
+                        "text": "they don't know better, and they get smote"
+                    },
+                    {
+                        "text": "nowadays we're not allowed to smite like that anymore, the olden days were better"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+            },
+            {
+                "lines": [
+                    {
+                        "text": "that damn shop is always out of stock"
+                    },
+                    {
+                        "text": "you still have to eat and drink as a deity"
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+            },
+        ]
     } 
 }
 
@@ -638,6 +752,28 @@ const sceneData = {
         "movement": {
             "down": (eng) => {
                 eng.swapScenes("garden")
+            }
+        }
+    },
+    "saves": {
+        "renderFn": (eng) => {
+            const ctx = eng.ctx;
+            const bb = eng.getBoundingBox();
+    
+            ctx.drawImage(eng.loader.getImage("garden-art-33"), 0, 0, 512, 512, bb.x, bb.y, bb.w, bb.h);
+        },
+        "clickboxes": [
+            new Clickbox(new Rect2D(Vector.two(0.45, 0.45), 0.1, 0.25), (eng) => { 
+                eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                eng.openRandomDialogueFromList(ALL_DIALOGUE.stopgo.idle)
+            }),
+        ],
+        "movement": {
+            "down": (eng) => {
+                eng.swapScenes("garden", () => {
+                    eng.toggleHands();
+                    eng.data.hands.yVel = -100;
+                })
             }
         }
     }
@@ -788,20 +924,7 @@ class Engine {
         this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD"]);
         this.keyboard.setFunctionOnKeyPress("Space", () => {
             if(this.data.scene != "garden") return;
-            const hand_amp = 3;
-
-            this.data.hands = {
-                "yVel": !this.data.hands.active ? hand_amp*-1 : hand_amp,
-                "clamp": !this.data.hands.active ? [0, 1] : [-1, 1],
-                "active": !this.data.hands.active
-            };
-
-            this.dirt.simulation.canPlace = this.data.hands.active;
-            this.hand_clickboxes.forEach(c => c.active = this.data.hands.active)
-            if(!this.data.hands.active) {
-                this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY*4;
-                this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
-            } else this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY;
+            this.toggleHands();
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyS", async () => {
@@ -885,7 +1008,6 @@ class Engine {
             spawn += 1;
             this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
             
-            console.log(this.physics.size)
             for(let a = 0; a < 10; a++) {
                 const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
                 o.art = Math.random() > 0.5 ? this.loader.getImage("garden-art-29") : this.loader.getImage("garden-art-28")
@@ -904,7 +1026,8 @@ class Engine {
             window.location.href = "/"
         }
         const saves_handler = () => {
-            console.log("saves")
+            this.swapScenes("saves");
+            //this.toggleHands();
         }
         const unlocks_handler = () => {
             console.log("unlocks")
@@ -984,8 +1107,24 @@ class Engine {
         window.requestAnimationFrame(this.tick.bind(this));
     }
 
+    toggleHands() {
+        const hand_amp = 3;
+
+        this.data.hands = {
+            "yVel": !this.data.hands.active ? hand_amp*-1 : hand_amp,
+            "clamp": !this.data.hands.active ? [0, 1] : [-1, 1],
+            "active": !this.data.hands.active
+        };
+
+        this.dirt.simulation.canPlace = this.data.hands.active;
+        this.hand_clickboxes.forEach(c => c.active = this.data.hands.active)
+        if(!this.data.hands.active) {
+            this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY*4;
+            this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
+        } else this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY;
+    }
+
     openDialogue(data) {
-        this.data.dialogue.last_dialogue = this.data.dialogue.data;
         this.data.dialogue.data = data;
         this.data.dialogue.line = 0;
         this.data.dialogue.active = true;
@@ -996,7 +1135,9 @@ class Engine {
     openRandomDialogueFromList(l) {
         let nlist = l.filter(l1 => l1 != this.data.dialogue.last_dialogue);
         if(nlist.length == 0) nlist = l;
-        this.openDialogue(getRandomFromList(nlist));
+        const d = getRandomFromList(nlist);
+        this.data.dialogue.last_dialogue = d;
+        this.openDialogue(d);
     }
     progressDialogue() {
         if((this.data.dialogue.timer*1000) < this.data.dialogue.data.lines[this.data.dialogue.line].text.length * this.data.dialogue.speed) {
@@ -1057,11 +1198,16 @@ class Engine {
             }
         }
         hands.extraData.renderFn = (ctx) => {
-            //if(this.data.scenetime == 6) ctx.filter = "brightness(50%)";
             const bb = hands.getBounds(this.getBoundingBox());
             ctx.drawImage(hands.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
-            //ctx.filter = "none";
         }
+
+        let stopgo_animator = new Animator();
+        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-39"), -1), "idle");
+        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-38", "garden-art-36"), 1), "talk");
+        const stopgo = this.createSprite(new Rect2D(Vector.two(0, 0.07), 1, 1), stopgo_animator, "saves");
+        this.spriteMap.stopgo = stopgo;
+        stopgo_animator.changeAnim("idle")
     }
 
     createSprite(rect, animator, scene) {
@@ -1126,17 +1272,18 @@ class Engine {
         }
     }
 
-    swapScenes(newScene, onSwap=null) {
+    swapScenes(newScene, onSwap=null, releaseHands=true) {
         let e = this.applyScreenEffect("fadeOutIn", {"ms": 400, "blackTime": 100});
         e.onBlack = () => {
             this.data.scene = newScene;
-            if(onSwap != null) onSwap();
             this.refreshMovementArrows();
 
-            if(this.data.hands.active) {
+            if(this.data.hands.active && releaseHands) {
+                this.toggleHands()
                 this.data.hands.yVel = 100;
-                this.data.hands.active = false;
             }
+
+            if(onSwap != null) onSwap();
         }
     }
 
@@ -1342,6 +1489,7 @@ class Engine {
             const cursor_vertices = getSquareAsVertices(this.mouse.pos, 10, 0);
             let has_clicked = false;
             this.physics.simulation.physicsObjects.forEach(o => {
+                if(has_clicked) return;
                 const pos = o.pos.xyAdd(bounds.x, bounds.y);
                 const info = Maths.SAT(pos.x, pos.y, mousePos.x, mousePos.y, getSquareAsVertices(pos, o.size, o.angle), cursor_vertices);
                 if(info) {
