@@ -728,7 +728,9 @@ class Engine {
                 "active": false,
                 "line": 0,
                 "data": null,
-                "last_dialogue": null
+                "last_dialogue": null,
+                "timer": 0,
+                speed: 25 // ms
             }
         }
 
@@ -987,6 +989,7 @@ class Engine {
         this.data.dialogue.data = data;
         this.data.dialogue.line = 0;
         this.data.dialogue.active = true;
+        this.data.dialogue.timer = 0;
         this.setMovementBlocking(true);
     }
 
@@ -996,7 +999,12 @@ class Engine {
         this.openDialogue(getRandomFromList(nlist));
     }
     progressDialogue() {
+        if((this.data.dialogue.timer*1000) < this.data.dialogue.data.lines[this.data.dialogue.line].text.length * this.data.dialogue.speed) {
+            this.data.dialogue.timer = 100;
+            return;
+        }
         this.data.dialogue.line += 1;
+        this.data.dialogue.timer = 0;
         if(this.data.dialogue.line >= this.data.dialogue.data.lines.length) this.closeDialogue();
     }
     closeDialogue() {
@@ -1270,7 +1278,8 @@ class Engine {
             ctx.fillStyle = `rgba(0, 0, 0, 1)`;
             ctx.font = `30px Arial`;
             const line = this.data.dialogue.data.lines[this.data.dialogue.line].text;
-            this.drawTextWrap(line, bb.x+60, ctx.canvas.height-190, bb.w-90, 40)
+            const characters = line.slice(0, this.data.dialogue.timer / this.data.dialogue.speed * 1000)
+            this.drawTextWrap(characters, bb.x+60, ctx.canvas.height-190, bb.w-90, 40);
         }
 
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
@@ -1397,6 +1406,8 @@ class Engine {
         this.physics.simulation.physicsObjects.forEach(o => {
             if(bounds.h - o.pos.y < o.size*-1.1) this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1)
         })
+
+        if(this.data.dialogue.active) this.data.dialogue.timer += delta;
 
 
         // cursor effects
