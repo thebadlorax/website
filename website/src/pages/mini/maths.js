@@ -112,25 +112,11 @@ export class Maths {
                 const p1 = verts[i];
                 const p2 = verts[(i + 1) % verts.length];
 
-                const edge = {
-                    x: p2.x - p1.x,
-                    y: p2.y - p1.y
-                };
+                const edge = { x: p2.x - p1.x, y: p2.y - p1.y };
+                const normal = { x: -edge.y, y: edge.x };
+                const len = Math.hypot(normal.x, normal.y);
     
-                const normal = {
-                    x: -edge.y,
-                    y: edge.x
-                };
-    
-                const len = Math.hypot(
-                    normal.x,
-                    normal.y
-                );
-    
-                axes.push({
-                    x: normal.x / len,
-                    y: normal.y / len
-                });
+                axes.push({ x: normal.x / len, y: normal.y / len });
             }
     
             return axes;
@@ -376,7 +362,22 @@ export class Vector4 {
     toString()             { return `Vector4(${this.x}, ${this.y}, ${this.z}, ${this.w})` }
 }
 
+export const getSquareAsVertices = (pos, size, angle) => {
+    const half = size / 2;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
 
+    const localVertices = [
+        Vector.two(-half, -half),
+        Vector.two(half,  -half),
+        Vector.two(half,  half),
+        Vector.two(-half, half),
+    ]
+    return localVertices.map(v => Vector.two(
+        pos.x + (v.x * cos - v.y * sin),
+        pos.y + (v.x * sin + v.y * cos)
+    ))
+}
 export class PhysicsShape2D {
     constructor() {}
 
@@ -399,22 +400,7 @@ export class PhysicsSquare2D extends PhysicsShape2D {
         this.invInertia = 1/this.inertia;
     }
 
-    getVertices() {
-        const half = this.size / 2;
-        const cos = Math.cos(this.angle);
-        const sin = Math.sin(this.angle);
-
-        const localVertices = [
-            Vector.two(-half, -half),
-            Vector.two(half,  -half),
-            Vector.two(half,  half),
-            Vector.two(-half, half),
-        ]
-        return localVertices.map(v => Vector.two(
-            this.pos.x + (v.x * cos - v.y * sin),
-            this.pos.y + (v.x * sin + v.y * cos)
-        ))
-    }
+    getVertices() { return getSquareAsVertices(this.pos, this.size, this.angle) }
 
     draw(ctx) {
         ctx.save();

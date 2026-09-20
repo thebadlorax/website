@@ -272,9 +272,9 @@ const refreshPicker = (json) => {
     for(let x = 0; x < json.content.ids.length; x++) {
         let id = json.content.ids[x];
         let name = json.content.names[x];
-        let item = document.createElement("p");
+        let item = document.createElement("p"); // <p></p>
         item.classList.add("grid-item", "unselectable", "clickable");
-        item.textContent = name ? name : id;
+        item.textContent = name ? name : id; 
         item.style.fontWeight = json.content.private[x] ? "700" : "400"
         item.style.color = json.content.private[x] ? "red" : "black";
         item.dataset.id = id;

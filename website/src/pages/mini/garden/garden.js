@@ -1,12 +1,11 @@
 /**
  * author thebadlorax
- * created on 25-06-2026-18h-32m
  * github: https://github.com/thebadlorax
  * copyright 2026
 */
 
 import { Loader, drawRotatedImage, getRandomFromList } from "../mini-common.js";
-import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D } from "../maths.js";
+import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../maths.js";
 import { getApiLink, clamp } from "../../common.js";
 
 export class Keyboard {
@@ -568,13 +567,15 @@ const ALL_DIALOGUE = {
     } 
 }
 
-const PLANT_DATA = {
-    "grass": {
-        "display_name": "Grass",
-        "seed_name": "Grass Seeds",
-        "seed_art": "garden-art-29",
-        "shop_price": 100,
-        "description": "awesomely cheap and basic grass plant"
+const ITEM_DATA = {
+    GRASS_SEEDS: {
+        display_name: "Grass Seeds",
+        inventory: {
+            art: "garden-art-29",
+            size: 150
+        },
+        value: 100,
+        description: "awesomely cheap and basic grass plant",
     }
 }
 
@@ -642,6 +643,34 @@ const sceneData = {
     }
 }
 
+class Save {
+    constructor() {
+        this.dirt = null;
+        this.inventory = null;
+    }
+
+    addItemToInventory() {}
+
+    serialize(eng) {
+        return JSON.stringify({
+            "dirt": eng.dirt.simulation.serializeBinary()
+        });
+    }
+    static fromSerialized(data) {
+        const json = JSON.parse(data);
+        const save = new Save();
+        save.dirt = json.dirt;
+        return save;
+    }
+
+    refreshValuesInEngine(eng) {
+        eng.dirt.simulation.deserializeBinary(this.dirt);
+    }
+    refreshValuesFromEngine(eng) {
+        this.dirt = eng.dirt.simulation.serialize();
+    }
+}
+
 class Engine {
     constructor(ctx) {
         this.ctx = ctx;
@@ -669,7 +698,7 @@ class Engine {
             "simulation": new PhysicsContext2D(Vector.four(0, 0, 512, 512)),
             "size": 512
         }
-        this.sand = {
+        this.dirt = {
             "canvas": scan,
             "simulation": new DirtSimulation(scanctx),
             "timeout_timer": 5
@@ -765,19 +794,15 @@ class Engine {
                 "active": !this.data.hands.active
             };
 
-            this.sand.simulation.canPlace = this.data.hands.active;
+            this.dirt.simulation.canPlace = this.data.hands.active;
             this.hand_clickboxes.forEach(c => c.active = this.data.hands.active)
             if(!this.data.hands.active) {
                 this.physics.simulation.simulationVariables.FLOOR_COLLISION = false;
-                setTimeout(() => {
+                setTimeout(() => { // TODO: change out real time timeouts for deltatime based ones
                     this.physics.simulation.physicsObjects = new Array();
                 }, 1500);
                 this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY*4;
-                console.log(this.physics.simulation.simulationVariables.GRAVITY)
-            } else {
-                this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY;
-                console.log(this.physics.simulation.simulationVariables.GRAVITY)
-            }
+            } else this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY;
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyS", async () => {
@@ -785,36 +810,37 @@ class Engine {
             alert("saved")
         })
         this.keyboard.setFunctionOnKeyPress("KeyC", async () => {
-            this.sand.simulation.resetArrays();
-            this.sand.timeout_timer = 5;
+            this.dirt.simulation.resetArrays();
+            this.dirt.timeout_timer = 5;
         })
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
             this.data.showClickboxes = !this.data.showClickboxes
         })
-        this.keyboard.setFunctionOnKeyPress("KeyF", () => {
 
-        })
         const save_data = await this.fetchSaveData(0);
-        if(save_data != null) this.deserialize(JSON.stringify(save_data));
-        else console.log("fresh save!")
+        if(save_data != null) {
+            this.save = Save.fromSerialized(JSON.stringify(save_data));
+            this.save.refreshValuesInEngine(this);
+        }
+        else this.save = new Save();
 
         window.addEventListener("resize", () => this.resize())
         this.ctx.canvas.addEventListener("mousemove", e => {
             this.mouse.pos.xySetIp(e.clientX, e.clientY);
-            this.sand.simulation.mousePos = [e.clientX, e.clientY];
+            this.dirt.simulation.mousePos = [e.clientX, e.clientY];
         });
 
         this.ctx.canvas.addEventListener("mousedown", e => {
-            if(e.button === 0) this.sand.simulation.typeToPlace = 0
-            else this.sand.simulation.typeToPlace = 1;
-            this.sand.simulation.mousePressed = true;
+            if(e.button === 0) this.dirt.simulation.typeToPlace = 0
+            else this.dirt.simulation.typeToPlace = 1;
+            this.dirt.simulation.mousePressed = true;
 
             if(e.button === 0) this.onClick();
         });
         
         this.ctx.canvas.addEventListener("mouseup", () => {
-            this.sand.simulation.mousePressed = false;
-            this.sand.timeout_timer = 5;
+            this.dirt.simulation.mousePressed = false;
+            this.dirt.timeout_timer = 5;
         });
 
         document.addEventListener("visibilitychange", () => {
@@ -842,8 +868,6 @@ class Engine {
         this.down_clickbox.active = false;
         this.globalClickboxes.push(this.down_clickbox);
         this.refreshMovementArrows();
-
-
         
         let timeout;
         const callHandler = (fn) => {
@@ -852,12 +876,12 @@ class Engine {
             fn();
             timeout = performance.now();
         }
-        const settings_handler = (eng) => {
+        const settings_handler = () => {
             console.log("settings");
         };
         let spawn = 0;
-        const seeds_handler = (eng) => {
-            const w = 100;
+        const seeds_handler = () => {
+            const w = 150;
 
             spawn += 1;
             const current_spawn = spawn;
@@ -870,7 +894,7 @@ class Engine {
             }, 1000);
             
             for(let a = 0; a < 10; a++) {
-                const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (2*-w) + Math.random()*(2*w)), w);
+                const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
                 o.art = Math.random() > 0.5 ? this.loader.getImage("garden-art-29") : this.loader.getImage("garden-art-28")
                 o.draw = (ctx) => {
                     ctx.save();
@@ -883,13 +907,13 @@ class Engine {
                 this.physics.simulation.addObject(o)
             };
         }
-        const exit_handler = (eng) => {
+        const exit_handler = () => {
             window.location.href = "/"
         }
-        const saves_handler = (eng) => {
+        const saves_handler = () => {
             console.log("saves")
         }
-        const unlocks_handler = (eng) => {
+        const unlocks_handler = () => {
             console.log("unlocks")
         }
 
@@ -952,10 +976,10 @@ class Engine {
             return;
         };
 
-        if(this.sand.timeout_timer > 0 || this.sand.simulation.mousePressed) {
-            this.sand.timeout_timer -= delta;
-            this.sand.simulation.update(delta);
-            this.sand.simulation.render()
+        if(this.dirt.timeout_timer > 0 || this.dirt.simulation.mousePressed) {
+            this.dirt.timeout_timer -= delta;
+            this.dirt.simulation.update(delta);
+            this.dirt.simulation.render()
         }
 
         this.physics.simulation.step(delta);
@@ -1080,8 +1104,8 @@ class Engine {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        this.sand.canvas.width = window.innerWidth;
-        this.sand.canvas.height = window.innerHeight;
+        this.dirt.canvas.width = window.innerWidth;
+        this.dirt.canvas.height = window.innerHeight;
 
         this.refreshBounds();
     }
@@ -1137,9 +1161,10 @@ class Engine {
             "h": Math.floor(bg_size*scale)
         };
 
-        this.sand.simulation.setBounds(this.data.bb);
-        this.sand.canvas.width = this.sand.simulation.gridWidth * this.sand.simulation.CELLSIZE;
-        this.sand.canvas.height = this.sand.simulation.gridHeight * this.sand.simulation.CELLSIZE;
+        this.dirt.simulation.setBounds(this.data.bb);
+        this.dirt.canvas.width = this.dirt.simulation.gridWidth * this.dirt.simulation.CELLSIZE;
+        this.dirt.canvas.height = this.dirt.simulation.gridHeight * this.dirt.simulation.CELLSIZE;
+        this.dirt.timeout_timer = 5;
 
         this.physics.canvas.width = this.data.bb.w;
         this.physics.canvas.height = this.data.bb.h;
@@ -1154,8 +1179,7 @@ class Engine {
             obj.pos.x *= scaleX;
             obj.pos.y *= scaleY;
 
-            obj.size.x *= scaleX;
-            obj.size.y *= scaleY;
+            obj.size *= (scaleX + scaleY)/2;
         }
 
         this.physics.simulation.bounds = Vector.four(
@@ -1259,7 +1283,7 @@ class Engine {
         }
 
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
-        ctx.drawImage(this.sand.canvas, bb.x, bb.y + (this.spriteMap.hands.rect.pos.y*ctx.canvas.height), bb.w, bb.h);
+        ctx.drawImage(this.dirt.canvas, bb.x, bb.y + (this.spriteMap.hands.rect.pos.y*bb.h), bb.w, bb.h);
         ctx.drawImage(this.physics.canvas, bb.x, bb.y);
         ctx.filter = `none`;
 
@@ -1313,10 +1337,22 @@ class Engine {
         /*const relx = (this.mouse.pos.x-bounds.x) / bounds.w;
         const rely = (this.mouse.pos.y-bounds.y) / bounds.h;*/
 
-        if(this.data.dialogue.active) {
-            this.progressDialogue();
-            return;
+        if(this.mouse.pos.x > bounds.x && this.mouse.pos.x < (bounds.w+bounds.x)) {
+            const mousePos = this.mouse.pos.sub(bounds.x, bounds.y);
+            const cursor_vertices = getSquareAsVertices(this.mouse.pos, 10, 0);
+            let has_clicked = false;
+            this.physics.simulation.physicsObjects.forEach(o => {
+                const pos = o.pos.xyAdd(bounds.x, bounds.y);
+                const info = Maths.SAT(pos.x, pos.y, mousePos.x, mousePos.y, getSquareAsVertices(pos, o.size, o.angle), cursor_vertices);
+                if(info) {
+                    this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1);
+                    has_clicked = true;
+                }
+            })
+            if(has_clicked) return;
         }
+
+        if(this.data.dialogue.active) { this.progressDialogue(); return; }
         if(!this.data.hands.active) {
             sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
@@ -1354,12 +1390,8 @@ class Engine {
     
         if(scene !== this.data.scenetime) this.setSceneTime(scene);
 
-        this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => {
-            s.anim.update(delta);
-        });
-        this.allSprites.forEach(s => {
-            s.extraData.updateFn(delta);
-        })
+        this.allSprites.filter( s => s.scene == this.data.scene ).forEach(s => s.anim.update(delta));
+        this.allSprites.forEach(s => s.extraData.updateFn(delta))
 
         this.data.cloudTimer -= delta;
         if(this.data.cloudTimer < 0) {
@@ -1368,8 +1400,14 @@ class Engine {
         }
 
         const bounds = this.getBoundingBox();
-        document.body.style.cursor = "default"
-        if(this.sand.simulation.mousePressed && this.data.hands.active) document.body.style.cursor = "none"
+        document.body.style.cursor = "default";
+        if(this.data.dialogue.active) {
+            document.body.style.cursor = "pointer";
+            return;
+        }
+        if(this.dirt.simulation.mousePressed && this.data.hands.active) {
+            if((this.mouse.pos.y-bounds.y) / bounds.h < 0.65) document.body.style.cursor = "none"
+        }
         if(!this.data.hands.active) {
             sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
@@ -1384,8 +1422,18 @@ class Engine {
                     document.body.style.cursor = c.cursor;
                 }
             });
+
+            const cursor_vertices = getSquareAsVertices(this.mouse.pos, 10, 0);
+            const mousePos = this.mouse.pos.sub(bounds.x, bounds.y);
+            if(mousePos.x < 0 || mousePos.x > bounds.w) return
+            this.physics.simulation.physicsObjects.forEach(o => {
+                const pos = o.pos.xyAdd(bounds.x, bounds.y);
+                const info = Maths.SAT(pos.x, pos.y, mousePos.x, mousePos.y, getSquareAsVertices(pos, o.size, o.angle), cursor_vertices);
+                if(info) {
+                    document.body.style.cursor = "pointer";
+                }
+            })
         }
-        if(this.data.dialogue.active) document.body.style.cursor = "pointer"
     }
 
     async uploadSaveData(slot) {
@@ -1396,7 +1444,7 @@ class Engine {
                 "name": user.account.name,
                 "pass": user.account.pass,
                 "save_slot": slot,
-                "save": this.serialize()
+                "save": this.save.serialize(this)
             })
         });
     }
@@ -1412,15 +1460,6 @@ class Engine {
         });
         if(req.status == 404) return null;
         return await req.json();
-    }
-    serialize() {
-        return JSON.stringify({
-            "dirt": this.sand.simulation.serializeBinary()
-        })
-    }
-    deserialize(jsonString) {
-        const json = JSON.parse(jsonString);
-        this.sand.simulation.deserializeBinary(json.dirt);
     }
 }
 
