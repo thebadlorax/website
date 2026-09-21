@@ -381,6 +381,11 @@ class Animation {
         this.hasCompleted = false;
     }
 
+    setFrame(frame) {
+        this.timer = 0;
+        this.frame = frame;
+    }
+
     progress(delta) {
         this.timer += delta;
         if(this.timer > this.speed) {
@@ -784,6 +789,7 @@ const sceneData = {
 
             new Clickbox(new Rect2D(Vector.two(0.15, 0.1), 0.2, 0.28), (eng) => { 
                 eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                eng.spriteMap.stopgo.anim.current.setFrame(0);
                 eng.openDialogue({
                     "lines": [
                         {
@@ -793,14 +799,15 @@ const sceneData = {
                             "text": `slot 1, is it?`
                         },
                         {
-                            "text": "well now you know what they say about swapping timelines...."
+                            "text": "well now, you know what they say about swapping timelines...."
                         }
                     ],
-                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); alert("swap to slot 1") } }
                 })
             }),
             new Clickbox(new Rect2D(Vector.two(0.4, 0.1), 0.2, 0.28), (eng) => { 
                 eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                eng.spriteMap.stopgo.anim.current.setFrame(1);
                 eng.openDialogue({
                     "lines": [
                         {
@@ -813,11 +820,12 @@ const sceneData = {
                             "text": "well, off we go!"
                         }
                     ],
-                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); alert("swap to slot 2") } }
                 })
             }),
             new Clickbox(new Rect2D(Vector.two(0.65, 0.1), 0.2, 0.28), (eng) => { 
                 eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                eng.spriteMap.stopgo.anim.current.setFrame(2);
                 eng.openDialogue({
                     "lines": [
                         {
@@ -830,7 +838,7 @@ const sceneData = {
                             "text": "3's an unlucky number, you know..."
                         }
                     ],
-                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); alert("swap to slot 3") } }
                 })
             }),
         ],
