@@ -477,6 +477,9 @@ class Clickbox {
         this.onclick = onclick;
         this.active = true;
         this.cursor = "pointer"
+
+        this.extraData = {
+        }
     }
 
     getBounds(bounds) {
@@ -677,6 +680,17 @@ const ALL_DIALOGUE = {
                 ],
                 "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
             },
+            {
+                "lines": [
+                    {
+                        "text": "you know i'm still the same person in all of the timelines, right?"
+                    },
+                    {
+                        "text": "don't think you can hide what you did that one time..."
+                    }
+                ],
+                "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+            },
         ]
     } 
 }
@@ -766,6 +780,58 @@ const sceneData = {
             new Clickbox(new Rect2D(Vector.two(0.45, 0.45), 0.1, 0.25), (eng) => { 
                 eng.spriteMap.stopgo.anim.changeAnim("talk"); 
                 eng.openRandomDialogueFromList(ALL_DIALOGUE.stopgo.idle)
+            }),
+
+            new Clickbox(new Rect2D(Vector.two(0.15, 0.1), 0.2, 0.28), (eng) => { 
+                eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                eng.openDialogue({
+                    "lines": [
+                        {
+                            "text": "well now, that's certainly a choice"
+                        },
+                        {
+                            "text": `slot 1, is it?`
+                        },
+                        {
+                            "text": "well now you know what they say about swapping timelines...."
+                        }
+                    ],
+                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+                })
+            }),
+            new Clickbox(new Rect2D(Vector.two(0.4, 0.1), 0.2, 0.28), (eng) => { 
+                eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                eng.openDialogue({
+                    "lines": [
+                        {
+                            "text": "good pick, lad"
+                        },
+                        {
+                            "text": `slot 2 it is then?`
+                        },
+                        {
+                            "text": "well, off we go!"
+                        }
+                    ],
+                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+                })
+            }),
+            new Clickbox(new Rect2D(Vector.two(0.65, 0.1), 0.2, 0.28), (eng) => { 
+                eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                eng.openDialogue({
+                    "lines": [
+                        {
+                            "text": "you actually chose slot 3?"
+                        },
+                        {
+                            "text": `why would you need 3 slots?`
+                        },
+                        {
+                            "text": "3's an unlucky number, you know..."
+                        }
+                    ],
+                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") } }
+                })
             }),
         ],
         "movement": {
@@ -867,7 +933,8 @@ class Engine {
                 "last_dialogue": null,
                 "timer": 0,
                 speed: 25 // ms
-            }
+            },
+            "performance": false
         }
 
         this.spriteMap = {}
@@ -1203,11 +1270,37 @@ class Engine {
         }
 
         let stopgo_animator = new Animator();
-        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-39"), -1), "idle");
-        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-38", "garden-art-36"), 1), "talk");
+        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-34"), -1), "idle");
+
+        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-35"), -1), "red");
+        sceneData.saves.clickboxes[1].extraData = { "stopgoColor": "red" }
+        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-37"), -1), "green");
+        sceneData.saves.clickboxes[2].extraData = { "stopgoColor": "green" }
+        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-39"), -1), "blue");
+        sceneData.saves.clickboxes[3].extraData = { "stopgoColor": "blue" }
+
+        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-36", "garden-art-38", "garden-art-40"), 0.8), "talk");
         const stopgo = this.createSprite(new Rect2D(Vector.two(0, 0.07), 1, 1), stopgo_animator, "saves");
         this.spriteMap.stopgo = stopgo;
         stopgo_animator.changeAnim("idle")
+
+        const setupSave = (art, pos, amp, speed) => {
+            let anim = new Animator();
+            anim.addAnim(new Animation(this.loader.imageSet(`garden-art-${art}`), -1), "idle");
+            const save = this.createSprite(new Rect2D(pos, 0.5, 0.5), anim, "saves");
+            anim.changeAnim("idle");
+
+            save.extraData.time = 0;
+            save.extraData.updateFn = (delta) => {
+                save.extraData.time += delta * 0.1;
+
+                save.rect.pos.y = Math.sin(save.extraData.time * speed) * amp;
+            };
+        }
+
+        setupSave(30, Vector.two(0, 0),    0.02, 30);
+        setupSave(31, Vector.two(0.25, 0), 0.013, 40);
+        setupSave(32, Vector.two(0.5, 0),  0.017, 25);
     }
 
     createSprite(rect, animator, scene) {
@@ -1426,7 +1519,7 @@ class Engine {
             ctx.font = `30px Arial`;
             const line = this.data.dialogue.data.lines[this.data.dialogue.line].text;
             const characters = line.slice(0, this.data.dialogue.timer / this.data.dialogue.speed * 1000)
-            this.drawTextWrap(characters, bb.x+60, ctx.canvas.height-190, bb.w-90, 40);
+            this.drawTextWrap(characters, bb.x+60, ctx.canvas.height-190, bb.w-100, 40);
         }
 
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
@@ -1541,7 +1634,9 @@ class Engine {
     
         if(scene !== this.data.scenetime) this.setSceneTime(scene);
 
-        this.allSprites.filter( s => s.scene == this.data.scene ).forEach(s => s.anim.update(delta));
+        this.allSprites.filter( s => s.scene == this.data.scene ).forEach(s => {
+            s.anim.update(delta)
+            });
         this.allSprites.forEach(s => s.extraData.updateFn(delta))
 
         this.data.cloudTimer -= delta;
@@ -1568,12 +1663,18 @@ class Engine {
             if((this.mouse.pos.y-bounds.y) / bounds.h < 0.65) document.body.style.cursor = "none"
         }
         if(!this.data.hands.active) {
+            const d = {};
             sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
                 if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
                     document.body.style.cursor = c.cursor;
+                    if(c.extraData.stopgoColor != null && d.stopgo == null) {
+                        this.spriteMap.stopgo.anim.resetAndChangeAnim(c.extraData.stopgoColor)
+                        d.stopgo = true;
+                    }
                 }
             });
+            if(!d.stopgo) this.spriteMap.stopgo.anim.resetAndChangeAnim("idle")
         } else {
             this.globalClickboxes.filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
