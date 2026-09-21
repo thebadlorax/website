@@ -469,7 +469,7 @@ class Sprite {
         const bb = this.getBounds(bounds);
         const off = this.extraData.renderOffset;
         if(this.extraData.renderFn != null) {
-            this.extraData.renderFn(ctx);
+            this.extraData.renderFn(ctx, bounds);
             return;
         }
         ctx.drawImage(this.anim.get(), bb.pos.x + off.x, bb.pos.y + off.y, bb.w, bb.h);
@@ -788,57 +788,177 @@ const sceneData = {
             }),
 
             new Clickbox(new Rect2D(Vector.two(0.15, 0.1), 0.2, 0.28), (eng) => { 
+                if(eng.data.save_information.selected_slot == 0) {
+                    eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                    eng.openDialogue({
+                        "lines": [
+                            {
+                                "text": "hey you're already in that timeline"
+                            },
+                            {
+                                "text": "don't mess with me"
+                            }
+                        ],
+                        "fns": {"onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }}
+                    });
+                    return;
+                }
                 eng.spriteMap.stopgo.anim.changeAnim("talk"); 
-                eng.spriteMap.stopgo.anim.current.setFrame(0);
+                let l = [
+                    {
+                        "text": "well now, that's certainly a choice"
+                    },
+                    {
+                        "text": `slot 1, is it?`
+                    },
+                    {
+                        "text": "well now, you know what they say about swapping timelines...."
+                    }
+                ];
+                if(!eng.data.save_information.saves[1].exists) {
+                    l.push({
+                        "text": "actually, do you know how hard it is to make a new timeline?"
+                    },
+                    {
+                        "text": "it's quite a lot of work. why should i, at your whim?"
+                    },
+                    {
+                        "text": "hmmm????"
+                    },
+                    {
+                        "text": "oh im just messing around here you go"
+                    })
+                }
                 eng.openDialogue({
-                    "lines": [
-                        {
-                            "text": "well now, that's certainly a choice"
-                        },
-                        {
-                            "text": `slot 1, is it?`
-                        },
-                        {
-                            "text": "well now, you know what they say about swapping timelines...."
-                        }
-                    ],
-                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); alert("swap to slot 1") } }
+                    "lines": l,
+                    "fns": {"onEnd": async (eng) => { 
+                        eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
+                        await eng.swapSave(0); 
+                        eng.swapScenes("garden", async () => {
+                            eng.toggleHands();
+                            await eng.refreshSave();
+                            await eng.getAllSaveInformation();
+                            eng.data.hands.yVel = -100;
+                        })
+                    }}
                 })
             }),
             new Clickbox(new Rect2D(Vector.two(0.4, 0.1), 0.2, 0.28), (eng) => { 
+                if(eng.data.save_information.selected_slot == 1) {
+                    eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                    eng.spriteMap.stopgo.anim.current.setFrame(1);
+                    eng.openDialogue({
+                        "lines": [
+                            {
+                                "text": "hey you're already in that timeline"
+                            },
+                            {
+                                "text": "don't mess with me"
+                            }
+                        ],
+                        "fns": {"onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }}
+                    });
+                    return;
+                }
                 eng.spriteMap.stopgo.anim.changeAnim("talk"); 
                 eng.spriteMap.stopgo.anim.current.setFrame(1);
+
+                let l = [
+                    {
+                        "text": "good pick, lad"
+                    },
+                    {
+                        "text": `slot 2 it is then?`
+                    },
+                    {
+                        "text": "well, off we go!"
+                    }
+                ]
+                if(!eng.data.save_information.saves[1].exists) {
+                    l.push({
+                        "text": "actually, do you know how hard it is to make a new timeline?"
+                    },
+                    {
+                        "text": "it's quite a lot of work. why should i, at your whim?"
+                    },
+                    {
+                        "text": "hmmm????"
+                    },
+                    {
+                        "text": "oh im just messing around here you go"
+                    })
+                }
                 eng.openDialogue({
-                    "lines": [
-                        {
-                            "text": "good pick, lad"
-                        },
-                        {
-                            "text": `slot 2 it is then?`
-                        },
-                        {
-                            "text": "well, off we go!"
-                        }
-                    ],
-                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); alert("swap to slot 2") } }
+                    "lines": l,
+                    "fns": {"onEnd": async (eng) => { 
+                        eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
+                        await eng.swapSave(1); 
+                        eng.swapScenes("garden", async () => {
+                            eng.toggleHands();
+                            await eng.refreshSave();
+                            await eng.getAllSaveInformation();
+                            eng.data.hands.yVel = -100;
+                        })
+                    }}
                 })
             }),
             new Clickbox(new Rect2D(Vector.two(0.65, 0.1), 0.2, 0.28), (eng) => { 
+                if(eng.data.save_information.selected_slot == 2) {
+                    eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+                    eng.spriteMap.stopgo.anim.current.setFrame(2);
+                    eng.openDialogue({
+                        "lines": [
+                            {
+                                "text": "hey you're already in that timeline"
+                            },
+                            {
+                                "text": "don't mess with me"
+                            }
+                        ],
+                        "fns": {"onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }}
+                    });
+                    return;
+                }
                 eng.spriteMap.stopgo.anim.changeAnim("talk"); 
                 eng.spriteMap.stopgo.anim.current.setFrame(2);
+
+                let l = [
+                    {
+                        "text": "you actually chose slot 3?"
+                    },
+                    {
+                        "text": `why would you need 3 slots?`
+                    },
+                    {
+                        "text": "3's an unlucky number, you know..."
+                    }
+                ]
+                if(!eng.data.save_information.saves[2].exists) {
+                    l.push({
+                        "text": "actually, do you know how hard it is to make a new timeline?"
+                    },
+                    {
+                        "text": "it's quite a lot of work. why should i, at your whim?"
+                    },
+                    {
+                        "text": "hmmm????"
+                    },
+                    {
+                        "text": "oh im just messing around here you go"
+                    })
+                }
                 eng.openDialogue({
-                    "lines": [
-                        {
-                            "text": "you actually chose slot 3?"
-                        },
-                        {
-                            "text": `why would you need 3 slots?`
-                        },
-                        {
-                            "text": "3's an unlucky number, you know..."
-                        }
-                    ],
-                    "fns": { "onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); alert("swap to slot 3") } }
+                    "lines": l,
+                    "fns": {"onEnd": async (eng) => { 
+                        eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
+                        await eng.swapSave(2); 
+                        eng.swapScenes("garden", async () => {
+                            eng.toggleHands();
+                            await eng.refreshSave()
+                            await eng.getAllSaveInformation();
+                            eng.data.hands.yVel = -100;
+                        })
+                    }}
                 })
             }),
         ],
@@ -875,6 +995,8 @@ class Save {
 
     refreshValuesInEngine(eng) {
         eng.dirt.simulation.deserializeBinary(this.dirt);
+        if(this.dirt == null) eng.dirt.simulation.resetArrays();
+        eng.dirt.timeout_timer = 1;
     }
     refreshValuesFromEngine(eng) {
         this.dirt = eng.dirt.simulation.serialize();
@@ -1003,7 +1125,7 @@ class Engine {
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyS", async () => {
-            await this.uploadSaveData(0)
+            await this.uploadSaveData()
             alert("saved")
         })
         this.keyboard.setFunctionOnKeyPress("KeyC", async () => {
@@ -1013,13 +1135,6 @@ class Engine {
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
             this.data.showClickboxes = !this.data.showClickboxes
         })
-
-        const save_data = await this.fetchSaveData(0);
-        if(save_data != null) {
-            this.save = Save.fromSerialized(JSON.stringify(save_data));
-            this.save.refreshValuesInEngine(this);
-        }
-        else this.save = new Save();
 
         window.addEventListener("resize", () => this.resize())
         this.ctx.canvas.addEventListener("mousemove", e => {
@@ -1059,6 +1174,7 @@ class Engine {
         this.setSceneTime(startingScene);
         this.data.time = this.data.dayLength * 0.35;
 
+        await this.refreshSave(); // must be before setupSprites
         this.setupSprites();
         this.down_clickbox = new Clickbox(new Rect2D(Vector.two(0.45, 0.75), 0.18, 0.18), (eng) => { sceneData[eng.data.scene].movement.down(eng) })
             .withCursorStyle("alias")
@@ -1292,7 +1408,8 @@ class Engine {
         this.spriteMap.stopgo = stopgo;
         stopgo_animator.changeAnim("idle")
 
-        const setupSave = (art, pos, amp, speed) => {
+        const colors = ["#b26161", "#569353", "#748ebc"];
+        const setupSave = (art, pos, amp, speed, slot) => {
             let anim = new Animator();
             anim.addAnim(new Animation(this.loader.imageSet(`garden-art-${art}`), -1), "idle");
             const save = this.createSprite(new Rect2D(pos, 0.5, 0.5), anim, "saves");
@@ -1301,14 +1418,30 @@ class Engine {
             save.extraData.time = 0;
             save.extraData.updateFn = (delta) => {
                 save.extraData.time += delta * 0.1;
-
                 save.rect.pos.y = Math.sin(save.extraData.time * speed) * amp;
             };
+            save.extraData.renderFn = (ctx, bounds) => {
+                const bb = save.getBounds(bounds);
+
+                // todo: turn off w/ performance mode
+                const selected = this.data.save_information.selected_slot == slot;
+                const exists = this.data.save_information.saves[slot].exists || selected;
+
+                ctx.globalAlpha = exists ? 1 : 0.5
+                ctx.shadowColor = colors[slot];
+                ctx.shadowBlur = selected ? 20 : 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+
+                ctx.drawImage(save.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
+                ctx.shadowBlur = 0; 
+                ctx.globalAlpha = 1
+            }
         }
 
-        setupSave(30, Vector.two(0, 0),    0.02, 30);
-        setupSave(31, Vector.two(0.25, 0), 0.013, 40);
-        setupSave(32, Vector.two(0.5, 0),  0.017, 25);
+        setupSave(30, Vector.two(0, 0),    0.02,  30, 0);
+        setupSave(31, Vector.two(0.25, 0), 0.013, 40, 1);
+        setupSave(32, Vector.two(0.5, 0),  0.017, 25, 2);
     }
 
     createSprite(rect, animator, scene) {
@@ -1704,21 +1837,60 @@ class Engine {
         }
     }
 
-    async uploadSaveData(slot) {
+    async uploadSaveData() {
         const user = JSON.parse(window.localStorage.getItem("user"));
         await fetch(getApiLink("/mini/garden/saves/set"), {
             method: "POST",
             body: JSON.stringify({
                 "name": user.account.name,
                 "pass": user.account.pass,
-                "save_slot": slot,
                 "save": this.save.serialize(this)
             })
         });
+        await this.getAllSaveInformation()
     }
-    async fetchSaveData(slot) {
+    async fetchSaveData() {
+        try {
+            const user = JSON.parse(window.localStorage.getItem("user"));
+            const req = await fetch(getApiLink("/mini/garden/saves/get"), {
+                method: "POST",
+                body: JSON.stringify({
+                    "name": user.account.name,
+                    "pass": user.account.pass
+                })
+            }); ;
+            return await req.json();
+        } catch { return null; }
+    }
+    async refreshSave() {
+        const save_data = await this.fetchSaveData();
+        if(save_data != null) {
+            this.save = Save.fromSerialized(JSON.stringify(save_data));
+        }
+        else {
+            this.save = new Save();
+            console.log("fresh save")
+            await this.uploadSaveData()
+        }
+        this.save.refreshValuesInEngine(this);
+        await this.getAllSaveInformation()
+    }
+    async getAllSaveInformation() {
         const user = JSON.parse(window.localStorage.getItem("user"));
-        const req = await fetch(getApiLink("/mini/garden/saves/get"), {
+        const req = await fetch(getApiLink("/mini/garden/saves/list"), {
+            method: "POST",
+            body: JSON.stringify({
+                "name": user.account.name,
+                "pass": user.account.pass
+            })
+        });
+
+        this.data.save_information = await req.json();
+        console.log(this.data.save_information)
+    }
+    async swapSave(slot) {
+        const user = JSON.parse(window.localStorage.getItem("user"));
+        await fetch(getApiLink("/mini/garden/saves/setSlot"), {
             method: "POST",
             body: JSON.stringify({
                 "name": user.account.name,
@@ -1726,8 +1898,6 @@ class Engine {
                 "save_slot": slot
             })
         });
-        if(req.status == 404) return null;
-        return await req.json();
     }
 }
 

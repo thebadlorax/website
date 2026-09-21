@@ -1098,13 +1098,12 @@ const server = Bun.serve({
             const json = await req.json();
             let user = await auth.fetchAccount(json.name, json.pass);
             
-            if(json.save_slot < 0 || json.save_slot > 3) return corsResponse(null, { status: 400 });
             if(json.save == null) return corsResponse(null, { status: 400 });
             if(!user) return corsResponse(null, { status: 401 });
 
             let data = await db.fetch("garden") ?? { "player_data": {} };
-            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null] }
-            pd.saves[json.save_slot] = json.save;
+            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null], "selected_slot": 0 }
+            pd.saves[pd.selected_slot] = json.save;
             data.player_data[user.account.id] = pd;
             db.modify("garden", data);
             return corsResponse(null, { status: 200 });
@@ -1113,12 +1112,11 @@ const server = Bun.serve({
             const json = await req.json();
             let user = await auth.fetchAccount(json.name, json.pass);
             
-            if(json.save_slot < 0 || json.save_slot > 3) return corsResponse(null, { status: 400 });
             if(!user) return corsResponse(null, { status: 401 });
 
             let data = await db.fetch("garden") ?? { "player_data": {} };
-            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null] }
-            const save = pd.saves[json.save_slot];
+            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null], "selected_slot": 0 }
+            const save = pd.saves[pd.selected_slot];
             if(save == null) return corsResponse(null, { status: 404 });
             return corsResponse(save, { status: 200 });
           }
@@ -1129,18 +1127,31 @@ const server = Bun.serve({
             if(!user) return corsResponse(null, { status: 401 });
 
             let data = await db.fetch("garden") ?? { "player_data": {} };
-            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null] }
-            return corsResponse(JSON.stringify([
+            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null], "selected_slot": 0 }
+            return corsResponse(JSON.stringify({ "saves": [
               {
                 "exists": pd.saves[0] != null
               },
               {
-                "exists": pd.saves[0] != null
+                "exists": pd.saves[1] != null
               },
               {
-                "exists": pd.saves[0] != null
+                "exists": pd.saves[2] != null
               }
-            ]), { status: 200 });
+            ], "selected_slot": pd.selected_slot}), { status: 200 });
+          }
+          case "/mini/garden/saves/setSlot": {
+            const json = await req.json();
+            let user = await auth.fetchAccount(json.name, json.pass);
+            
+            if(!user) return corsResponse(null, { status: 401 });
+            if(json.save_slot < 0 || json.save_slot > 3) return corsResponse(null, { status: 400 });
+
+            let data = await db.fetch("garden") ?? { "player_data": {} };
+            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null], "selected_slot": 0 }
+            pd.selected_slot = json.save_slot;
+
+            return corsResponse(null, { status: 200 });
           }
             
           case "/puzzle/validateStage1Password": {
