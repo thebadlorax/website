@@ -1429,7 +1429,7 @@ class Engine {
 
                 ctx.globalAlpha = exists ? 1 : 0.5
                 ctx.shadowColor = colors[slot];
-                ctx.shadowBlur = selected ? 20 : 0;
+                ctx.shadowBlur = selected ? 40 : 0;
                 ctx.shadowOffsetX = 0;
                 ctx.shadowOffsetY = 0;
 
@@ -1705,7 +1705,7 @@ class Engine {
             })
 
             this.globalClickboxes.filter(c => c.active).forEach(c => {
-                ctx.filter = "hue-rotate(0deg)"
+                ctx.filter = "hue-rotate(180deg)"
                 c.render(ctx, bb)
                 ctx.filter = "none";
             })
@@ -1886,7 +1886,6 @@ class Engine {
         });
 
         this.data.save_information = await req.json();
-        console.log(this.data.save_information)
     }
     async swapSave(slot) {
         const user = JSON.parse(window.localStorage.getItem("user"));
