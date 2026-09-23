@@ -4,7 +4,7 @@
  * copyright 2026
 */
 
-import { Loader, drawRotatedImage, getRandomFromList } from "../mini-common.js";
+import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack } from "../mini-common.js";
 import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../maths.js";
 import { getApiLink, clamp } from "../../common.js";
 
@@ -835,10 +835,8 @@ const sceneData = {
                         eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
                         await eng.swapSave(0); 
                         eng.swapScenes("garden", async () => {
-                            eng.toggleHands();
                             await eng.refreshSave();
                             await eng.getAllSaveInformation();
-                            eng.data.hands.yVel = -100;
                         })
                     }}
                 })
@@ -894,10 +892,8 @@ const sceneData = {
                         eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
                         await eng.swapSave(1); 
                         eng.swapScenes("garden", async () => {
-                            eng.toggleHands();
                             await eng.refreshSave();
                             await eng.getAllSaveInformation();
-                            eng.data.hands.yVel = -100;
                         })
                     }}
                 })
@@ -953,10 +949,8 @@ const sceneData = {
                         eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
                         await eng.swapSave(2); 
                         eng.swapScenes("garden", async () => {
-                            eng.toggleHands();
                             await eng.refreshSave()
                             await eng.getAllSaveInformation();
-                            eng.data.hands.yVel = -100;
                         })
                     }}
                 })
@@ -1051,11 +1045,15 @@ class Engine {
             "tabOutTime": 0,
             "cloudTimer": Math.floor(Math.random()*10),
             "cursorOverride": null,
+            "autosaveInterval": 30, // s
+            "lastSave": new Date().toLocaleTimeString(),
+            "timeToNextAutosave": null,
             "hands": {
                 "yVel": null,
                 "clamp": [null, null],
                 "active": false
             },
+            "notifications": [],
             "dialogue": {
                 "active": false,
                 "line": 0,
@@ -1114,6 +1112,7 @@ class Engine {
         await Promise.all(r.map(url => this.loader.loadImage(url.replace(".png", ""), `../res/mini/garden/${url}`)));
     }
     async init() {
+        this.data.timeToNextAutosave = this.data.autosaveInterval;
         this.ctx.webkitImageSmoothingEnabled = false;
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
@@ -1125,8 +1124,10 @@ class Engine {
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyS", async () => {
-            await this.uploadSaveData()
-            alert("saved")
+            await this.uploadSaveData();
+            this.spawnNotification("saved the game", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
+            this.data.lastSave = new Date().toLocaleTimeString();
+            this.data.timeToNextAutosave = this.data.autosaveInterval;
         })
         this.keyboard.setFunctionOnKeyPress("KeyC", async () => {
             this.dirt.simulation.resetArrays();
@@ -1345,6 +1346,30 @@ class Engine {
         this.data.dialogue.line = 0;
         this.data.dialogue.active = false;
         this.setMovementBlocking(false);
+    }
+
+    spawnNotification(title, subtitle, lifetime, opts = {
+        color: "rgba(255, 255, 255, 1)",
+        fontSizes: [30, 20]
+    }) {
+        const now = performance.now();
+    
+        const n = {
+            creationTime: now,
+            endTime: now + lifetime,
+    
+            enterDuration: 400,
+            exitDuration: 300,
+    
+            title,
+            subtitle,
+            color: opts.color,
+            fontSizes: opts.fontSizes,
+            lifetime
+        };
+    
+        this.data.notifications.push(n);
+        return n;
     }
 
     offlineProgress(ms) {
@@ -1642,6 +1667,12 @@ class Engine {
         ctx.fillText(line, x, y);
     }
 
+    async autosave() {
+        await this.uploadSaveData();
+        this.spawnNotification("autosave", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
+        this.data.lastSave = new Date().toLocaleTimeString();
+    }
+
     render() {
         const ctx = this.ctx;
         const bb = this.getBoundingBox();
@@ -1667,6 +1698,34 @@ class Engine {
         ctx.drawImage(this.dirt.canvas, bb.x, bb.y + (this.spriteMap.hands.rect.pos.y*bb.h), bb.w, bb.h);
         ctx.drawImage(this.physics.canvas, bb.x, bb.y);
         ctx.filter = `none`;
+
+        const notifProperties = { "w": bb.w*0.3, "h": bb.h*0.1, "yPadding": bb.h*0.02, "xPadding": -bb.h*0.03 };
+        this.data.notifications.forEach((n, i) => {        
+            const now = performance.now();
+
+            const enterT = Math.min((now - n.creationTime) / n.enterDuration, 1);
+            const exitStart = n.endTime - n.exitDuration;
+            const exitT = Math.max(0, Math.min((now - exitStart) / n.exitDuration, 1.5));
+            const enter = easeOutBack(enterT);
+            const exit = easeInBack(exitT);
+
+            const targetX = (bb.x + bb.w) - notifProperties.w + notifProperties.xPadding;
+            const targetY = bb.y + notifProperties.yPadding * (i + 1) + notifProperties.h * i;
+            const pos = Vector.two(targetX + (1 - enter) * notifProperties.w + exit * notifProperties.w, targetY);
+
+            ctx.fillStyle = n.color ?? `rgba(255, 255, 255, 1)`;
+            ctx.fillRect(pos.x, pos.y, notifProperties.w, notifProperties.h);
+            ctx.strokeStyle = `rgba(0, 0, 0, 1)`;
+            ctx.strokeRect(pos.x, pos.y, notifProperties.w, notifProperties.h);
+
+            ctx.fillStyle = `rgba(0, 0, 0, 1)`;
+            const font_sizes = (n.fontSizes ?? [0.1, 0.08]).map(s => s *= notifProperties.w);
+            ctx.font = `${font_sizes[0]}px Arial`;
+            ctx.fillText(n.title, pos.x+Math.floor(font_sizes[0]/3), pos.y+font_sizes[0])
+            ctx.font = `${font_sizes[1]}px Arial`;
+            ctx.fillStyle = `rgba(128, 128, 128, 1)`;
+            ctx.fillText(n.subtitle, pos.x+Math.floor(font_sizes[0]/3), pos.y+notifProperties.h-(font_sizes[1]/2))
+        });
 
         ctx.clearRect(0, 0, ctx.canvas.width, bb.y);
         ctx.clearRect(0, bb.y + bb.h, ctx.canvas.width, ctx.canvas.height);
@@ -1793,6 +1852,19 @@ class Engine {
 
         if(this.data.dialogue.active) this.data.dialogue.timer += delta;
 
+        this.data.timeToNextAutosave -= delta;
+        if(this.data.timeToNextAutosave < 0) {
+            this.autosave();
+            this.data.timeToNextAutosave = this.data.autosaveInterval;
+        }
+
+        this.data.notifications.forEach(n => {
+            n.lifetime -= (delta*1000);
+            if(n.lifetime < 0) {
+                this.data.notifications.splice(this.data.notifications.indexOf(n), 1);
+            }
+        })
+
 
         // cursor effects
         document.body.style.cursor = "default";
@@ -1870,6 +1942,7 @@ class Engine {
         else {
             this.save = new Save();
             console.log("fresh save")
+            this.spawnNotification("welcome to hell", "first join the game", 5*1000, { "color": "rgba(252, 220, 92, 1)" })
             await this.uploadSaveData()
         }
         this.save.refreshValuesInEngine(this);

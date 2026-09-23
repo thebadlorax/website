@@ -135,3 +135,17 @@ export function drawRotatedImage(ctx, img, x, y, width, height, degrees) {
     ctx.drawImage(img, -width / 2, -height / 2, width, height); // big geep told me this was the method
     ctx.restore();
 }
+
+export const easeOutBack = (t) => {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+};
+
+export const easeInBack = (t) => {
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+
+    return c3 * t * t * t - c1 * t * t;
+}
