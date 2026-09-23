@@ -968,22 +968,61 @@ const sceneData = {
 }
 
 class Save {
+    static settings_index = {
+        AUTOSAVE_INTERVAL: 0,
+        DO_AUTOSAVES: 1,
+        HIDE_NOTIFICATIONS: 2,
+        TRANSPARENT_NOTIFICATIONS: 3,
+        DO_CLOUDS: 4,
+        SCENE_TRANSITION_SPEED: 5,
+        DO_CURSOR_EFFECTS: 6,
+        OPTIMIZE_DIRT: 7,
+        PHYSICS_ITERATIONS: 8
+    }
+    static PERFORMANCE_SETTINGS = {
+        0: null,
+        1: null,
+        2: null,
+        3: null,
+        4: false,
+        5: null,
+        6: false,
+        7: true,
+        8: 1
+    }
+    static DEFAULT_SETTINGS = () => { return [
+        60,
+        true,
+        false,
+        false,
+        true,
+        400,
+        true,
+        false,
+        10
+    ] }
     constructor() {
         this.dirt = null;
         this.inventory = null;
+
+        this.settings = Save.DEFAULT_SETTINGS();
     }
+
+    optimizeSettingsForPerformance() { Object.values(Save.PERFORMANCE_SETTINGS).forEach((s, i) => this.settings[i] = s) }
 
     addItemToInventory() {}
 
     serialize(eng) {
         return JSON.stringify({
-            "dirt": eng.dirt.simulation.serializeBinary()
+            "dirt": eng.dirt.simulation.serializeBinary(),
+            "settings": this.settings
         });
     }
     static fromSerialized(data) {
         const json = JSON.parse(data);
         const save = new Save();
         save.dirt = json.dirt;
+        save.settings = json.settings;
         return save;
     }
 
@@ -1045,9 +1084,9 @@ class Engine {
             "tabOutTime": 0,
             "cloudTimer": Math.floor(Math.random()*10),
             "cursorOverride": null,
-            "autosaveInterval": 30, // s
             "lastSave": new Date().toLocaleTimeString(),
             "timeToNextAutosave": null,
+            "frame": 0,
             "hands": {
                 "yVel": null,
                 "clamp": [null, null],
@@ -1061,8 +1100,7 @@ class Engine {
                 "last_dialogue": null,
                 "timer": 0,
                 speed: 25 // ms
-            },
-            "performance": false
+            }
         }
 
         this.spriteMap = {}
@@ -1112,7 +1150,6 @@ class Engine {
         await Promise.all(r.map(url => this.loader.loadImage(url.replace(".png", ""), `../res/mini/garden/${url}`)));
     }
     async init() {
-        this.data.timeToNextAutosave = this.data.autosaveInterval;
         this.ctx.webkitImageSmoothingEnabled = false;
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
@@ -1127,7 +1164,7 @@ class Engine {
             await this.uploadSaveData();
             this.spawnNotification("saved the game", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
             this.data.lastSave = new Date().toLocaleTimeString();
-            this.data.timeToNextAutosave = this.data.autosaveInterval;
+            this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL];
         })
         this.keyboard.setFunctionOnKeyPress("KeyC", async () => {
             this.dirt.simulation.resetArrays();
@@ -1176,6 +1213,7 @@ class Engine {
         this.data.time = this.data.dayLength * 0.35;
 
         await this.refreshSave(); // must be before setupSprites
+        this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL]; // must be after refreshSave
         this.setupSprites();
         this.down_clickbox = new Clickbox(new Rect2D(Vector.two(0.45, 0.75), 0.18, 0.18), (eng) => { sceneData[eng.data.scene].movement.down(eng) })
             .withCursorStyle("alias")
@@ -1268,6 +1306,8 @@ class Engine {
             window.requestAnimationFrame(this.tick.bind(this));
             return;
         }
+
+        this.frame = this.frame == 0 ? 1 : 0;
     
         const delta = Math.min(
             (elapsed - this._previousElapsed) / 1000,
@@ -1286,10 +1326,13 @@ class Engine {
 
         if(this.dirt.timeout_timer > 0 || this.dirt.simulation.mousePressed) {
             this.dirt.timeout_timer -= delta;
-            this.dirt.simulation.update(delta);
+            if(this.save.settings[Save.settings_index.OPTIMIZE_DIRT]) {
+                if(this.frame == 0) this.dirt.simulation.update(delta*2);
+            } else this.dirt.simulation.update(delta);
             this.dirt.simulation.render()
         }
 
+        this.physics.simulation.iterations = this.save.settings[Save.settings_index.PHYSICS_ITERATIONS];
         this.physics.simulation.step(delta);
         this.physics.simulation.draw(this.physics.ctx);
 
@@ -1532,7 +1575,7 @@ class Engine {
     }
 
     swapScenes(newScene, onSwap=null, releaseHands=true) {
-        let e = this.applyScreenEffect("fadeOutIn", {"ms": 400, "blackTime": 100});
+        let e = this.applyScreenEffect("fadeOutIn", {"ms": this.save.settings[Save.settings_index.SCENE_TRANSITION_SPEED], "blackTime": 100});
         e.onBlack = () => {
             this.data.scene = newScene;
             this.refreshMovementArrows();
@@ -1699,33 +1742,37 @@ class Engine {
         ctx.drawImage(this.physics.canvas, bb.x, bb.y);
         ctx.filter = `none`;
 
-        const notifProperties = { "w": bb.w*0.3, "h": bb.h*0.1, "yPadding": bb.h*0.02, "xPadding": -bb.h*0.03 };
-        this.data.notifications.forEach((n, i) => {        
-            const now = performance.now();
-
-            const enterT = Math.min((now - n.creationTime) / n.enterDuration, 1);
-            const exitStart = n.endTime - n.exitDuration;
-            const exitT = Math.max(0, Math.min((now - exitStart) / n.exitDuration, 1.5));
-            const enter = easeOutBack(enterT);
-            const exit = easeInBack(exitT);
-
-            const targetX = (bb.x + bb.w) - notifProperties.w + notifProperties.xPadding;
-            const targetY = bb.y + notifProperties.yPadding * (i + 1) + notifProperties.h * i;
-            const pos = Vector.two(targetX + (1 - enter) * notifProperties.w + exit * notifProperties.w, targetY);
-
-            ctx.fillStyle = n.color ?? `rgba(255, 255, 255, 1)`;
-            ctx.fillRect(pos.x, pos.y, notifProperties.w, notifProperties.h);
-            ctx.strokeStyle = `rgba(0, 0, 0, 1)`;
-            ctx.strokeRect(pos.x, pos.y, notifProperties.w, notifProperties.h);
-
-            ctx.fillStyle = `rgba(0, 0, 0, 1)`;
-            const font_sizes = (n.fontSizes ?? [0.1, 0.08]).map(s => s *= notifProperties.w);
-            ctx.font = `${font_sizes[0]}px Arial`;
-            ctx.fillText(n.title, pos.x+Math.floor(font_sizes[0]/3), pos.y+font_sizes[0])
-            ctx.font = `${font_sizes[1]}px Arial`;
-            ctx.fillStyle = `rgba(128, 128, 128, 1)`;
-            ctx.fillText(n.subtitle, pos.x+Math.floor(font_sizes[0]/3), pos.y+notifProperties.h-(font_sizes[1]/2))
-        });
+        if(!this.save.settings[Save.settings_index.HIDE_NOTIFICATIONS]) {
+            if(this.save.settings[Save.settings_index.TRANSPARENT_NOTIFICATIONS]) ctx.globalAlpha = 0.5;
+            const notifProperties = { "w": bb.w*0.3, "h": bb.h*0.1, "yPadding": bb.h*0.02, "xPadding": -bb.h*0.03 };
+            this.data.notifications.forEach((n, i) => {        
+                const now = performance.now();
+    
+                const enterT = Math.min((now - n.creationTime) / n.enterDuration, 1);
+                const exitStart = n.endTime - n.exitDuration;
+                const exitT = Math.max(0, Math.min((now - exitStart) / n.exitDuration, 1.5));
+                const enter = easeOutBack(enterT);
+                const exit = easeInBack(exitT);
+    
+                const targetX = (bb.x + bb.w) - notifProperties.w + notifProperties.xPadding;
+                const targetY = bb.y + notifProperties.yPadding * (i + 1) + notifProperties.h * i;
+                const pos = Vector.two(targetX + (1 - enter) * notifProperties.w + exit * notifProperties.w, targetY);
+    
+                ctx.fillStyle = n.color ?? `rgba(255, 255, 255, 1)`;
+                ctx.fillRect(pos.x, pos.y, notifProperties.w, notifProperties.h);
+                ctx.strokeStyle = `rgba(0, 0, 0, 1)`;
+                ctx.strokeRect(pos.x, pos.y, notifProperties.w, notifProperties.h);
+    
+                ctx.fillStyle = `rgba(0, 0, 0, 1)`;
+                const font_sizes = (n.fontSizes ?? [0.1, 0.08]).map(s => s *= notifProperties.w);
+                ctx.font = `${font_sizes[0]}px Arial`;
+                ctx.fillText(n.title, pos.x+Math.floor(font_sizes[0]/3), pos.y+font_sizes[0])
+                ctx.font = `${font_sizes[1]}px Arial`;
+                ctx.fillStyle = `rgba(128, 128, 128, 1)`;
+                ctx.fillText(n.subtitle, pos.x+Math.floor(font_sizes[0]/3), pos.y+notifProperties.h-(font_sizes[1]/2))
+            });
+            ctx.globalAlpha = 1;
+        }
 
         ctx.clearRect(0, 0, ctx.canvas.width, bb.y);
         ctx.clearRect(0, bb.y + bb.h, ctx.canvas.width, ctx.canvas.height);
@@ -1839,11 +1886,14 @@ class Engine {
             });
         this.allSprites.forEach(s => s.extraData.updateFn(delta))
 
-        this.data.cloudTimer -= delta;
-        if(this.data.cloudTimer < 0) {
-            this.spawnCloud()
-            this.data.cloudTimer = Math.floor(Math.random()*30);
+        if(this.save.settings[Save.settings_index.DO_CLOUDS]) {
+            this.data.cloudTimer -= delta;
+            if(this.data.cloudTimer < 0) {
+                this.spawnCloud()
+                this.data.cloudTimer = Math.floor(Math.random()*30);
+            }
         }
+        
 
         const bounds = this.getBoundingBox();
         this.physics.simulation.physicsObjects.forEach(o => {
@@ -1852,10 +1902,12 @@ class Engine {
 
         if(this.data.dialogue.active) this.data.dialogue.timer += delta;
 
-        this.data.timeToNextAutosave -= delta;
-        if(this.data.timeToNextAutosave < 0) {
-            this.autosave();
-            this.data.timeToNextAutosave = this.data.autosaveInterval;
+        if(this.save.settings[Save.settings_index.DO_AUTOSAVES]) {
+            this.data.timeToNextAutosave -= delta;
+            if(this.data.timeToNextAutosave < 0) {
+                this.autosave();
+                this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL];
+            }
         }
 
         this.data.notifications.forEach(n => {
@@ -1868,6 +1920,7 @@ class Engine {
 
         // cursor effects
         document.body.style.cursor = "default";
+        if(!this.save.settings[Save.settings_index.DO_CURSOR_EFFECTS]) return;
         if(this.data.dialogue.active) {
             document.body.style.cursor = "pointer";
             return;

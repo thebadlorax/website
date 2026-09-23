@@ -468,6 +468,8 @@ export class PhysicsContext2D {
         this.physicsObjects = new Array();
         this.bounds = bounds;
 
+        this.iterations = 10;
+
         this.simulationVariables = PhysicsContext2D.DEFAULT_SIM_VARIABLES();
     }
 
@@ -517,9 +519,7 @@ export class PhysicsContext2D {
     step(delta) {
         for (const obj of this.physicsObjects) { obj.update(this.bounds, this.simulationVariables, delta)}
     
-        const iterations = 10;
-    
-        for (let iteration = 0; iteration < iterations; iteration++) {
+        for (let iteration = 0; iteration < this.iterations; iteration++) {
             for (let i = 0; i < this.physicsObjects.length; i++) {
                 for (let j = i + 1; j < this.physicsObjects.length; j++) {
                     const a = this.physicsObjects[i];
