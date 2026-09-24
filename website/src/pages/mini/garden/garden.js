@@ -6,7 +6,7 @@
 
 import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack } from "../mini-common.js";
 import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../maths.js";
-import { getApiLink, clamp } from "../../common.js";
+import { getApiLink, clamp, formatSeconds } from "../../common.js";
 
 export class Keyboard {
     _keys = {};
@@ -967,6 +967,23 @@ const sceneData = {
     }
 }
 
+
+class Item {
+    constructor(id, metadata={}) {
+        this.id = id;
+        this.metadata = metadata;
+    }
+
+    serialize() {
+        return JSON.stringify({
+            "id": this.id,
+            "metadata": this.metadata
+        })
+    }
+    static fromSerialized(data) {
+        return new Item(data.id, data.metadata)
+    }
+}
 class Save {
     static settings_index = {
         AUTOSAVE_INTERVAL: 0,
@@ -1003,19 +1020,27 @@ class Save {
     ] }
     constructor() {
         this.dirt = null;
-        this.inventory = null;
+        this.inventory = [];
+
+        this.statistics = {
+            playtime: 0,
+            hands_opened: 0
+        };
 
         this.settings = Save.DEFAULT_SETTINGS();
     }
 
-    optimizeSettingsForPerformance() { Object.values(Save.PERFORMANCE_SETTINGS).forEach((s, i) => this.settings[i] = s) }
+    optimizeSettingsForPerformance() { Object.values(Save.PERFORMANCE_SETTINGS).forEach((s, i) => { if(s != null) this.settings[i] = s })};
 
-    addItemToInventory() {}
+    addItemToInventory(item) { this.inventory.push(item) };
+    removeItemFromInventory(item) { this.inventory.splice(this.inventory.indexOf(item)) };
 
     serialize(eng) {
         return JSON.stringify({
             "dirt": eng.dirt.simulation.serializeBinary(),
-            "settings": this.settings
+            "settings": this.settings,
+            "inventory": this.inventory.map(i => i.serialize()),
+            "statistics": this.statistics
         });
     }
     static fromSerialized(data) {
@@ -1023,6 +1048,8 @@ class Save {
         const save = new Save();
         save.dirt = json.dirt;
         save.settings = json.settings;
+        save.inventory.forEach(i => save.inventory.push(Item.fromSerialized(i)))
+        save.statistics = json.statistics;
         return save;
     }
 
@@ -1086,6 +1113,7 @@ class Engine {
             "cursorOverride": null,
             "lastSave": new Date().toLocaleTimeString(),
             "timeToNextAutosave": null,
+            "wantsToWipe": false,
             "frame": 0,
             "hands": {
                 "yVel": null,
@@ -1217,6 +1245,7 @@ class Engine {
         this.setupSprites();
         this.down_clickbox = new Clickbox(new Rect2D(Vector.two(0.45, 0.75), 0.18, 0.18), (eng) => { sceneData[eng.data.scene].movement.down(eng) })
             .withCursorStyle("alias")
+        const bb = this.getBoundingBox();
         this.down_clickbox.active = false;
         this.globalClickboxes.push(this.down_clickbox);
         this.refreshMovementArrows();
@@ -1229,13 +1258,143 @@ class Engine {
             timeout = performance.now();
         }
         const settings_handler = () => {
-            console.log("settings");
+            const w = 100;
+            this.data.wantsToWipe = false;
+
+            this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
+            
+            for(let a = 0; a < this.save.settings.length; a++) {
+                const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
+                o.draw = (ctx) => {
+                    const invHalf = -o.size / 2;
+                    const s = this.save.settings[a];
+
+                    ctx.save();
+                    ctx.translate(o.pos.x, o.pos.y);
+                    ctx.rotate(o.angle);
+
+                    if(Number.isInteger(s)) ctx.fillStyle = "blue"
+                    else ctx.fillStyle = s ? "green" : "grey"
+                    ctx.fillRect(invHalf, invHalf, o.size, o.size)
+
+                    ctx.fillStyle = "black";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle"
+                    ctx.font = `${bb.w*0.01}px Arial`
+                    ctx.rotate(-o.angle);
+                    ctx.fillText(Object.keys(Save.settings_index)[a], invHalf+(o.size/2), invHalf+(o.size/3))
+                    ctx.font = `${bb.w*0.03}px Arial`
+                    ctx.fillText(this.save.settings[a], invHalf+(o.size/2), invHalf+(o.size/1.5))
+                    ctx.restore();
+                }
+                o.onclick = () => {
+                    this.spawnNotification("clicked setting", Object.keys(Save.settings_index)[a], 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.1, 0.06] })
+                }
+                this.physics.simulation.addObject(o)
+            };
+
+            const wipe_save = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
+            wipe_save.draw = (ctx) => {
+                const invHalf = -wipe_save.size / 2;
+
+                ctx.save();
+                ctx.translate(wipe_save.pos.x, wipe_save.pos.y);
+                ctx.rotate(wipe_save.angle);
+
+                ctx.fillStyle = "red";
+                ctx.fillRect(invHalf, invHalf, wipe_save.size, wipe_save.size);
+
+                ctx.fillStyle = "black";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = `${bb.w*0.025}px Arial`;
+                ctx.rotate(-wipe_save.angle);
+                ctx.fillText("wipe save", invHalf+(wipe_save.size/2), invHalf+(wipe_save.size/2));
+                ctx.restore();
+            }
+            wipe_save.onclick = async () => {
+                if(!this.data.wantsToWipe) {
+                    this.spawnNotification("click again", "if you want to wipe :(", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.15, 0.06] })
+                    this.data.wantsToWipe = true;
+                    return;
+                }
+                this.data.wantsToWipe = false;
+                this.spawnNotification("wiping save", "", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.15, 0.06] })
+
+                const user = JSON.parse(window.localStorage.getItem("user"));
+                const req = await fetch(getApiLink("/mini/garden/saves/wipe"), {
+                    method: "POST",
+                    body: JSON.stringify({
+                        "name": user.account.name,
+                        "pass": user.account.pass
+                    })
+                });
+                const json = await req.json();
+                let next_save = null;
+                if(json.remaining_saves.length == 0) next_save = this.data.save_information.selected_slot;
+                else next_save = json.remaining_saves[0];
+
+                await this.swapSave(next_save);
+                this.swapScenes("garden", async () => {
+                    this.physics.simulation.physicsObjects = new Array();
+                    await this.refreshSave();
+                    await this.getAllSaveInformation();
+                })
+            }
+
+            const optimize_for_performance = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
+            optimize_for_performance.draw = (ctx) => {
+                const invHalf = -optimize_for_performance.size / 2;
+
+                ctx.save();
+                ctx.translate(optimize_for_performance.pos.x, optimize_for_performance.pos.y);
+                ctx.rotate(optimize_for_performance.angle);
+
+                ctx.fillStyle = "pink";
+                ctx.fillRect(invHalf, invHalf, optimize_for_performance.size, optimize_for_performance.size);
+
+                ctx.fillStyle = "black";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = `${bb.w*0.02}px Arial`;
+                ctx.rotate(-optimize_for_performance.angle);
+                ctx.fillText("performance", invHalf+(optimize_for_performance.size/2), invHalf+(optimize_for_performance.size/2));
+                ctx.restore();
+            }
+            optimize_for_performance.onclick = async () => {
+                this.spawnNotification("optimizing settings", "", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.1, 0.06] })
+                this.save.optimizeSettingsForPerformance();
+            }
+
+            const reset_to_default = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
+            reset_to_default.draw = (ctx) => {
+                const invHalf = -reset_to_default.size / 2;
+
+                ctx.save();
+                ctx.translate(reset_to_default.pos.x, reset_to_default.pos.y);
+                ctx.rotate(reset_to_default.angle);
+
+                ctx.fillStyle = "purple";
+                ctx.fillRect(invHalf, invHalf, reset_to_default.size, reset_to_default.size);
+
+                ctx.fillStyle = "black";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = `${bb.w*0.02}px Arial`;
+                ctx.rotate(-reset_to_default.angle);
+                ctx.fillText("reset", invHalf+(reset_to_default.size/2), invHalf+(reset_to_default.size/2));
+                ctx.restore();
+            }
+            reset_to_default.onclick = async () => {
+                this.spawnNotification("resetting settings", "", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.1, 0.06] })
+                this.save.settings = Save.DEFAULT_SETTINGS();
+            }
+
+            this.physics.simulation.addObjects(wipe_save, optimize_for_performance, reset_to_default)
         };
-        let spawn = 0;
         const seeds_handler = () => {
             const w = 150;
 
-            spawn += 1;
             this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
             
             for(let a = 0; a < 10; a++) {
@@ -1256,11 +1415,43 @@ class Engine {
             window.location.href = "/"
         }
         const saves_handler = () => {
-            this.swapScenes("saves");
+            this.swapScenes("saves", () => {
+                this.physics.simulation.physicsObjects = new Array();
+            });
             //this.toggleHands();
         }
         const unlocks_handler = () => {
-            console.log("unlocks")
+            const w = 100;
+
+            this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
+
+            const playtime_stat = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
+            playtime_stat.draw = (ctx) => {
+                const invHalf = -playtime_stat.size / 2;
+
+                const pt = formatSeconds(this.save.statistics.playtime*1000);
+
+                ctx.save();
+                ctx.translate(playtime_stat.pos.x, playtime_stat.pos.y);
+                ctx.rotate(playtime_stat.angle);
+
+                ctx.fillStyle = "grey";
+                ctx.fillRect(invHalf, invHalf, playtime_stat.size, playtime_stat.size);
+
+                ctx.fillStyle = "black";
+                ctx.textAlign = "center";
+                ctx.font = `${bb.w*0.03}px Arial`
+                ctx.rotate(-playtime_stat.angle);
+                ctx.fillText("playtime", invHalf+(playtime_stat.size/2), invHalf+(playtime_stat.size/3))
+                ctx.font = `${bb.w*0.02}px Arial`
+                ctx.fillText(pt, invHalf+(playtime_stat.size/2), invHalf+(playtime_stat.size*0.9))
+                ctx.restore();
+            }
+            playtime_stat.onclick = async () => {
+                console.log("yo");
+            }
+
+            this.physics.simulation.addObjects(playtime_stat)
         }
 
         this.hand_clickboxes = [
@@ -1356,7 +1547,10 @@ class Engine {
         if(!this.data.hands.active) {
             this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY*4;
             this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
-        } else this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY;
+        } else {
+            this.physics.simulation.simulationVariables.GRAVITY = PhysicsContext2D.DEFAULT_SIM_VARIABLES().GRAVITY;
+            this.save.statistics.hands_opened += 1;
+        }
     }
 
     openDialogue(data) {
@@ -1393,7 +1587,7 @@ class Engine {
 
     spawnNotification(title, subtitle, lifetime, opts = {
         color: "rgba(255, 255, 255, 1)",
-        fontSizes: [30, 20]
+        fontSizes: [0.1, 0.08]
     }) {
         const now = performance.now();
     
@@ -1833,7 +2027,8 @@ class Engine {
                 const pos = o.pos.xyAdd(bounds.x, bounds.y);
                 const info = Maths.SAT(pos.x, pos.y, mousePos.x, mousePos.y, getSquareAsVertices(pos, o.size, o.angle), cursor_vertices);
                 if(info) {
-                    this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1);
+                    if(o.onclick == null) this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1);
+                    else o.onclick()
                     has_clicked = true;
                 }
             })
@@ -1893,6 +2088,8 @@ class Engine {
                 this.data.cloudTimer = Math.floor(Math.random()*30);
             }
         }
+
+        this.save.statistics.playtime += delta;
         
 
         const bounds = this.getBoundingBox();
@@ -1972,7 +2169,7 @@ class Engine {
                 "save": this.save.serialize(this)
             })
         });
-        await this.getAllSaveInformation()
+        await this.refreshSaveInformation()
     }
     async fetchSaveData() {
         try {
@@ -1999,9 +2196,9 @@ class Engine {
             await this.uploadSaveData()
         }
         this.save.refreshValuesInEngine(this);
-        await this.getAllSaveInformation()
+        await this.refreshSaveInformation()
     }
-    async getAllSaveInformation() {
+    async refreshSaveInformation() {
         const user = JSON.parse(window.localStorage.getItem("user"));
         const req = await fetch(getApiLink("/mini/garden/saves/list"), {
             method: "POST",

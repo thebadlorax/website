@@ -1108,6 +1108,22 @@ const server = Bun.serve({
             db.modify("garden", data);
             return corsResponse(null, { status: 200 });
           }
+          case "/mini/garden/saves/wipe": {
+            const json = await req.json();
+            let user = await auth.fetchAccount(json.name, json.pass);
+            
+            if(!user) return corsResponse(null, { status: 401 });
+
+            let data = await db.fetch("garden") ?? { "player_data": {} };
+            let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null], "selected_slot": 0 }
+            pd.saves[pd.selected_slot] = null;
+            data.player_data[user.account.id] = pd;
+            db.modify("garden", data);
+            return corsResponse(JSON.stringify({
+              // @ts-expect-error
+              "remaining_saves": pd.saves.filter(s => s != null).map(s => pd.saves.indexOf(s))
+            }), { status: 200 });
+          }
           case "/mini/garden/saves/get": {
             const json = await req.json();
             let user = await auth.fetchAccount(json.name, json.pass);
