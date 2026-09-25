@@ -149,3 +149,55 @@ export const easeInBack = (t) => {
 
     return c3 * t * t * t - c1 * t * t;
 }
+
+export async function gzipCompressString(str) {
+    const input = new TextEncoder().encode(str);
+    const stream = new Blob([input]).stream().pipeThrough(new CompressionStream("gzip"));
+    const compressedBuffer = await new Response(stream).arrayBuffer();
+    const bytes = new Uint8Array(compressedBuffer);
+
+    // b64
+    let binary = "";
+    for (const b of bytes) binary += String.fromCharCode(b);
+    return btoa(binary);
+}; 
+export async function gzipDecompressString(base64) {
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    return await new Response(stream).text();
+};
+
+export function downloadBlob(content, fileName, contentType) {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    
+    document.body.appendChild(link);
+    link.click();
+    
+    URL.revokeObjectURL(url);
+    document.body.removeChild(link);
+}
+
+export async function pickFile() {
+    const input = document.createElement("input");
+    input.type = "file";
+
+    return new Promise((resolve, reject) => {
+        input.onchange = () => {
+            const file = input.files?.[0];
+            if (!file) {
+                reject(new Error("No file selected"));
+                return;
+            }
+
+            resolve(file);
+        };
+
+        input.click();
+    });
+}

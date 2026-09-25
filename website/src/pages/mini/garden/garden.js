@@ -4,7 +4,8 @@
  * copyright 2026
 */
 
-import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack } from "../mini-common.js";
+import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
+    gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini-common.js";
 import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../maths.js";
 import { getApiLink, clamp, formatSeconds } from "../../common.js";
 
@@ -1189,10 +1190,15 @@ class Engine {
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyS", async () => {
-            await this.uploadSaveData();
-            this.spawnNotification("saved the game", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
-            this.data.lastSave = new Date().toLocaleTimeString();
-            this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL];
+            try {
+                await this.uploadSaveData();
+                this.spawnNotification("saved the game", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
+                this.data.lastSave = new Date().toLocaleTimeString();
+                this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL];
+            } catch {
+                this.spawnNotification("couldn't save properly", "backing up your save", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.08, 0.06] })
+                await this.downloadLocalSave();
+            }
         })
         this.keyboard.setFunctionOnKeyPress("KeyC", async () => {
             this.dirt.simulation.resetArrays();
@@ -1390,7 +1396,53 @@ class Engine {
                 this.save.settings = Save.DEFAULT_SETTINGS();
             }
 
-            this.physics.simulation.addObjects(wipe_save, optimize_for_performance, reset_to_default)
+            const download_local_save = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
+            download_local_save.draw = (ctx) => {
+                const invHalf = -download_local_save.size / 2;
+
+                ctx.save();
+                ctx.translate(download_local_save.pos.x, download_local_save.pos.y);
+                ctx.rotate(download_local_save.angle);
+
+                ctx.fillStyle = "orchid";
+                ctx.fillRect(invHalf, invHalf, download_local_save.size, download_local_save.size);
+
+                ctx.fillStyle = "black";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = `${bb.w*0.015}px Arial`;
+                ctx.rotate(-download_local_save.angle);
+                ctx.fillText("download save", invHalf+(download_local_save.size/2), invHalf+(download_local_save.size/2));
+                ctx.restore();
+            }
+            download_local_save.onclick = async () => {
+                await this.downloadLocalSave()
+            }
+
+            const import_local_save = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
+            import_local_save.draw = (ctx) => {
+                const invHalf = -import_local_save.size / 2;
+
+                ctx.save();
+                ctx.translate(import_local_save.pos.x, import_local_save.pos.y);
+                ctx.rotate(import_local_save.angle);
+
+                ctx.fillStyle = "orchid";
+                ctx.fillRect(invHalf, invHalf, import_local_save.size, import_local_save.size);
+
+                ctx.fillStyle = "black";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = `${bb.w*0.018}px Arial`;
+                ctx.rotate(-import_local_save.angle);
+                ctx.fillText("import save", invHalf+(import_local_save.size/2), invHalf+(import_local_save.size/2));
+                ctx.restore();
+            }
+            import_local_save.onclick = async () => {
+                await this.importLocalSave();
+            }
+
+            this.physics.simulation.addObjects(wipe_save, optimize_for_performance, reset_to_default, download_local_save, import_local_save)
         };
         const seeds_handler = () => {
             const w = 150;
@@ -1448,7 +1500,7 @@ class Engine {
                 ctx.restore();
             }
             playtime_stat.onclick = async () => {
-                console.log("yo");
+                console.log("yo")
             }
 
             this.physics.simulation.addObjects(playtime_stat)
@@ -1905,9 +1957,14 @@ class Engine {
     }
 
     async autosave() {
-        await this.uploadSaveData();
-        this.spawnNotification("autosave", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
-        this.data.lastSave = new Date().toLocaleTimeString();
+        try {
+            await this.uploadSaveData();
+            this.spawnNotification("autosave", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
+            this.data.lastSave = new Date().toLocaleTimeString();
+        } catch {
+            this.spawnNotification("couldn't save properly", "backing up your save", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.08, 0.06] })
+            await this.downloadLocalSave();
+        }
     }
 
     render() {
@@ -2170,6 +2227,22 @@ class Engine {
             })
         });
         await this.refreshSaveInformation()
+    }
+    async downloadLocalSave() {
+        const data = await gzipCompressString(this.save.serialize(this));
+        downloadBlob(data, `gardenslot${this.data.save_information.selected_slot}_(${new Date().toLocaleDateString()}).wonderfulandbeautifulsaveextension`, "text/plain");
+        this.spawnNotification("downloaded save", `keep it safe!`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
+    }
+    async importLocalSave() {
+        let f = await pickFile();
+        if(f == null) return;
+        let data = await gzipDecompressString(await f.text());
+        this.save = Save.fromSerialized(data);
+        this.swapScenes("garden", () => {
+            this.physics.simulation.physicsObjects = new Array();
+            this.save.refreshValuesInEngine(this);
+            this.spawnNotification("imported save", `no save scumming!`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
+        })
     }
     async fetchSaveData() {
         try {
