@@ -818,6 +818,19 @@ const server = Bun.serve({
             db.modify("feedback", fb);
             return corsResponse(null, { status: 200 });
           }
+          case "/admin/resetDatabaseKey": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let e; try { e = await auth.checkPass(json["name"], json["pass"]); }
+            catch { return corsResponse(null, { status: 401 }); };
+            if(!e) return corsResponse(null, { status: 401 });
+            let admins = await db.fetch("admins") || ["admin"];
+            if(!admins.includes(json["name"])) return corsResponse(null, { status: 401 });
+
+            // @ts-expect-error
+            db.modify(json.key, null);
+            return corsResponse(null, { status: 200 });
+          }
           case "/admin/fetchDatabase": {
             if(req.method != "POST") return corsResponse(null, { status: 405 });
             let json = await req.json(); 

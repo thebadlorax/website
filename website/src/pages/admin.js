@@ -170,6 +170,20 @@ document.getElementById("submit_ra").addEventListener("click", async () => {
     });
 })
 
+const rdk = document.getElementById("rdk");
+document.getElementById("submit_rdk").addEventListener("click", async () => {
+    await fetch(getApiLink("/admin/resetDatabaseKey"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass, "key": rdk.value})}).then(async (e) => {
+        if(e.status == 200) {
+            alert("success")
+        } else if(e.status == 400) {
+            alert("invalid username")
+        } else {
+            alert("not authorized");
+            window.location.href = "/";
+        }
+    });
+})
+
 document.getElementById("get_db").addEventListener("click", async () => {
     alert("this may take a little bit (click to start)")
     await fetch(getApiLink("/admin/fetchDatabase"), { method: "POST", body: JSON.stringify({"name": user.account.name, "pass": user.account.pass})}).then(async (e) => {

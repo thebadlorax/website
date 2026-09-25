@@ -2231,7 +2231,7 @@ class Engine {
     async downloadLocalSave() {
         const data = await gzipCompressString(this.save.serialize(this));
         downloadBlob(data, `gardenslot${this.data.save_information.selected_slot}_(${new Date().toLocaleDateString()}).wonderfulandbeautifulsaveextension`, "text/plain");
-        this.spawnNotification("downloaded save", `keep it safe!`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
+        //this.spawnNotification("downloaded save", `keep it safe!`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
     }
     async importLocalSave() {
         let f = await pickFile();
