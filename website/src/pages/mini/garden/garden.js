@@ -1115,6 +1115,7 @@ class Engine {
             "lastSave": new Date().toLocaleTimeString(),
             "timeToNextAutosave": null,
             "wantsToWipe": false,
+            "blockClickboxes": false,
             "frame": 0,
             "hands": {
                 "yVel": null,
@@ -1338,11 +1339,14 @@ class Engine {
                 const json = await req.json();
                 let next_save = null;
                 if(json.remaining_saves.length == 0) next_save = this.data.save_information.selected_slot;
-                else next_save = json.remaining_saves[0];
+                else next_save = json.remaining_saves.sort()[0];
+
+                this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(wipe_save), 1);
 
                 await this.swapSave(next_save);
                 this.swapScenes("garden", async () => {
                     this.physics.simulation.physicsObjects = new Array();
+                    this.data.notifications = new Array();
                     await this.refreshSave();
                     await this.getAllSaveInformation();
                 })
@@ -1822,6 +1826,7 @@ class Engine {
 
     swapScenes(newScene, onSwap=null, releaseHands=true) {
         let e = this.applyScreenEffect("fadeOutIn", {"ms": this.save.settings[Save.settings_index.SCENE_TRANSITION_SPEED], "blackTime": 100});
+        this.data.blockClickboxes = true;
         e.onBlack = () => {
             this.data.scene = newScene;
             this.refreshMovementArrows();
@@ -1832,6 +1837,8 @@ class Engine {
             }
 
             if(onSwap != null) onSwap();
+
+            this.data.blockClickboxes = false;
         }
     }
 
@@ -2096,6 +2103,7 @@ class Engine {
         }
 
         if(this.data.dialogue.active) { this.progressDialogue(); return; }
+        if(this.data.blockClickboxes) return;
         if(!this.data.hands.active) {
             sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
@@ -2184,24 +2192,28 @@ class Engine {
         }
         if(!this.data.hands.active) {
             const d = {};
-            sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
-                const bb = c.getBounds(bounds);
-                if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
-                    document.body.style.cursor = c.cursor;
-                    if(c.extraData.stopgoColor != null && d.stopgo == null) {
-                        this.spriteMap.stopgo.anim.resetAndChangeAnim(c.extraData.stopgoColor)
-                        d.stopgo = true;
+            if(!this.data.blockClickboxes) {
+                sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
+                    const bb = c.getBounds(bounds);
+                    if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
+                        document.body.style.cursor = c.cursor;
+                        if(c.extraData.stopgoColor != null && d.stopgo == null) {
+                            this.spriteMap.stopgo.anim.resetAndChangeAnim(c.extraData.stopgoColor)
+                            d.stopgo = true;
+                        }
                     }
-                }
-            });
+                }); 
+            }
             if(!d.stopgo) this.spriteMap.stopgo.anim.resetAndChangeAnim("idle")
         } else {
-            this.globalClickboxes.filter(c => c.active).forEach(c => {
-                const bb = c.getBounds(bounds);
-                if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
-                    document.body.style.cursor = c.cursor;
-                }
-            });
+            if(!this.data.blockClickboxes) {
+                this.globalClickboxes.filter(c => c.active).forEach(c => {
+                    const bb = c.getBounds(bounds);
+                    if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
+                        document.body.style.cursor = c.cursor;
+                    }
+                });
+            }
 
             const cursor_vertices = getSquareAsVertices(this.mouse.pos, 10, 0);
             const mousePos = this.mouse.pos.sub(bounds.x, bounds.y);
