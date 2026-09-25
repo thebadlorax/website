@@ -7,7 +7,7 @@
 import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
     gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini-common.js";
 import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../maths.js";
-import { getApiLink, clamp, formatSeconds } from "../../common.js";
+import { getApiLink, clamp, formatSeconds, formatNumber } from "../../common.js";
 
 export class Keyboard {
     _keys = {};
@@ -837,7 +837,7 @@ const sceneData = {
                         await eng.swapSave(0); 
                         eng.swapScenes("garden", async () => {
                             await eng.refreshSave();
-                            await eng.getAllSaveInformation();
+                            await eng.refreshSaveInformation();
                         })
                     }}
                 })
@@ -894,7 +894,7 @@ const sceneData = {
                         await eng.swapSave(1); 
                         eng.swapScenes("garden", async () => {
                             await eng.refreshSave();
-                            await eng.getAllSaveInformation();
+                            await eng.refreshSaveInformation();
                         })
                     }}
                 })
@@ -951,7 +951,7 @@ const sceneData = {
                         await eng.swapSave(2); 
                         eng.swapScenes("garden", async () => {
                             await eng.refreshSave()
-                            await eng.getAllSaveInformation();
+                            await eng.refreshSaveInformation();
                         })
                     }}
                 })
@@ -1025,7 +1025,9 @@ class Save {
 
         this.statistics = {
             playtime: 0,
-            hands_opened: 0
+            hands_opened: 0,
+            clicks: 0,
+            dialogues_opened: 0
         };
 
         this.settings = Save.DEFAULT_SETTINGS();
@@ -1116,6 +1118,7 @@ class Engine {
             "timeToNextAutosave": null,
             "wantsToWipe": false,
             "blockClickboxes": false,
+            "lastHandlerPressed": null,
             "frame": 0,
             "hands": {
                 "yVel": null,
@@ -1184,7 +1187,7 @@ class Engine {
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
-        this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD"]);
+        this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU"]);
         this.keyboard.setFunctionOnKeyPress("Space", () => {
             if(this.data.scene != "garden") return;
             this.toggleHands();
@@ -1197,7 +1200,7 @@ class Engine {
                 this.data.lastSave = new Date().toLocaleTimeString();
                 this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL];
             } catch {
-                this.spawnNotification("couldn't save properly", "backing up your save", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.08, 0.06] })
+                this.spawnNotification("couldn't upload save", "backing up your save!", 5*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.08, 0.06] })
                 await this.downloadLocalSave();
             }
         })
@@ -1208,6 +1211,10 @@ class Engine {
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
             this.data.showClickboxes = !this.data.showClickboxes
         })
+
+        this.keyboard.setFunctionOnKeyPress("KeyU", async () => {
+            this.update(prompt("seconds"));
+        });
 
         window.addEventListener("resize", () => this.resize())
         this.ctx.canvas.addEventListener("mousemove", e => {
@@ -1270,6 +1277,12 @@ class Engine {
 
             this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
             
+            if(this.data.lastHandlerPressed == "settings") {
+                this.data.lastHandlerPressed = null;
+                return;
+            }
+            this.data.lastHandlerPressed = "settings"
+
             for(let a = 0; a < this.save.settings.length; a++) {
                 const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
                 o.draw = (ctx) => {
@@ -1294,9 +1307,19 @@ class Engine {
                     ctx.fillText(this.save.settings[a], invHalf+(o.size/2), invHalf+(o.size/1.5))
                     ctx.restore();
                 }
-                o.onclick = () => {
-                    this.spawnNotification("clicked setting", Object.keys(Save.settings_index)[a], 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.1, 0.06] })
+                switch(typeof this.save.settings[a]) {
+                    case "boolean": {
+                        o.onclick = () => {
+                            this.save.settings[a] = !this.save.settings[a];
+                        }; break
+                    }
+                    default: {
+                        o.onclick = () => {
+                            this.spawnNotification(`cant modify ${typeof this.save.settings[a]}`, Object.keys(Save.settings_index)[a], 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.1, 0.06] })
+                        }; break
+                    }
                 }
+                
                 this.physics.simulation.addObject(o)
             };
 
@@ -1338,8 +1361,17 @@ class Engine {
                 });
                 const json = await req.json();
                 let next_save = null;
-                if(json.remaining_saves.length == 0) next_save = this.data.save_information.selected_slot;
-                else next_save = json.remaining_saves.sort()[0];
+                let notif_text = [null, null]
+                if(json.remaining_saves.length == 0) {
+                    next_save = this.data.save_information.selected_slot;
+                    notif_text[0] = "new save made";
+                    notif_text[1] = `no other saves were found`
+                }
+                else {
+                    next_save = json.remaining_saves.sort()[0];
+                    notif_text[0] = "swapped saves";
+                    notif_text[1] = `slot ${next_save} had data`
+                }
 
                 this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(wipe_save), 1);
 
@@ -1347,8 +1379,9 @@ class Engine {
                 this.swapScenes("garden", async () => {
                     this.physics.simulation.physicsObjects = new Array();
                     this.data.notifications = new Array();
+                    this.spawnNotification(notif_text[0], notif_text[1], 3*1000, { "color": "rgba(255, 255, 255, 1)"})
                     await this.refreshSave();
-                    await this.getAllSaveInformation();
+                    await this.refreshSaveInformation();
                 })
             }
 
@@ -1452,6 +1485,12 @@ class Engine {
             const w = 150;
 
             this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
+
+            if(this.data.lastHandlerPressed == "seeds") {
+                this.data.lastHandlerPressed = null;
+                return;
+            }
+            this.data.lastHandlerPressed = "seeds"
             
             for(let a = 0; a < 10; a++) {
                 const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
@@ -1481,33 +1520,45 @@ class Engine {
 
             this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
 
-            const playtime_stat = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
-            playtime_stat.draw = (ctx) => {
-                const invHalf = -playtime_stat.size / 2;
-
-                const pt = formatSeconds(this.save.statistics.playtime*1000);
-
-                ctx.save();
-                ctx.translate(playtime_stat.pos.x, playtime_stat.pos.y);
-                ctx.rotate(playtime_stat.angle);
-
-                ctx.fillStyle = "grey";
-                ctx.fillRect(invHalf, invHalf, playtime_stat.size, playtime_stat.size);
-
-                ctx.fillStyle = "black";
-                ctx.textAlign = "center";
-                ctx.font = `${bb.w*0.03}px Arial`
-                ctx.rotate(-playtime_stat.angle);
-                ctx.fillText("playtime", invHalf+(playtime_stat.size/2), invHalf+(playtime_stat.size/3))
-                ctx.font = `${bb.w*0.02}px Arial`
-                ctx.fillText(pt, invHalf+(playtime_stat.size/2), invHalf+(playtime_stat.size*0.9))
-                ctx.restore();
+            if(this.data.lastHandlerPressed == "unlocks") {
+                this.data.lastHandlerPressed = null;
+                return;
             }
-            playtime_stat.onclick = async () => {
-                console.log("yo")
+            this.data.lastHandlerPressed = "unlocks"
+
+            const constructStatisticObject = (label, stat, sizes) => {
+                const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
+                o.draw = (ctx) => {
+                    const invHalf = -o.size / 2;
+    
+                    ctx.save();
+                    ctx.translate(o.pos.x, o.pos.y);
+                    ctx.rotate(o.angle);
+    
+                    ctx.fillStyle = "grey";
+                    ctx.fillRect(invHalf, invHalf, o.size, o.size);
+    
+                    ctx.fillStyle = "black";
+                    ctx.textAlign = "center";
+                    ctx.font = `${bb.w*sizes[0]}px Arial`
+                    ctx.rotate(-o.angle);
+                    ctx.fillText(label, invHalf+(o.size/2), invHalf+(o.size/3))
+                    ctx.font = `${bb.w*sizes[1]}px Arial`
+                    ctx.fillText(stat(), invHalf+(o.size/2), invHalf+(o.size*0.9))
+                    ctx.restore();
+                }
+                o.onclick = async () => {
+                    console.log("yo")
+                }
+
+                return o;
             }
 
-            this.physics.simulation.addObjects(playtime_stat)
+            this.physics.simulation.addObjects(
+                constructStatisticObject("playtime", () => { return formatSeconds(this.save.statistics.playtime*1000) }, [0.03, 0.02]),
+                constructStatisticObject("hands raised", () => { return formatNumber(this.save.statistics.hands_opened) }, [0.02, 0.03]),
+                constructStatisticObject("clicks", () => { return formatNumber(this.save.statistics.clicks) }, [0.03, 0.02])
+            )
         }
 
         this.hand_clickboxes = [
@@ -1591,6 +1642,8 @@ class Engine {
 
     toggleHands() {
         const hand_amp = 3;
+
+        this.data.lastHandlerPressed = null;
 
         this.data.hands = {
             "yVel": !this.data.hands.active ? hand_amp*-1 : hand_amp,
@@ -2079,8 +2132,7 @@ class Engine {
     onClick() {
         const bounds = this.getBoundingBox();
 
-        /*const relx = (this.mouse.pos.x-bounds.x) / bounds.w;
-        const rely = (this.mouse.pos.y-bounds.y) / bounds.h;*/
+        this.increaseClickCounter();
 
         if(this.mouse.pos.x > bounds.x && this.mouse.pos.x < (bounds.w+bounds.x)) {
             const mousePos = this.mouse.pos.sub(bounds.x, bounds.y);
@@ -2118,6 +2170,29 @@ class Engine {
                     c.onclick(this);
                 }
             });
+        }
+    }
+    increaseClickCounter() {
+        this.save.statistics.clicks += 1;
+        switch(this.save.statistics.clicks) {
+            case 100: {
+                this.spawnNotification("baby clicka", "click 100 times", 5*1000, { "color": "rgba(252, 220, 92, 1)" }); break;
+            }
+            case 1000: {
+                this.spawnNotification("adolescent clicka", "click 1000 times", 5*1000, { "color": "rgba(252, 220, 92, 1)" }); break;
+            }
+            case 5000: {
+                this.spawnNotification("clicker college", "click 5000 times", 5*1000, { "color": "rgba(252, 220, 92, 1)" }); break;
+            }
+            case 10000: {
+                this.spawnNotification("clicker deathbed", "click 10000 times", 5*1000, { "color": "rgba(252, 220, 92, 1)" }); break;
+            }
+            case 50000: {
+                this.spawnNotification("clicker death", "click 50000 times", 5*1000, { "color": "rgba(252, 220, 92, 1)" }); break;
+            }
+            case 100000: {
+                this.spawnNotification("clicker jesus", "click 100000 times", 5*1000, { "color": "rgba(252, 220, 92, 1)" }); break;
+            }
         }
     }
     

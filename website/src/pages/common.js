@@ -74,15 +74,19 @@ export function getCookie(cname) {
     return "";
 }
 
-export function formatSeconds(ms, decimals = 1) {
+export function formatSeconds(ms, decimals = 1) {  
     const units = [
-        { label: "decade",  ms: 1000 * 60 * 60 * 24 * 365 * 10 },
-        { label: "year",    ms: 1000 * 60 * 60 * 24 * 365 },
-        { label: "week",    ms: 1000 * 60 * 60 * 24 * 7 },
-        { label: "day",     ms: 1000 * 60 * 60 * 24 },
-        { label: "hour",    ms: 1000 * 60 * 60 },
-        { label: "minute",  ms: 1000 * 60 },
-        { label: "second",  ms: 1000 }
+  { label: "centamillennium", ms: 1000 * 60 * 60 * 24 * 365 * 10 * 10 * 10 * 10 * 10 },
+   { label: "decamillennium", ms: 1000 * 60 * 60 * 24 * 365 * 10 * 10 * 10 * 10 },
+        { label: "millenium", ms: 1000 * 60 * 60 * 24 * 365 * 10 * 10 * 10 },
+        { label: "century",   ms: 1000 * 60 * 60 * 24 * 365 * 10 * 10 },
+        { label: "decade",    ms: 1000 * 60 * 60 * 24 * 365 * 10 },
+        { label: "year",      ms: 1000 * 60 * 60 * 24 * 365 },
+        { label: "week",      ms: 1000 * 60 * 60 * 24 * 7 },
+        { label: "day",       ms: 1000 * 60 * 60 * 24 },
+        { label: "hour",      ms: 1000 * 60 * 60 },
+        { label: "minute",    ms: 1000 * 60 },
+        { label: "second",    ms: 1000 }
     ];
 
     for (const unit of units) {
