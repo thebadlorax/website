@@ -1041,18 +1041,18 @@ class Save {
     addItemToInventory(item) { this.inventory.push(item) };
     removeItemFromInventory(item) { this.inventory.splice(this.inventory.indexOf(item)) };
 
-    serialize(eng) {
+    async serialize(eng) {
         this.refreshValuesFromEngine(eng);
-        return JSON.stringify({
+        return await gzipCompressString(JSON.stringify({
             "dirt": this.dirt,
             "settings": this.settings,
             "inventory": this.inventory.map(i => i.serialize()),
             "statistics": this.statistics,
             "time": this.time
-        });
+        }));
     }
-    static fromSerialized(data) {
-        const json = JSON.parse(data);
+    static async fromSerialized(data) {
+        const json = JSON.parse(await gzipDecompressString(data));
         const save = new Save();
         save.dirt = json.dirt;
         save.settings = json.settings;
@@ -2324,21 +2324,21 @@ class Engine {
             body: JSON.stringify({
                 "name": user.account.name,
                 "pass": user.account.pass,
-                "save": this.save.serialize(this)
+                "save": await this.save.serialize(this)
             })
         });
         await this.refreshSaveInformation()
     }
     async downloadLocalSave() {
-        const data = await gzipCompressString(this.save.serialize(this));
+        const data = await this.save.serialize(this);
         downloadBlob(data, `gardenslot${this.data.save_information.selected_slot}_(${new Date().toLocaleDateString()}).wonderfulandbeautifulsaveextension`, "text/plain");
         this.spawnNotification("downloaded save", `keep it safe!`, 5*1000, { "color": "rgba(255, 255, 255, 1)"});
     }
     async importLocalSave() {
         let f = await pickFile();
         if(f == null) return;
-        let data = await gzipDecompressString(await f.text());
-        this.save = Save.fromSerialized(data);
+        let data = await f.text();
+        this.save = await Save.fromSerialized(data);
         this.swapScenes("garden", () => {
             this.physics.simulation.physicsObjects = new Array();
             this.save.refreshValuesInEngine(this);
@@ -2354,15 +2354,15 @@ class Engine {
                     "name": user.account.name,
                     "pass": user.account.pass
                 })
-            }); ;
-            return await req.json();
+            });
+            return await req.text();
         } catch { return null; }
     }
     async refreshSave() {
         const save_data = await this.fetchSaveData();
         this.allSprites.filter(s => s.extraData.cloud).forEach(s => this.allSprites.splice(this.allSprites.indexOf(s))); 
         if(save_data != null) {
-            this.save = Save.fromSerialized(JSON.stringify(save_data));
+            this.save = await Save.fromSerialized(save_data);
             this.save.refreshValuesInEngine(this);
         }
         else {
