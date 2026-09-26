@@ -1008,7 +1008,7 @@ class Save {
         7: true,
         8: 1
     }
-    static DEFAULT_SETTINGS = () => { return [
+    static DEFAULT_SETTINGS = () => {return [
         60,
         true,
         false,
@@ -1018,7 +1018,7 @@ class Save {
         true,
         false,
         10
-    ] }
+    ]}
     constructor() {
         this.dirt = null;
         this.inventory = [];
@@ -1027,8 +1027,11 @@ class Save {
             playtime: 0,
             hands_opened: 0,
             clicks: 0,
-            dialogues_opened: 0
+            dialogues_opened: 0,
+            days_passed: 0,
         };
+
+        this.time = Engine.starting_time;
 
         this.settings = Save.DEFAULT_SETTINGS();
     }
@@ -1039,11 +1042,13 @@ class Save {
     removeItemFromInventory(item) { this.inventory.splice(this.inventory.indexOf(item)) };
 
     serialize(eng) {
+        this.refreshValuesFromEngine(eng);
         return JSON.stringify({
-            "dirt": eng.dirt.simulation.serializeBinary(),
+            "dirt": this.dirt,
             "settings": this.settings,
             "inventory": this.inventory.map(i => i.serialize()),
-            "statistics": this.statistics
+            "statistics": this.statistics,
+            "time": this.time
         });
     }
     static fromSerialized(data) {
@@ -1053,6 +1058,7 @@ class Save {
         save.settings = json.settings;
         save.inventory.forEach(i => save.inventory.push(Item.fromSerialized(i)))
         save.statistics = json.statistics;
+        save.time = json.time;
         return save;
     }
 
@@ -1060,13 +1066,16 @@ class Save {
         eng.dirt.simulation.deserializeBinary(this.dirt);
         if(this.dirt == null) eng.dirt.simulation.resetArrays();
         eng.dirt.timeout_timer = 1;
+        eng.data.time = this.time;
     }
     refreshValuesFromEngine(eng) {
-        this.dirt = eng.dirt.simulation.serialize();
+        this.dirt = eng.dirt.simulation.serializeBinary();
+        this.time = eng.data.time;
     }
 }
 
 class Engine {
+    static starting_time = 190*1000;
     constructor(ctx) {
         this.ctx = ctx;
         this.loader = new Loader();
@@ -1109,7 +1118,7 @@ class Engine {
             "gardenbg": null,
             "scale": 1.5,
             "dayLength": (1000*60)*10, // ms
-            "time": 0,
+            "time": Engine.starting_time,
             "showClickboxes": false,
             "tabOutTime": 0,
             "cloudTimer": Math.floor(Math.random()*10),
@@ -1119,6 +1128,7 @@ class Engine {
             "wantsToWipe": false,
             "blockClickboxes": false,
             "lastHandlerPressed": null,
+            "haltAutosaves": false,
             "frame": 0,
             "hands": {
                 "yVel": null,
@@ -1557,7 +1567,8 @@ class Engine {
             this.physics.simulation.addObjects(
                 constructStatisticObject("playtime", () => { return formatSeconds(this.save.statistics.playtime*1000) }, [0.03, 0.02]),
                 constructStatisticObject("hands raised", () => { return formatNumber(this.save.statistics.hands_opened) }, [0.02, 0.03]),
-                constructStatisticObject("clicks", () => { return formatNumber(this.save.statistics.clicks) }, [0.03, 0.02])
+                constructStatisticObject("clicks", () => { return formatNumber(this.save.statistics.clicks) }, [0.03, 0.02]),
+                constructStatisticObject("days passed", () => { return formatNumber(this.save.statistics.days_passed) }, [0.02, 0.03]),
             )
         }
 
@@ -1841,11 +1852,13 @@ class Engine {
             ctx.drawImage(cloud.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
             ctx.filter = "none";
         }
+        cloud.extraData.cloud = true;
         cloud.anim.changeAnim("idle");
     }
 
     setSceneTime(time) {
         this.data.scenetime = time;
+        if(time == 1) this.save.statistics.days_passed += 1;
         this.changeGardenBg(`garden-art-0${this.data.scenetime-1}`)
     }
 
@@ -2024,6 +2037,7 @@ class Engine {
         } catch {
             this.spawnNotification("couldn't save properly", "backing up your save", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.08, 0.06] })
             await this.downloadLocalSave();
+            this.data.haltAutosaves = true;
         }
     }
 
@@ -2239,7 +2253,7 @@ class Engine {
 
         if(this.data.dialogue.active) this.data.dialogue.timer += delta;
 
-        if(this.save.settings[Save.settings_index.DO_AUTOSAVES]) {
+        if(this.save.settings[Save.settings_index.DO_AUTOSAVES] && !this.data.haltAutosaves) {
             this.data.timeToNextAutosave -= delta;
             if(this.data.timeToNextAutosave < 0) {
                 this.autosave();
@@ -2318,7 +2332,7 @@ class Engine {
     async downloadLocalSave() {
         const data = await gzipCompressString(this.save.serialize(this));
         downloadBlob(data, `gardenslot${this.data.save_information.selected_slot}_(${new Date().toLocaleDateString()}).wonderfulandbeautifulsaveextension`, "text/plain");
-        //this.spawnNotification("downloaded save", `keep it safe!`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
+        this.spawnNotification("downloaded save", `keep it safe!`, 5*1000, { "color": "rgba(255, 255, 255, 1)"});
     }
     async importLocalSave() {
         let f = await pickFile();
@@ -2346,16 +2360,18 @@ class Engine {
     }
     async refreshSave() {
         const save_data = await this.fetchSaveData();
+        this.allSprites.filter(s => s.extraData.cloud).forEach(s => this.allSprites.splice(this.allSprites.indexOf(s))); 
         if(save_data != null) {
             this.save = Save.fromSerialized(JSON.stringify(save_data));
+            this.save.refreshValuesInEngine(this);
         }
         else {
             this.save = new Save();
             console.log("fresh save")
             this.spawnNotification("welcome to hell", "first join the game", 5*1000, { "color": "rgba(252, 220, 92, 1)" })
+            this.save.refreshValuesInEngine(this);
             await this.uploadSaveData()
         }
-        this.save.refreshValuesInEngine(this);
         await this.refreshSaveInformation()
     }
     async refreshSaveInformation() {
