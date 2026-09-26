@@ -1143,6 +1143,18 @@ class Engine {
                 "last_dialogue": null,
                 "timer": 0,
                 speed: 25 // ms
+            },
+            "promptObject": {
+                "active": false,
+                "art": null,
+                "startTime": null,
+                "pos": null,
+                "startPos": null,
+                "angle": null,
+                "startAngle": null,
+                "size": null,
+                "startSize": null,
+                "endSize": null
             }
         }
 
@@ -1233,14 +1245,17 @@ class Engine {
         });
 
         this.ctx.canvas.addEventListener("mousedown", e => {
-            if(e.button === 0) this.dirt.simulation.typeToPlace = 0
-            else this.dirt.simulation.typeToPlace = 1;
-            this.dirt.simulation.mousePressed = true;
+            if(!this.data.promptObject.active) {
+                if(e.button === 0) this.dirt.simulation.typeToPlace = 0
+                else this.dirt.simulation.typeToPlace = 1;
+                this.dirt.simulation.mousePressed = true;
+            }
 
             if(e.button === 0) this.onClick();
         });
         
         this.ctx.canvas.addEventListener("mouseup", () => {
+            if(this.data.promptObject.active) return;
             this.dirt.simulation.mousePressed = false;
             this.dirt.timeout_timer = 5;
         });
@@ -1503,8 +1518,9 @@ class Engine {
             this.data.lastHandlerPressed = "seeds"
             
             for(let a = 0; a < 10; a++) {
+                const a = Math.random() > 0.5 ? this.loader.getImage("garden-art-29") : this.loader.getImage("garden-art-28");
                 const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
-                o.art = Math.random() > 0.5 ? this.loader.getImage("garden-art-29") : this.loader.getImage("garden-art-28")
+                o.art = a
                 o.draw = (ctx) => {
                     ctx.save();
                     ctx.translate(o.pos.x, o.pos.y);
@@ -1512,6 +1528,23 @@ class Engine {
                     const invHalf = -o.size / 2;
                     ctx.drawImage(o.art, invHalf, invHalf, o.size, o.size)
                     ctx.restore();
+                }
+                o.onclick = () => {
+                    this.data.promptObject.active = true;
+                    this.data.promptObject.art = a;
+                    this.data.promptObject.startTime = performance.now();
+
+                    this.data.promptObject.pos = o.pos.copy();
+                    this.data.promptObject.startPos = o.pos.copy();
+
+                    this.data.promptObject.angle = o.angle;
+                    this.data.promptObject.startAngle = o.angle;
+
+                    this.data.promptObject.size = o.size;
+                    this.data.promptObject.startSize = o.size;
+                    this.data.promptObject.endSize = o.size*4;
+
+                    this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1);
                 }
                 this.physics.simulation.addObject(o)
             };
@@ -1943,10 +1976,20 @@ class Engine {
         const scaleY = this.data.bb.h / oldH;
 
         for (const obj of this.physics.simulation.physicsObjects) {
-            obj.pos.x *= scaleX;
-            obj.pos.y *= scaleY;
-
+            obj.pos.xyMulIp(scaleX, scaleY);
             obj.size *= (scaleX + scaleY)/2;
+        }
+
+        if (this.data.promptObject.active) {
+            const p = this.data.promptObject;
+            p.pos.xyMulIp(scaleX, scaleY);
+            p.startPos.xyMulIp(scaleX, scaleY);
+        
+            const scale = (scaleX + scaleY) / 2;
+        
+            p.size *= scale;
+            p.startSize *= scale;
+            p.endSize *= scale;
         }
 
         this.physics.simulation.bounds = Vector.four(
@@ -2065,6 +2108,15 @@ class Engine {
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
         ctx.drawImage(this.dirt.canvas, bb.x, bb.y + (this.spriteMap.hands.rect.pos.y*bb.h), bb.w, bb.h);
         ctx.drawImage(this.physics.canvas, bb.x, bb.y);
+
+        if(this.data.promptObject.active) {
+            ctx.save();
+            ctx.translate(bb.x + this.data.promptObject.pos.x, bb.y + this.data.promptObject.pos.y);
+            ctx.rotate(this.data.promptObject.angle);
+            const invHalf = -this.data.promptObject.size / 2;
+            ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size)
+            ctx.restore();
+        }
         ctx.filter = `none`;
 
         if(!this.save.settings[Save.settings_index.HIDE_NOTIFICATIONS]) {
@@ -2148,7 +2200,7 @@ class Engine {
 
         this.increaseClickCounter();
 
-        if(this.mouse.pos.x > bounds.x && this.mouse.pos.x < (bounds.w+bounds.x)) {
+        if(this.mouse.pos.x > bounds.x && this.mouse.pos.x < (bounds.w+bounds.x) && !this.data.promptObject.active) {
             const mousePos = this.mouse.pos.sub(bounds.x, bounds.y);
             const cursor_vertices = getSquareAsVertices(this.mouse.pos, 10, 0);
             let has_clicked = false;
@@ -2177,7 +2229,7 @@ class Engine {
                     c.onclick(this);
                 }
             });
-        } else {
+        } else if(!this.data.promptObject.active) {
             this.globalClickboxes.filter(c => c.active).forEach(c => {
                 const bb = c.getBounds(bounds);
                 if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
@@ -2217,6 +2269,8 @@ class Engine {
         if(this.data.time >= this.data.dayLength) this.data.time %= this.data.dayLength;
         const percent = (this.data.time / this.data.dayLength) * 100;
 
+        const bounds = this.getBoundingBox();
+
         this.updateEffects(delta);
     
         // modify bg for shadows
@@ -2243,10 +2297,19 @@ class Engine {
             }
         }
 
+        if (this.data.promptObject.active) {
+            const center = Vector.two(bounds.w / 2, bounds.h / 2);
+            const start = this.data.promptObject.startPos;
+            const t = Math.min((performance.now() - this.data.promptObject.startTime) / 500, 1);
+            const ease = Math.pow(t, 3);
+            
+            this.data.promptObject.pos.xySetIp(start.x + (center.x - start.x) * ease, start.y + (center.y - start.y) * ease)
+            this.data.promptObject.angle = this.data.promptObject.startAngle + (0 - this.data.promptObject.startAngle) * ease;
+            this.data.promptObject.size = this.data.promptObject.startSize + (this.data.promptObject.endSize - this.data.promptObject.startSize) * ease;
+        }
+
         this.save.statistics.playtime += delta;
         
-
-        const bounds = this.getBoundingBox();
         this.physics.simulation.physicsObjects.forEach(o => {
             if(bounds.h - o.pos.y < o.size*-1.1) this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1)
         })
@@ -2267,7 +2330,6 @@ class Engine {
                 this.data.notifications.splice(this.data.notifications.indexOf(n), 1);
             }
         })
-
 
         // cursor effects
         document.body.style.cursor = "default";
@@ -2294,7 +2356,7 @@ class Engine {
                 }); 
             }
             if(!d.stopgo) this.spriteMap.stopgo.anim.resetAndChangeAnim("idle")
-        } else {
+        } else if(!this.data.promptObject.active) {
             if(!this.data.blockClickboxes) {
                 this.globalClickboxes.filter(c => c.active).forEach(c => {
                     const bb = c.getBounds(bounds);
@@ -2355,8 +2417,11 @@ class Engine {
                     "pass": user.account.pass
                 })
             });
-            return await req.text();
-        } catch { return null; }
+
+            const t = await req.text();
+            if(!t) return null;
+            return t;
+        } catch { console.log("bruh"); return null; }
     }
     async refreshSave() {
         const save_data = await this.fetchSaveData();
