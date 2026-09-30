@@ -284,3 +284,7 @@ input[type="range"]::-moz-range-thumb {
     border-radius: 50%;
     border: none;
 }
+
+.nojs {
+    display: none;
+}

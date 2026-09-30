@@ -149,15 +149,9 @@ document.getElementById("force-unhide").addEventListener("click", () => {
         try {
             for (let i = sheet.cssRules.length - 1; i >= 0; i--) {
                 const rule = sheet.cssRules[i];
-    
-                if (rule instanceof CSSMediaRule &&
-                    rule.conditionText === "(width <= 800px)") {
-                    sheet.deleteRule(i);
-                }
+                if (rule instanceof CSSMediaRule && rule.conditionText === "(width <= 800px)") sheet.deleteRule(i);
             }
-        } catch (e) {
-            // Ignore stylesheets that don't allow JS access
-        }
+        } catch (e) {}
     }
 })
 
@@ -165,3 +159,5 @@ await update_stats(false);
 setInterval(() => {
     update_stats(true)
 }, 3000);
+
+//document.getElementById("js").style.display = "block";

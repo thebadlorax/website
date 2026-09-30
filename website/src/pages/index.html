@@ -23,99 +23,99 @@
     <p class="unhide" style="color: white;">there will (someday?) be support for this but for now please try a device with a wider screen</p>
     <p class="unhide" style="color: white;">:(</p>
     <p id="force-unhide" class="unhide basic-link" style="color: grey; font-size: 2vw; margin-top: 10vw;">grr I HATE YOU and i want to enter anyways! (will look bad)</p>
-    <div class="ticker" id="ticker" style="position: absolute; width: 99%; top: 0.05%;"><div class="ticker-track"></div></div>
-    <div class="main-container hide" id="main-container">
-        <div class="banner-container unselectable" draggable="false">
-            <img id="banner" src="../res/transparent_banner.png" class="banner-image" draggable="false">
-        </div>
-        <div class="row-container">
-            <div class="column-container">
-                <div class="medium-item">
-                    main pages
-                   <p style="display: none;" class="basic-text" id="files-link"><a class="basic-link">files</a></p>
-                   <p style="display: none;" class="basic-text" id="chat-link"><a class="basic-link">chat</a></p>
-                   <p style="display: none;" class="basic-text" id="gambling-link"><a class="basic-link">casino</a></p>
-                   <p style="display: none;" class="basic-text" id="music-link"><a class="basic-link">music</a></p>
-                   <p style="display: none;" class="basic-text" id="mmo-link"><a class="basic-link">mmo (heavy wip)</a></p>
-                   <p class="basic-text"><a class="basic-link" href="/archive">the archive</a></p>
-                   <p class="basic-text" id="admin-link" style="display: none;"><a class="basic-link" style="color: darkred">admin panel</a></p>
-                </div>
-                <div class="medium-item">
-                    mini projects
-                    <p class="basic-text"><a class="basic-link" href="/mini/particles">particle simulation</a></p>
-                    <p class="basic-text"><a class="basic-link" href="/mini/thelongwalk">the long walk</a></p>
-                    <p class="basic-text"><a class="basic-link" id="garden-link">gro a garden (wip)</a></p>
-                </div>
+    <div id="js">
+        <div class="ticker" id="ticker" style="position: absolute; width: 99%; top: 0.05%;"><div class="ticker-track"></div></div>
+        <div class="main-container hide" id="main-container">
+            <div class="banner-container unselectable" draggable="false">
+                <img id="banner" src="../res/transparent_banner.png" class="banner-image" draggable="false">
             </div>
-            <div class="column-container" style="width: 40%;">
-                <div class="large-item">
-                    about me
-                    <p class="basic-text unselectable" style="color: darkred; font-size: 10vw; margin-top: 17vw; transform: rotate(-90deg)">Work In Progress</p>
+            <div class="row-container">
+                <div class="column-container">
+                    <div class="medium-item">
+                        main pages
+                       <p style="display: none;" class="basic-text" id="files-link"><a class="basic-link">files</a></p>
+                       <p style="display: none;" class="basic-text" id="chat-link"><a class="basic-link">chat</a></p>
+                       <p style="display: none;" class="basic-text" id="gambling-link"><a class="basic-link">casino</a></p>
+                       <p style="display: none;" class="basic-text" id="music-link"><a class="basic-link">music</a></p>
+                       <p style="display: none;" class="basic-text" id="mmo-link"><a class="basic-link">mmo (heavy wip)</a></p>
+                       <p class="basic-text"><a class="basic-link" href="/archive">the archive</a></p>
+                       <p class="basic-text" id="admin-link" style="display: none;"><a class="basic-link" style="color: darkred">admin panel</a></p>
+                    </div>
+                    <div class="medium-item">
+                        mini projects
+                        <p class="basic-text"><a class="basic-link" href="/mini/particles">particle simulation</a></p>
+                        <p class="basic-text"><a class="basic-link" href="/mini/thelongwalk">the long walk</a></p>
+                        <p class="basic-text"><a class="basic-link" id="garden-link">gro a garden (wip)</a></p>
+                    </div>
                 </div>
-            </div>
-            <div class="column-container">
-                <div class="small-item">
-                    socials
-                    <p class="basic-text">discord: thebadlorax</p>
-                    <p class="basic-text">github: <a href="https://github.com/thebadlorax/website" class="basic-link" target="_blank" rel="noopener noreferrer">thebadlorax</a></p>
+                <div class="column-container" style="width: 40%;">
+                    <div class="large-item">
+                        about me
+                        <p class="basic-text unselectable" style="color: darkred; font-size: 10vw; margin-top: 17vw; transform: rotate(-90deg)">Work In Progress</p>
+                    </div>
                 </div>
-                <div class="small-item unselectable" id="recent-chats">
-                    feedback
-                    <textarea id="fb" maxlength="250" class="input" placeholder="write your feedback here" style="position: absolute; top: 40.5vw; right: 8.5vw; width: 11vw; height: 4vw; min-height: 4vw; resize: vertical; max-height: 8.5vw; z-index: 2; font-size: 1vw;"></textarea>
-                    <button  id="sfb" class="input" style="position: absolute; top: 50vw; right: 11.5vw; z-index: 1; width: 5vw; font-size: 1.5vw; cursor: pointer;">submit</button>
-                </div>
-                <div class="small-item unselectable cursor" id="stats">
-                    stats
-                    <div>
-                        <p class="basic-text" id="visitors">Unique Visitors: xxx</p>
-                        <p class="basic-text" id="star_count">Github Stars: xxx</p>
-                        <p class="basic-text" id="uptime"></p>
+                <div class="column-container">
+                    <div class="small-item">
+                        socials
+                        <p class="basic-text">discord: thebadlorax</p>
+                        <p class="basic-text">github: <a href="https://github.com/thebadlorax/website" class="basic-link" target="_blank" rel="noopener noreferrer">thebadlorax</a></p>
+                    </div>
+                    <div class="small-item unselectable" id="recent-chats">
+                        feedback
+                        <textarea id="fb" maxlength="250" class="input" placeholder="write your feedback here" style="position: absolute; top: 40.5vw; right: 8.5vw; width: 11vw; height: 4vw; min-height: 4vw; resize: vertical; max-height: 8.5vw; z-index: 2; font-size: 1vw;"></textarea>
+                        <button  id="sfb" class="input" style="position: absolute; top: 50vw; right: 11.5vw; z-index: 1; width: 5vw; font-size: 1.5vw; cursor: pointer;">submit</button>
+                    </div>
+                    <div class="small-item unselectable cursor" id="stats">
+                        stats
+                        <div>
+                            <p class="basic-text" id="visitors">Unique Visitors: xxx</p>
+                            <p class="basic-text" id="star_count">Github Stars: xxx</p>
+                            <p class="basic-text" id="uptime"></p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    <p class="basic-link unselectable" id="account-button" style="position: absolute; left: 78vw; top: 6vw; font-size: 2vw; width: 14vw;">Account Settings</p>
-    <div id="account-menu" style="display: none;">
-        <div id="loading-page">
-            <p class="basic-text unselectable" style="position: absolute; left: 40vw; top: 25vw; font-size: 6vw;">LOADING</p>
-        </div>
-        <div id="sign-in">
-            <p class="basic-text unselectable" style="position: absolute; left: 40vw; top: 15vw; font-size: 6vw;">Sign In</p>
-            <input class="input" id="name" placeholder="Username" maxlength="40" style="position: absolute; top: 25vw; left: 35vw; width: 30vw; height: 1.5vw;"></input>
-            <input class="input" id="pass" placeholder="Password" maxlength="30" style="position: absolute; top: 30vw; left: 35vw; width: 30vw; height: 1.5vw;"></input>
-            <p class="basic-link unselectable" id="sign-in-button" style="display: none; position: absolute; left: 35vw; top: 35vw; font-size: 2vw;">Sign In</p>
-            <p class="basic-link unselectable" id="create-account-button" style="display: none; position: absolute; left: 54vw; top: 35vw; font-size: 2vw;">Create Account</p>
-        </div>
-        <div id="account-management">
-            <p class="basic-link unselectable" id="ws1" style="position: absolute; left: 8vw; top: 5vw; font-size: 2vw;">Website Settings</p>
-            <div id="am-main">
-                <p class="basic-text unselectable" id="mng-txt" style="position: absolute; left: 30vw; top: 10vw; font-size: 6vw;">Manage Account</p>
-                <input class="input" id="new-name" maxlength="40" placeholder="" style="position: absolute; top: 25vw; left: 25vw; width: 30vw; height: 1.5vw;"></input>
-                <p class="basic-text unselectable" style="position: absolute; left: 22.5vw; top: 23vw; font-size: 2vw;">Username:</p>
-                <input class="input" id="new-pass" placeholder="" style="position: absolute; top: 30vw; left: 25vw; width: 30vw; height: 1.5vw;"></input>
-                <p class="basic-text unselectable" maxlength="30" style="position: absolute; left: 22.5vw; top: 28vw; font-size: 2vw;">Password:</p>
-                <p class="basic-link unselectable" id="sign-out-button" style="position: absolute; left: 35vw; top: 35vw; font-size: 3vw;">Sign Out</p>
-                <p class="basic-link unselectable" id="update-button" style="position: absolute; left: 55vw; top: 35vw; font-size: 3vw;">Update</p>
-                <p class="basic-link unselectable" id="delete-button" style="position: absolute; left: 45vw; top: 75vw; font-size: 3vw; color: darkred;">Delete Account</p>
-                <p class="basic-text unselectable" id="points-acc"style="position: absolute; left: 55vw; top: 20vw; font-size: 2.25vw;">Points: x</p>
-                <p class="basic-text unselectable" id="display-name-acc"style="position: absolute; left: 55vw; top: 24.5vw; font-size: 2.25vw;">xxx</p>
-                <p class="basic-text unselectable" id="timestamp-acc"style="position: absolute; left: 55vw; top: 30vw; font-size: 2.25vw;">Created: x</p>
-                <p class="basic-text unselectable" id="unq-visitors" style="position: absolute; left: 55vw; top: 27.5vw; font-size: 2.25vw;">x unique visitors when you joined</p>
-                <p class="basic-text unselectable" id="owned-folders-parent" style="display: none; position: absolute; left: 7vw; top: 24.5vw; font-size: 2.25vw; text-decoration: underline;">Owned folders:</p>
-                <p class="basic-text unselectable" id="owned-folders-acc" style="display: none; position: absolute; left: 7vw; top: 26.5vw; font-size: 2vw; width: 10vw;">x, x, x</p>
-                <p class="basic-text" id="id-acc"style="display: none; position: absolute; left: 20vw; top: 20vw; font-size: 2.5vw;">ID: x</p>
-                
+        <p class="basic-link unselectable" id="account-button" style="position: absolute; left: 78vw; top: 6vw; font-size: 2vw; width: 14vw;">Account Settings</p>
+        <div id="account-menu" style="display: none;">
+            <div id="loading-page">
+                <p class="basic-text unselectable" style="position: absolute; left: 40vw; top: 25vw; font-size: 6vw;">LOADING</p>
             </div>
-            <div id="am-settings">
-                <p class="basic-text unselectable" style="position: absolute; left: 30vw; top: 10vw; font-size: 6vw;" id="ws-text">Website Settings</p>
-
-                <p class="basic-text unselectable" id="ticker-speed-text" style="position: absolute; top: 29vw; left: 17.5vw;">News Speed: x</p>
-                <input type="range" min="20" max="250" class="input" id="ticker-speed" style="position: absolute; top: 30vw; left: 20vw;">
+            <div id="sign-in">
+                <p class="basic-text unselectable" style="position: absolute; left: 40vw; top: 15vw; font-size: 6vw;">Sign In</p>
+                <input class="input" id="name" placeholder="Username" maxlength="40" style="position: absolute; top: 25vw; left: 35vw; width: 30vw; height: 1.5vw;"></input>
+                <input class="input" id="pass" placeholder="Password" maxlength="30" style="position: absolute; top: 30vw; left: 35vw; width: 30vw; height: 1.5vw;"></input>
+                <p class="basic-link unselectable" id="sign-in-button" style="display: none; position: absolute; left: 35vw; top: 35vw; font-size: 2vw;">Sign In</p>
+                <p class="basic-link unselectable" id="create-account-button" style="display: none; position: absolute; left: 54vw; top: 35vw; font-size: 2vw;">Create Account</p>
+            </div>
+            <div id="account-management">
+                <p class="basic-link unselectable" id="ws1" style="position: absolute; left: 8vw; top: 5vw; font-size: 2vw;">Website Settings</p>
+                <div id="am-main">
+                    <p class="basic-text unselectable" id="mng-txt" style="position: absolute; left: 30vw; top: 10vw; font-size: 6vw;">Manage Account</p>
+                    <input class="input" id="new-name" maxlength="40" placeholder="" style="position: absolute; top: 25vw; left: 25vw; width: 30vw; height: 1.5vw;"></input>
+                    <p class="basic-text unselectable" style="position: absolute; left: 22.5vw; top: 23vw; font-size: 2vw;">Username:</p>
+                    <input class="input" id="new-pass" placeholder="" style="position: absolute; top: 30vw; left: 25vw; width: 30vw; height: 1.5vw;"></input>
+                    <p class="basic-text unselectable" maxlength="30" style="position: absolute; left: 22.5vw; top: 28vw; font-size: 2vw;">Password:</p>
+                    <p class="basic-link unselectable" id="sign-out-button" style="position: absolute; left: 35vw; top: 35vw; font-size: 3vw;">Sign Out</p>
+                    <p class="basic-link unselectable" id="update-button" style="position: absolute; left: 55vw; top: 35vw; font-size: 3vw;">Update</p>
+                    <p class="basic-link unselectable" id="delete-button" style="position: absolute; left: 45vw; top: 75vw; font-size: 3vw; color: darkred;">Delete Account</p>
+                    <p class="basic-text unselectable" id="points-acc"style="position: absolute; left: 55vw; top: 20vw; font-size: 2.25vw;">Points: x</p>
+                    <p class="basic-text unselectable" id="display-name-acc"style="position: absolute; left: 55vw; top: 24.5vw; font-size: 2.25vw;">xxx</p>
+                    <p class="basic-text unselectable" id="timestamp-acc"style="position: absolute; left: 55vw; top: 30vw; font-size: 2.25vw;">Created: x</p>
+                    <p class="basic-text unselectable" id="unq-visitors" style="position: absolute; left: 55vw; top: 27.5vw; font-size: 2.25vw;">x unique visitors when you joined</p>
+                    <p class="basic-text unselectable" id="owned-folders-parent" style="display: none; position: absolute; left: 7vw; top: 24.5vw; font-size: 2.25vw; text-decoration: underline;">Owned folders:</p>
+                    <p class="basic-text unselectable" id="owned-folders-acc" style="display: none; position: absolute; left: 7vw; top: 26.5vw; font-size: 2vw; width: 10vw;">x, x, x</p>
+                    <p class="basic-text" id="id-acc"style="display: none; position: absolute; left: 20vw; top: 20vw; font-size: 2.5vw;">ID: x</p>
+                    
+                </div>
+                <div id="am-settings">
+                    <p class="basic-text unselectable" style="position: absolute; left: 30vw; top: 10vw; font-size: 6vw;" id="ws-text">Website Settings</p>
+    
+                    <p class="basic-text unselectable" id="ticker-speed-text" style="position: absolute; top: 29vw; left: 17.5vw;">News Speed: x</p>
+                    <input type="range" min="20" max="250" class="input" id="ticker-speed" style="position: absolute; top: 30vw; left: 20vw;">
+                </div>
             </div>
         </div>
-    </div>
-    <div>
         <div>
             <div>
                 <div>
@@ -123,88 +123,91 @@
                         <div>
                             <div>
                                 <div>
-                                    <div><!----></div>
-                                    <div><!----></div>
-                                    <div><!----></div>
-                                    <div><!----></div>
-                                    <div><!----></div>
-                                    <div><!----></div>
                                     <div>
-                                        <div>
-                                            <!--get away-->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div></div>
-                                    <div><!----></div>
-                                    <div><!----></div>
-                                    <div><!----></div>
-                                    <div><!----></div>
-                                    <div><!----></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div>
-                            <div>
-                                <div><div></div>
-                                <div></div>
-                                <div></div>
-                                <div></div>
-                                <div></div>
-                                <div></div>
-                                    <div>
-                                        <!--stop poking around in here-->
-                                    </div>
-                                </div>
-                            </div>
-                            <div></div>
-                        </div>
-                        <div><!----></div><div><!----></div>
-                        <div><!----></div><div><!----></div>
-                        <div><!----></div><div><!----></div>
-                        <div><!----></div><div><!----></div>
-                        <div><!----></div><div><!----></div>
-                        <div><!----></div><div><!----></div>
-                            <div>
-                                <div>
-                                    <div><!----></div><div><!----></div>
-                                    <div><!----></div><div><!----></div>
-                                    <div><!----></div><div><!----></div>
-                                    <div><!----></div><div><!----></div>
-                                    <div><!----></div><div><!----></div>
-                                    <div><!----></div><div><!----></div>
-                                        <div><div></div></div>
+                                        <div><!----></div>
+                                        <div><!----></div>
+                                        <div><!----></div>
+                                        <div><!----></div>
+                                        <div><!----></div>
+                                        <div><!----></div>
                                         <div>
                                             <div>
-                                                <!--wsg-->
+                                                <!--get away-->
                                             </div>
-                                        </div>
-                                    </div><div></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                    <div><!----><div></div><!----></div>
-                                        <div>
-                                            <img src="../res/bgg.png" draggable="false" class="unselectable" id="di" style="position: absolute; z-index: 99; left: -8vw; top: 90vw; width: 10vw;">
                                         </div>
                                     </div>
                                 </div>
-                                <div><div></div></div>
+                                <div></div>
+                                        <div><!----></div>
+                                        <div><!----></div>
+                                        <div><!----></div>
+                                        <div><!----></div>
+                                        <div><!----></div>
                             </div>
                         </div>
-                    </div>
-                    <div>
                         <div>
                             <div>
-                                <!--yo-->
+                                <div>
+                                    <div><div></div>
+                                    <div></div>
+                                    <div></div>
+                                    <div></div>
+                                    <div></div>
+                                    <div></div>
+                                        <div>
+                                            <!--stop poking around in here-->
+                                        </div>
+                                    </div>
+                                </div>
+                                <div></div>
+                            </div>
+                            <div><!----></div><div><!----></div>
+                            <div><!----></div><div><!----></div>
+                            <div><!----></div><div><!----></div>
+                            <div><!----></div><div><!----></div>
+                            <div><!----></div><div><!----></div>
+                            <div><!----></div><div><!----></div>
+                                <div>
+                                    <div>
+                                        <div><!----></div><div><!----></div>
+                                        <div><!----></div><div><!----></div>
+                                        <div><!----></div><div><!----></div>
+                                        <div><!----></div><div><!----></div>
+                                        <div><!----></div><div><!----></div>
+                                        <div><!----></div><div><!----></div>
+                                            <div><div></div></div>
+                                            <div>
+                                                <div>
+                                                    <!--wsg-->
+                                                </div>
+                                            </div>
+                                        </div><div></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                        <div><!----><div></div><!----></div>
+                                            <div>
+                                                <img src="../res/bgg.png" draggable="false" class="unselectable" id="di" style="position: absolute; z-index: 99; left: -8vw; top: 90vw; width: 10vw;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div><div></div></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div>
+                                <div>
+                                    <!--yo-->
+                                </div>
+                                <a class="basic-link" style="font-size: 1.5vw; position: absolute; top: 89vw; left: 10vw;" href="/credits">credits & attributions</a>
                             </div>
                         </div>
                     </div>
@@ -212,6 +215,30 @@
             </div>
         </div>
     </div>
-    <a class="basic-link" style="font-size: 1.5vw; position: absolute; top: 89vw; left: 10vw;" href="/credits">credits & attributions</a>
+    <noscript>
+        <style> html body { background-image: none; overflow: hidden; } #js { display: none }; </style>
+        <div style="display: flex; flex-direction: row; align-items: center; justify-content: center; height: 100vh;">
+            <div style="display: flex; flex-direction: column; margin-right: 20vw; color: white; font-size: 5vw; align-items: center; justify-content: center;">
+                links
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 2vw;" href="https://github.com/thebadlorax/website">github</a>
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 1vw;"  href="/mini/particles">particle simulation</a>
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 0.8vw;" href="/mini/thelongwalk">the long walk</a>
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 0.8vw;" href="/mini/garden">gro a garden (wip)</a>
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 0.8vw;" href="/files">files</a>
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 0.8vw;" href="/chat">chat</a>
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 0.8vw;" href="/casino">casino</a>
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 0.8vw;" href="/music">music</a>
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 0.8vw;" href="/mmo">mmo (maybe broken)</a>
+                <a class="basic-link" style="font-size: 2vw; color: white; margin-top: 0.8vw;" href="/archive">archive</a>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+                <p class="basic-text" style="color: white; font-size: 1.3vw;">
+                    YOU HAVE JAVASCRIPT DISABLED! this website was made with <br>heavy javascript, and will not function without it.
+                    any interactivity <br>will be broken should you venture out of this page, and even some <br>plaintext stuff may not work.
+                    PLEASE turn it on for the full experience!
+                </p>
+            </div>
+        </div>
+    </noscript>
   </body>
 </html>

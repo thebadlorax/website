@@ -1154,7 +1154,12 @@ class Engine {
                 "startAngle": null,
                 "size": null,
                 "startSize": null,
-                "endSize": null
+                "endSize": null,
+
+                "showCutDiagram": false,
+                "cutDiagramHueShift": 0,
+                "cutDiagramHueShiftFlag": false,
+                "cutDiagramProgress": 0
             }
         }
 
@@ -1211,7 +1216,7 @@ class Engine {
         this.refreshBounds();
         this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU"]);
         this.keyboard.setFunctionOnKeyPress("Space", () => {
-            if(this.data.scene != "garden") return;
+            if(this.data.scene != "garden" || this.data.promptObject.active) return;
             this.toggleHands();
         })
 
@@ -1402,8 +1407,7 @@ class Engine {
 
                 await this.swapSave(next_save);
                 this.swapScenes("garden", async () => {
-                    this.physics.simulation.physicsObjects = new Array();
-                    this.data.notifications = new Array();
+                    this.resetLocal();
                     this.spawnNotification(notif_text[0], notif_text[1], 3*1000, { "color": "rgba(255, 255, 255, 1)"})
                     await this.refreshSave();
                     await this.refreshSaveInformation();
@@ -1506,6 +1510,7 @@ class Engine {
 
             this.physics.simulation.addObjects(wipe_save, optimize_for_performance, reset_to_default, download_local_save, import_local_save)
         };
+        this.data.promptObject.cutDiagram = this.loader.getImage("garden-art-41")
         const seeds_handler = () => {
             const w = 150;
 
@@ -1544,6 +1549,8 @@ class Engine {
                     this.data.promptObject.startSize = o.size;
                     this.data.promptObject.endSize = o.size*4;
 
+                    this.data.promptObject.showCutDiagram = true;
+
                     this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1);
                 }
                 this.physics.simulation.addObject(o)
@@ -1553,9 +1560,7 @@ class Engine {
             window.location.href = "/"
         }
         const saves_handler = () => {
-            this.swapScenes("saves", () => {
-                this.physics.simulation.physicsObjects = new Array();
-            });
+            this.swapScenes("saves");
             //this.toggleHands();
         }
         const unlocks_handler = () => {
@@ -1935,6 +1940,7 @@ class Engine {
                 this.data.hands.yVel = 100;
             }
 
+            this.physics.simulation.physicsObjects = new Array();
             if(onSwap != null) onSwap();
 
             this.data.blockClickboxes = false;
@@ -2115,6 +2121,10 @@ class Engine {
             ctx.rotate(this.data.promptObject.angle);
             const invHalf = -this.data.promptObject.size / 2;
             ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size)
+            if(this.data.promptObject.showCutDiagram) {
+                ctx.rotate(this.data.promptObject.cutDiagramHueShift*0.005);
+                ctx.drawImage(this.data.promptObject.cutDiagram, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size)
+            }
             ctx.restore();
         }
         ctx.filter = `none`;
@@ -2300,12 +2310,20 @@ class Engine {
         if (this.data.promptObject.active) {
             const center = Vector.two(bounds.w / 2, bounds.h / 2);
             const start = this.data.promptObject.startPos;
-            const t = Math.min((performance.now() - this.data.promptObject.startTime) / 500, 1);
-            const ease = Math.pow(t, 3);
+            const t = Math.min((performance.now() - this.data.promptObject.startTime) / 350, 1);
+            const ease = Math.pow(t, 5);
             
             this.data.promptObject.pos.xySetIp(start.x + (center.x - start.x) * ease, start.y + (center.y - start.y) * ease)
             this.data.promptObject.angle = this.data.promptObject.startAngle + (0 - this.data.promptObject.startAngle) * ease;
             this.data.promptObject.size = this.data.promptObject.startSize + (this.data.promptObject.endSize - this.data.promptObject.startSize) * ease;
+
+            if(this.data.promptObject.cutDiagramHueShift >= 1) {
+                this.data.promptObject.cutDiagramHueShiftFlag = false
+            }
+            if(this.data.promptObject.cutDiagramHueShift <= 0) {
+                this.data.promptObject.cutDiagramHueShiftFlag = true
+            }
+            this.data.promptObject.cutDiagramHueShift += this.data.promptObject.cutDiagramHueShiftFlag ? 0.02 : -0.02;
         }
 
         this.save.statistics.playtime += delta;
@@ -2379,6 +2397,12 @@ class Engine {
         }
     }
 
+    resetLocal() {
+        this.allSprites.filter(s => s.extraData.cloud).forEach(s => this.allSprites.splice(this.allSprites.indexOf(s)));
+        this.data.notifications = new Array();
+        this.physics.simulation.physicsObjects = new Array();
+
+    }
     async uploadSaveData() {
         const user = JSON.parse(window.localStorage.getItem("user"));
         await fetch(getApiLink("/mini/garden/saves/set"), {
@@ -2402,7 +2426,7 @@ class Engine {
         let data = await f.text();
         this.save = await Save.fromSerialized(data);
         this.swapScenes("garden", () => {
-            this.physics.simulation.physicsObjects = new Array();
+            this.resetLocal();
             this.save.refreshValuesInEngine(this);
             this.spawnNotification("imported save", `no save scumming!`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
         })
@@ -2425,14 +2449,14 @@ class Engine {
     }
     async refreshSave() {
         const save_data = await this.fetchSaveData();
-        this.allSprites.filter(s => s.extraData.cloud).forEach(s => this.allSprites.splice(this.allSprites.indexOf(s))); 
+        this.resetLocal();
         if(save_data != null) {
             this.save = await Save.fromSerialized(save_data);
             this.save.refreshValuesInEngine(this);
         }
         else {
             this.save = new Save();
-            console.log("fresh save")
+            console.log("fresh save");
             this.spawnNotification("welcome to hell", "first join the game", 5*1000, { "color": "rgba(252, 220, 92, 1)" })
             this.save.refreshValuesInEngine(this);
             await this.uploadSaveData()
