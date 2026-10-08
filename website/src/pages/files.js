@@ -20,7 +20,7 @@ const host_check = document.getElementById("host");
 const host_check_div = document.getElementById("host-div");
 host_check_div.style.display = "none";
 
-const whitelisted_clicks = [".png", ".jpg", ".txt", ".mp4", ".mkv", ".webm", ".gif", ".pdf", ".mp3", ".wav", ".html"];
+const whitelisted_clicks = [".png", ".jpg", ".txt", ".mp4", ".mkv", ".webm", ".gif", ".pdf", ".mp3", ".wav", ".html", ".css", ".js"];
 const custom_clicks = {
 }
 

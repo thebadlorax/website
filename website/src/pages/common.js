@@ -198,5 +198,3 @@ export const isOnlyDigits = (str) => { return /^\d+$/.test(str) }
 export const getRandomFromList = (l) => { return l[Math.floor(Math.random() * l.length)] };
 
 await updateId();
-
-console.log("get out of here")

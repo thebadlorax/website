@@ -167,7 +167,6 @@ class Renderer {
         const inst = this.engine.data.current_instance;
         if(inst != null) {
             if(inst.location != null) {
-                // draw map
                 const loc = inst.location;
                 let map_offset = Vector.two(0, 0);
                 if(loc.info.width < this.render_info.map.rows) map_offset.x = Math.floor((this.render_info.map.rows-loc.info.width)/2)
@@ -179,7 +178,7 @@ class Renderer {
                         let tile = this.character_cache.get(Object.keys(Tile_Colors)[t.fg_color])[t.type];
                         const entity = inst.getEntityOnTile(x, y);
                         if(entity != undefined) {
-                            tile = this.character_cache.get("GREY")[Object.values(Tileset).indexOf(Tileset[EntityTypes[entity.type].tile])]
+                            tile = this.character_cache.get("GREY")[Object.values(Tileset).indexOf(Tileset[entity.type.tile])]
                         }
                         ctx.fillStyle = Object.values(Tile_Colors)[t.bg_color];
                         const o = this.render_info.map.bg_override.get(`${x};${y}`)
@@ -216,6 +215,8 @@ class Renderer {
             ctx.fillStyle = "white";
             ctx.textAlign = "left";
             ctx.fillText(t < 0 ? `next ts: soon?` : `next ts: ${t}ms`, ctx.canvas.width-(Renderer.SIDEBAR_WIDTH*Renderer.TILE_SIZE)+10, 15);
+
+            ctx.fillText(`inst id: ${inst.id}`, ctx.canvas.width-(Renderer.SIDEBAR_WIDTH*Renderer.TILE_SIZE)+10, 40);
         }
     }
 }
@@ -234,23 +235,6 @@ class Engine {
         this._resize();
     }
     init() {
-        this.keyboard.listenForEvents([
-            "KeyQ", "KeyW", "KeyE", 
-            "KeyA",         "KeyD",
-            "KeyZ", "KeyX", "KeyC", 
-        ])
-        const moveAction = (dir) => {
-            this.sock.sendPacket(new ActionPacket(ActionType.MOVE, dir));
-        }
-        this.keyboard.setFunctionOnKeyPress("KeyQ", () => moveAction(5))
-        this.keyboard.setFunctionOnKeyPress("KeyW", () => moveAction(0))
-        this.keyboard.setFunctionOnKeyPress("KeyE", () => moveAction(4))
-        this.keyboard.setFunctionOnKeyPress("KeyA", () => moveAction(3))
-        this.keyboard.setFunctionOnKeyPress("KeyD", () => moveAction(1))
-        this.keyboard.setFunctionOnKeyPress("KeyZ", () => moveAction(7))
-        this.keyboard.setFunctionOnKeyPress("KeyX", () => moveAction(2))
-        this.keyboard.setFunctionOnKeyPress("KeyC", () => moveAction(6))
-
         this.sock = new SocketConnection("/mmo/live")
         const sock = this.sock;
 
@@ -497,7 +481,34 @@ class Instance {
         this.eng = engine;
         this.next_timestep = null;
 
+        /*this.data = {
+            "player_id": 
+        }*/
+
         this.location = null;
+
+        this.setupKeybinds();
+    }
+
+    setupKeybinds() {
+        const kb = this.eng.keyboard;
+        kb.listenForEvents([
+            "KeyQ", "KeyW", "KeyE", 
+            "KeyA",         "KeyD",
+            "KeyZ", "KeyX", "KeyC", 
+        ])
+        const moveAction = (dir) => {
+            this.sock.sendPacket(new ActionPacket(ActionType.MOVE, dir));
+            this.render_info.map.bg_override.get(`${x};${y}`)
+        }
+        kb.setFunctionOnKeyPress("KeyQ", () => moveAction(5))
+        kb.setFunctionOnKeyPress("KeyW", () => moveAction(0))
+        kb.setFunctionOnKeyPress("KeyE", () => moveAction(4))
+        kb.setFunctionOnKeyPress("KeyA", () => moveAction(3))
+        kb.setFunctionOnKeyPress("KeyD", () => moveAction(1))
+        kb.setFunctionOnKeyPress("KeyZ", () => moveAction(7))
+        kb.setFunctionOnKeyPress("KeyX", () => moveAction(2))
+        kb.setFunctionOnKeyPress("KeyC", () => moveAction(6))
     }
 
     transferSocketControl() {
@@ -552,7 +563,7 @@ class Instance {
                         entities.push({
                             "id": reader.readString(),
                             "pos": Vector.two(reader.readUint32(), reader.readUint32()),
-                            "type": reader.readUint32(),
+                            "type": EntityTypes[reader.readUint16()],
                             "locID": reader.readString(true)
                         })
                     }
@@ -587,7 +598,9 @@ class Instance {
         return this.location.data.entities.find(e => e.pos.x === x && e.pos.y === y);
     }
     getTileAt(x, y) {
-        console.log(this.location.data.tiles)
+        return this.location.data.tiles[
+            x + y * this.location.info.width
+        ];
     }
 }
 

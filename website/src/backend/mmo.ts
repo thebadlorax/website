@@ -382,7 +382,7 @@ class MapUpdatePacket extends AbstractPacket {
             writer.writeString(entity.id);
             writer.writeUint32(entity.pos.x);
             writer.writeUint32(entity.pos.y);
-            writer.writeUint32(entity.type);
+            writer.writeUint16(entity.type);
             writer.writeString(entity.locID ?? "", true);
         }
 
@@ -528,14 +528,12 @@ class MMOInstance {
 
     private queueAction(player: Player, action: Action) {
         const evaluateMovement = (offset: Vector2) => {
-            player.extra_data.queued_pos.x += offset.x;
-            player.extra_data.queued_pos.y += offset.y;
+            player.extra_data.queued_pos.addIp(offset);
             const d = this.loc.getAllData(player.entity.locID!);
             const queued_tile = this.loc.getTile(d[0], d[1], player.extra_data.queued_pos.x, player.extra_data.queued_pos.y);
             const queued_entity = this.loc.getEntityOnTile(d[1], player.extra_data.queued_pos.x, player.extra_data.queued_pos.y);
             if(queued_tile!.type == 0) {
-                player.extra_data.queued_pos.x -= offset.x;
-                player.extra_data.queued_pos.y -= offset.y;
+                player.extra_data.queued_pos.subIp(offset);
                 return;
             }
             if(queued_entity != undefined) {
@@ -546,7 +544,6 @@ class MMOInstance {
                 }
             }
             player.queuedActions.push(action);
-            const p = player.extra_data.queued_pos;
         }
         switch(action.type) {
             case ActionType.MOVE: {
