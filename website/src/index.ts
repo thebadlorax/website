@@ -236,6 +236,16 @@ const HOURS_TO_MS = (h: number) => { return (h * 60 * 60 * 1000) };
 await db.backup_database();
 setInterval(async () => { await db.backup_database(); }, HOURS_TO_MS(3));
 
+let stats: any = null;
+const update_stats = async () => {
+    let visitor_count_2 = await db.fetch("visitors") || 0;
+    stats = JSON.stringify({
+      "key": key, 
+      "visitor-count": visitor_count_2, 
+      "uptime": Math.floor((new Date().getTime() - starting_time.getTime())/ 1000),
+      "disabled_features": disabled_features
+    });
+}
 log.log("server initalized >:3", "SERVER");
 const server = Bun.serve({
   port: 8081,
@@ -593,15 +603,10 @@ const server = Bun.serve({
             });
           }
           
-          case "/stats":
+          case "/stats": {
             if(req.method != "GET") return corsResponse(null, { status: 405 });
-            let visitor_count_2 = await db.fetch("visitors") || 0;
-            return corsResponse(JSON.stringify({
-              "key": key, 
-              "visitor-count": visitor_count_2, 
-              "uptime": Math.floor((new Date().getTime() - starting_time.getTime())/ 1000),
-              "disabled_features": disabled_features
-            }), { status: 200});
+            return corsResponse(stats, { status: 200});
+          }
           
           case "/user/init":
             let id = generateRandomString(10);
@@ -1381,3 +1386,7 @@ websocket: {
 });
 
 log.log("server started :33", "SERVER")
+await update_stats();
+setInterval(async () => {
+  await update_stats();
+}, 2500)

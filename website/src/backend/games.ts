@@ -455,24 +455,26 @@ class BlackjackInstance extends GameInstance {
         }
     }
 
+    reset() {
+        this.clients.forEach(c => {
+            if(c.user.statistics.points <= 0) {
+                this.casino.removeFromCurrentInstance(c);
+            }
+        })
+        this.turn_index = -1;
+        this.turn_type = 0;
+        this.client_data.clear();
+        this.dealer_hand = new Array();
+        this.broadcastPacket(new Packet("clearUI", {}))
+        this.startGame();
+    }
+
     onTurnChange() {
         switch(this.turn_type) {
             case 2: {
-                while(Deck.evaluateHand(this.dealer_hand) < this.settings.dealer_stop) {
-                    this.dealer_hand.push(this.deck.draw()!);
-                } 
+                while(Deck.evaluateHand(this.dealer_hand) < this.settings.dealer_stop) this.dealer_hand.push(this.deck.draw()!);
                 setTimeout(() => {
-                    this.clients.forEach(c => {
-                        if(c.user.statistics.points <= 0) {
-                            this.casino.removeFromCurrentInstance(c);
-                        }
-                    })
-                    this.turn_index = -1;
-                    this.turn_type = 0;
-                    this.client_data.clear();
-                    this.dealer_hand = new Array();
-                    this.broadcastPacket(new Packet("clearUI", {}))
-                    this.startGame();
+                    this.reset()
                 }, 4000)
                 break;
             }
