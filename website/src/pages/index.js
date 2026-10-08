@@ -356,7 +356,6 @@ sign_out_button.addEventListener("click", () => {
     openMenu();
 })
 
-
 function sanitize(str) {
     let n = str.replace(/[^\x20-\x7E]/g, '')
     return n;
@@ -526,32 +525,12 @@ document.getElementById("music-link").addEventListener("click", () => { redirect
 document.getElementById("mmo-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/mmo`) })
 document.getElementById("garden-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/mini/garden`) })
 
-
-
-const ad_positions = {
-    "btm": [83, 22, 60, 5]
-}
-
 async function getRepoStars(owner, repo) {
     const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
     const data = await response.json();
     return data.stargazers_count;
 }
 
-const createAd = (pos) => {
-    let ad = document.createElement("div");
-    ad.style.position = "absolute"; ad.style.backgroundSize = "contain"; ad.style.backgroundRepeat = "no-repeat"; //ad.classList.add("hide");
-    ad.style.top    = `${pos[0]}vw`; 
-    ad.style.left   = `${pos[1]}vw`; 
-    ad.style.width  = `${pos[2]}vw`; 
-    ad.style.height = `${pos[3]}vw`;
-    ad.style.backgroundImage = "url(../res/ads/example_ad.png)";
-    document.body.appendChild(ad);
-}
-
-//createAd(ad_positions["btm"]);
-
-// TODO: remove id and api.user/init (refactor unique visitor protocol)
 let show_full_stats = false;
 const stats_div = document.getElementById("stats");
 stats_div.addEventListener("click", () => {
@@ -561,7 +540,6 @@ stats_div.addEventListener("click", () => {
 
 let initial_data = await fetch(getApiLink("/stats"), { method: "GET" });
 initial_data = await initial_data.json();
-
 const key = initial_data["key"]
 
 if(getCookie("id") == "" || !getCookie("id").includes(key)) {

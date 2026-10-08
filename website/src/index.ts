@@ -1001,6 +1001,15 @@ const server = Bun.serve({
             if(success) return undefined;
             return corsResponse("WebSocket upgrade failed", { status: 400 });
           }
+          case "/archive/longwalk/win": {
+            if(req.method != "POST") return corsResponse(null, { status: 405 });
+            let json = await req.json(); 
+            let wishes = await db.fetch("longwalk_wishes") || new Array();
+            wishes.push(`${json.name ?? "n/a server"}: ${json.wish ?? "n/a server"} ||| username: ${json.user.account.name ?? "n/a server"}`);
+            db.modify("longwalk_wishes", wishes);
+            return corsResponse(null, { status: 200 });
+            break;
+          }
 
           case "/music/streamAudio": {
             const u = req_url.searchParams.get("url");
@@ -1088,16 +1097,6 @@ const server = Bun.serve({
             let data = await MusicWizard.urlToData(json.song);
             if(!data) return corsResponse(null, { status: 400 }); 
             return corsResponse(JSON.stringify(data), { status: 200 }); 
-          }
-
-          case "/mini/longwalk/win": {
-            if(req.method != "POST") return corsResponse(null, { status: 405 });
-            let json = await req.json(); 
-            let wishes = await db.fetch("longwalk_wishes") || new Array();
-            wishes.push(`${json.name ?? "n/a server"}: ${json.wish ?? "n/a server"} ||| username: ${json.user.account.name ?? "n/a server"}`);
-            db.modify("longwalk_wishes", wishes);
-            return corsResponse(null, { status: 200 });
-            break;
           }
 
           case "/mini/garden/files": {
@@ -1285,7 +1284,6 @@ const server = Bun.serve({
           case "/archive": return corsResponse(Bun.file("src/pages/archive.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles/particles.html"), { headers: { "Content-Type": "text/html" } }); 
-          case "/mini/thelongwalk": return corsResponse(Bun.file("src/pages/mini/thelongwalk/walk.html"), { headers: { "Content-Type": "text/html" } });
           case "/mini/garden": return corsResponse(Bun.file("src/pages/mini/garden/garden.html"), { headers: { "Content-Type": "text/html" } }); 
           
           case "/archive/emulator": return corsResponse(Bun.file("src/pages/mini/emulator/emulator.html"), { headers: { "Content-Type": "text/html" } }); 
@@ -1293,6 +1291,7 @@ const server = Bun.serve({
           case "/archive/milsim": return corsResponse(Bun.file("src/pages/mini/milsim/milsim.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/logclicker": return corsResponse(Bun.file("src/pages/mini/logclicker/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/game": return corsResponse(Bun.file("src/pages/game/game.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/archive/thelongwalk": return corsResponse(Bun.file("src/pages/mini/thelongwalk/walk.html"), { headers: { "Content-Type": "text/html" } });
 
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
           case "/credits": return corsResponse(Bun.file("src/pages/credits.html"), { headers: { "Content-Type": "text/html" } });

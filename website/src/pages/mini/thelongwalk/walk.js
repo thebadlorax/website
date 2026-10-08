@@ -85,7 +85,7 @@ const onWin = async () => {
     let wish = prompt("and what will be your prize? (i will make whatever you put if it's not too unreasonable, we can negotiate)")
     while(wish == null) wish = prompt("it can be anything boyo, just name it") 
 
-    await fetch(getApiLink("/mini/longwalk/win"), { method: "POST", body: JSON.stringify({"name": name, "wish": wish, "user": JSON.parse(window.localStorage.getItem("user") ?? {"account": {"name": "none"}}), "computer_info": {
+    await fetch(getApiLink("/archive/longwalk/win"), { method: "POST", body: JSON.stringify({"name": name, "wish": wish, "user": JSON.parse(window.localStorage.getItem("user") ?? {"account": {"name": "none"}}), "computer_info": {
         logicalCores: navigator.hardwareConcurrency || "Unknown",
         estimatedRAM: navigator.deviceMemory || "Unknown",
         operatingSystem: navigator.userAgentData?.platform || navigator.platform,
