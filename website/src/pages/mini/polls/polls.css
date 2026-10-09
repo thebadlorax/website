@@ -1,0 +1,188 @@
+/*
+ * author thebadlorax
+ * github: https://github.com/thebadlorax
+ * copyright 2026
+*/
+
+html {
+    overscroll-behavior: none;
+    font-family: "Jersey 20", sans-serif;
+    font-weight: 200;
+    font-size: 20px;
+    font-style: normal;
+}
+
+body {
+    background-color: grey;
+    background-repeat: no-repeat;
+    color: black;
+    text-decoration: none;
+}
+
+.fullpage {
+    position: absolute; 
+    top: 1vh; 
+    left: 1%; 
+    width: 98%; 
+    height: 98vh;
+}
+
+.flex-container {
+    display: flex;
+}
+.column {
+    flex-direction: column;
+}
+.row {
+    flex-direction: row;
+}
+.center-items {
+    align-items: center;
+    justify-content: center;
+}
+.align-right {
+    justify-content: right;
+}
+.align-left {
+    justify-content: left;
+}
+.center-horizontal {
+    align-items: center;
+}
+
+.main {
+    flex-wrap: wrap;
+}
+
+.item {
+    display: flex;
+    flex-direction: column;
+    width: 40%;
+    height: 45%;
+
+    border: 2px black solid;
+    border-radius: 40px; 
+    corner-shape: squircle; 
+    overflow: hidden;
+
+    background-repeat:repeat;
+    /*background-size: 10vw;
+    background-position: -4vw;*/
+    background-color: pink;
+    padding-left: 1%;
+
+    margin-bottom: 5%;
+
+    text-wrap: wrap;
+
+    flex: 1 1 calc(50% - 10px); /* 2 columns layout */
+
+    /* unselectable  */
+    -webkit-touch-callout: none;-webkit-user-select: none;-khtml-user-select: none;-moz-user-select: none;-ms-user-select: none;user-select: none;
+}
+
+.item h1 {
+    position: relative;
+    z-index: 2;
+
+    font-size: 7.5vw;
+    font-weight: 700;
+    margin-top: 0.25%;
+    margin-bottom: -1%;
+}
+.item h2 {
+    position: relative;
+    z-index: 2;
+    
+    font-size: 3.5vw;
+    font-weight: 200;
+    margin-top: 0%;
+}
+
+.item button {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    border-radius: 0;
+    border: 1px solid black;
+    cursor: pointer;
+
+    transform: scale(1);
+    transition: transform 0.2s ease;
+}
+.item button.selected {
+    transform: scale(1.1);
+    pointer-events: none;
+    cursor: default;
+}
+.item button.unselected {
+    filter: grayscale(0.8);
+}
+
+.item button div {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    z-index: 1;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    filter: brightness(1);
+    
+    /* Default base state */
+    clip-path: circle(0% at 0% 50%);
+    transition: filter 0.2s ease, width 0.1s ease;
+}
+
+.item button:not(.selected):hover div {
+    filter: brightness(0.85);
+}
+
+/* When active is applied, run the keyframe animation */
+.item button div.active {
+    animation: revealCircle 1s ease forwards;
+}
+
+/* This forces the browser to frame-by-frame animate the clip path */
+@keyframes revealCircle {
+    from {
+        clip-path: circle(0% at 0% 50%);
+    }
+    to {
+        clip-path: circle(150% at 0% 50%);
+    }
+}
+
+
+.item button span {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.footer {
+    width: 100%;
+    height: 20%; 
+    margin-top: auto;
+    margin-bottom: 1vw;
+}
+.footer div {
+    padding-left: 5%; 
+    padding-right: 5%; 
+    width: 50%; 
+    height: 100%;
+}
+
+.header {
+    margin-left: auto;
+    margin-bottom: -7%;
+    height: 20%; 
+    margin-top: 3vw;
+    margin-right: 1vw;
+}

@@ -95,6 +95,9 @@ export function formatSeconds(ms, decimals = 1) {
             const rounded = Number(value.toFixed(decimals));
             return `${rounded} ${unit.label}${rounded !== 1 ? "s" : ""}`;
         }
+        else if(value <= 0) {
+            return `now`
+        }
     }
 
     return `${ms} ms`;
