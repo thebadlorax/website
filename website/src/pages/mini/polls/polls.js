@@ -7,7 +7,7 @@
 import { formatSeconds } from "../../common.js";
 import { getRandomName, generateRandomString } from "../mini-common.js";
 
-const container = document.getElementById("container")
+const container = document.getElementById("container");
 
 class PollManager {
     constructor() {
