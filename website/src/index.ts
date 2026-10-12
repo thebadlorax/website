@@ -1299,6 +1299,8 @@ const server = Bun.serve({
 
           case "/stage1": return corsResponse(Bun.file("src/pages/puzzle/stage1.html"), { headers: { "Content-Type": "text/html" } });
           case "/stage2": return corsResponse(Bun.file("src/pages/puzzle/stage2.html"), { headers: { "Content-Type": "text/html" } });
+
+          case "/ai": return corsResponse(Bun.file("src/res/ai.txt"), { headers: { "Content-Type": "text/plain" } });
       
           default:
             return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });

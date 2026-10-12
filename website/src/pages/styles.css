@@ -169,6 +169,11 @@ body {
     padding-left: 2.5vw;
 }
 
+.basic-text a:not(.basic-link), .basic-text i {
+    font-style: italic;
+    font-size: 1.45vw;
+}
+
 .basic-link {
     color: grey;
     text-decoration: underline;
