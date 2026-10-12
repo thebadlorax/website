@@ -9,6 +9,12 @@ import { getRandomName, generateRandomString } from "../mini-common.js";
 
 const container = document.getElementById("container");
 
+class Server {
+    constructor() {
+
+    }
+}
+
 class PollManager {
     constructor() {
         this.polls = new Array();
@@ -36,12 +42,13 @@ class Poll {
         this.buttonColors = ["green", "red"]
 
         this.timeText = null;
-        this.progress = [null, null]
+        this.progress = [null, null];
     }
 
     createElement() {
         const ele = document.createElement("div");
         ele.classList.add("item");
+        ele.draggable = false;
         const time_header = document.createElement("div");
         time_header.classList.add("flex-container", "row", "header");
         const time = document.createElement("h3");
