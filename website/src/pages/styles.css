@@ -50,11 +50,11 @@ body {
 }
   
 .item {
-    padding-right: 12px; /* space after text */
+    padding-right: 12px;
 }
   
 .dot {
-    padding-right: 12px; /* space after dot */
+    padding-right: 12px;
     opacity: 1;
 }
   
@@ -101,21 +101,19 @@ body {
     height: 55vw;
     flex-direction: column;
     display: flex;
-    flex-wrap: nowrap; /* Allows items to wrap onto multiple lines */
+    flex-wrap: nowrap;
 }
 
 .small-item {
     flex: 1 1;
     margin-right: .5vw;
     background-image: url("../res/small_item_bg_eaten.png");
-    /*background-size: 275px 260px;*/
     background-size: 100% 100%;
     background-position: center;
     background-repeat: no-repeat;
     margin-left: 1.7vw;
     margin-top: .5vw;
     margin-bottom: .25vw;
-    /*border: 2 solid #212121;*/
     padding-top: 2vw;
     text-align: center;
     font-size: 2vw;
@@ -198,13 +196,12 @@ body {
 
 .back-button {
     margin-top: auto;
-    background-image: url("../res/back_button_transparent.png"); /* Set the image source */
-    background-repeat: no-repeat; /* Prevent the image from repeating */
-    background-size: cover; /* Optional: Resizes the image to cover the entire button area */
-    width: 100px; /* Set the button width */
-    height: 100px; /* Set the button height */
-    border: none; /* Remove default button border */
-    /* Hide the text visually while keeping it accessible for screen readers */
+    background-image: url("../res/back_button_transparent.png");
+    background-repeat: no-repeat;
+    background-size: cover;
+    width: 100px;
+    height: 100px;
+    border: none;
     color: transparent;
     font-size: 0; 
     border-radius: 8px;
