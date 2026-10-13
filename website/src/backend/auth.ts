@@ -256,7 +256,7 @@ export class AuthorizationWizard {
         return true;
     }
 
-    async updateAccount(name: string, pass: string, updated: User) {
+    async updateAccount(name: string, pass: string, updated: User) { // todo: updating can corrupt accounts if you take their name
         if(!await this._confirmAccessAndExistance(name, pass)) return undefined;
         let json = await this._getAccounts();
         if(updated.account.name !== name) {

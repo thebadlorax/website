@@ -362,6 +362,8 @@ function sanitize(str) {
 }
 
 export async function handle_updating() {
+    alert("fixing bug with this rn, please wait :(");
+    return;
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
     let name = saved_data["account"]["name"];
     let pass = saved_data["account"]["pass"];
