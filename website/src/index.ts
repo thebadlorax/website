@@ -63,6 +63,7 @@ import { TimeWizard } from "./backend/time";
 import { GameWizard } from "./backend/game";
 import { MusicWizard } from "./backend/music";
 import { MMOWizard } from "./backend/mmo";
+import { PollWizard, type Vote } from "./backend/polls";
 
 // PUZZLE STUFF
 type Rule =
@@ -162,6 +163,8 @@ await game.init();
 const casino = new CasinoWizard(db);
 const music = new MusicWizard(db);
 const mmo = new MMOWizard(db);
+const poll = new PollWizard(db);
+await poll.init();
 
 let news: any = undefined;
 const reset_news = async () => {
@@ -296,7 +299,7 @@ const server = Bun.serve({
             filePath = cd.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
             console.log(filePath);
-            filePath = filePath.replaceAll("../", "")
+            filePath = filePath.replaceAll(".", "").replaceAll("/", "")
           
             const file = Bun.file(filePath);
             if (!(await file.exists())) return corsResponse("no file", { status: 404 });
@@ -315,6 +318,8 @@ const server = Bun.serve({
             let req_json_9 = await req.json();
             let folder_2 = req_json_9["folder"];
             if(!folder_2) folder_2 = "dont_put_anything_here"
+            folder_2 = folder_2.replaceAll(".", "").replaceAll("/", "")
+            if(folder_2 == "") return corsResponse(JSON.stringify([]), { headers: { "Content-Type": "application/json" } });
             let name_2 = req_json_9["name"];
             let pass_2 = req_json_9["pass"];
 
@@ -370,7 +375,7 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
-            filePath = filePath.replaceAll("../", "")
+            filePath = filePath.replaceAll(".", "").replaceAll("/", "")
             if(filePath.includes("tutorial.txt")) return corsResponse(null, { status: 403 }); 
             await deleteFile(filePath);
             log.log(`User deleted file: ${filePath}`, "API");
@@ -383,7 +388,7 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
-            filePath = filePath.replaceAll("../", "")
+            filePath = filePath.replaceAll(".", "").replaceAll("/", "")
             if(filePath.includes("tutorial.txt")) return corsResponse(null, { status: 403 }); 
             const newNamecd = cd.split(";")[2];
             let newName = newNamecd?.split("=")[1];
@@ -1185,6 +1190,67 @@ const server = Bun.serve({
             pd.selected_slot = json.save_slot;
 
             return corsResponse(null, { status: 200 });
+          }
+
+          case "/poll/fromID": {
+            const id = req_url.searchParams.get("id");
+            if(!id) return corsResponse(null, { status: 400 });
+            const found_poll = poll.polls.find(p => p.id == id);
+
+            if(!found_poll) return corsResponse(null, { status: 404 });
+            return corsResponse(JSON.stringify(await poll.serializePoll(found_poll)));
+          }
+          case "/poll/fromAuthor": {
+            const id = req_url.searchParams.get("id");
+            if(!id) return corsResponse(null, { status: 400 });
+            const found_polls = poll.getPollsByID(id);
+
+            if(found_polls.length == 0) return corsResponse(null, { status: 404 });
+            const formatted = await Promise.all(found_polls.map(p => poll.serializePoll(p)));
+            return corsResponse(JSON.stringify(formatted));
+          }
+          case "/poll/create": {
+            let json = await req.json();
+            let user = await auth.fetchAccount(json.name, json.pass);
+            if(!user) return corsResponse(null, { status: 401 });
+
+            const p = PollWizard.pollFromClient(
+              json.title,
+              user.account.id,
+              json.length
+            );
+
+            poll.createPoll(p);
+
+            return corsResponse(JSON.stringify(await poll.serializePoll(p)), { status: 201 }); 
+          }
+          case "/poll/vote": {
+            let json = await req.json();
+            let user = await auth.fetchAccount(json.name, json.pass);
+            if(!user) return corsResponse(null, { status: 401 });
+
+            const v = poll.voteOnPoll(json.id, {
+              voter: user.account.id,
+              weight: 1
+            } as Vote, json.option);
+
+            if(!v) return corsResponse(null, { status: 400 })
+            const p = poll.polls.find(p => p.id == json.id);
+            if(!p) return corsResponse(null, { status: 404 })
+
+            return corsResponse(JSON.stringify(await poll.serializePoll(p)), { status: 200 }); 
+          }
+          case "/poll/checkVoteStatus": {
+            let json = await req.json();
+            let user = await auth.fetchAccount(json.name, json.pass);
+            if(!user) return corsResponse(null, { status: 401 });
+
+            const p = poll.polls.find(p => p.id == json.id);
+            if(!p) return corsResponse(null, { status: 404 })
+
+              return corsResponse(JSON.stringify({
+                "vote": await poll.getVoterVoteOnPoll(p, user.account.id)
+              }), { status: 200 }); 
           }
             
           case "/puzzle/validateStage1Password": {

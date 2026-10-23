@@ -170,6 +170,26 @@ export class AuthorizationWizard {
         return user;
     }
 
+    async _adminIdToUser(id: string): Promise<User | null> {
+        const acc = await this._getAccounts();
+        let n = null;
+        Object.entries(acc).forEach(k => {
+            // @ts-expect-error
+            if(k[1].account.id == id) n = k[1];
+        })
+        return n;
+    }
+
+    async idToName(id: string) {
+        const acc = await this._getAccounts();
+        let n = null;
+        Object.entries(acc).forEach(k => {
+            // @ts-expect-error
+            if(k[1].account.id == id) n = k[1].account.name;
+        })
+        return n;
+    }
+
     async _confirmAccessAndExistance(name: string, pass: string) {
         if(!await this.exists(name)) return false;
         if(!this.checkPass(name, pass)) return false;

@@ -42,6 +42,6 @@ if(!json.isValid) {
     const countdown = document.createElement("p");
     d.appendChild(countdown);
     setInterval(() => {
-        countdown.textContent = formatTimeLeft("2026-10-31T00:00:00.000Z");
+        countdown.textContent = formatTimeLeft("2026-12-31T00:00:00.000Z");
     }, 100) 
 }

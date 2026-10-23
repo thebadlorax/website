@@ -4,14 +4,31 @@
  * copyright 2026
 */
 
-import { formatSeconds } from "../../common.js";
-import { getRandomName, generateRandomString } from "../mini-common.js";
+import { formatSeconds, getApiLink } from "../../common.js";
 
 const container = document.getElementById("container");
 
 class Server {
     constructor() {
+        this.link = getApiLink("/poll");
+    }
 
+    async getPollsByAuthor(authorID) {
+        const req = await fetch(`${this.link}/fromAuthor?id=${authorID}`);
+        if(req.status == 404) return null;
+
+        const json = await req.json();
+
+        return json;
+    }
+
+    async getPollsByID(ID) {
+        const req = await fetch(`${this.link}/fromIDr?id=${ID}`);
+        if(req.status == 404) return null;
+
+        const json = await req.json();
+
+        return json;
     }
 }
 
@@ -24,20 +41,22 @@ class PollManager {
         this.polls.forEach(p => p.updateElement());
     }
 
-    create(title="untitled poll", author="admin", percents=[80, 20], labels=["yes", "no"], end=(Date.now()+(60000))) {
-        const p = new Poll(title, author, percents, labels, end);
+    async create(po) {
+        const p = new Poll(po.title, po.author, po.votes, ["yes", "no"], po.timeLeft, po.id);
+        await p.init()
         this.polls.push(p);
-        p.createElement();
+        await p.createElement();
         return p;
     }
 }
 class Poll {
-    constructor(title, author, values, labels, end) {
+    constructor(title, author, values, labels, timeLeft, id) {
         this.labels = labels
         this.values = values;
         this.title = title;
         this.author = author;
-        this.end = end;
+        this.end = Date.now()+timeLeft;
+        this.id = id;
 
         this.buttonColors = ["green", "red"]
 
@@ -45,7 +64,12 @@ class Poll {
         this.progress = [null, null];
     }
 
-    createElement() {
+    async init() {
+        this.vote_status = await this.getVoteStatus();
+        console.log(this.vote_status)
+    }
+
+    async createElement() {
         const ele = document.createElement("div");
         ele.classList.add("item");
         ele.draggable = false;
@@ -57,7 +81,9 @@ class Poll {
         const title = document.createElement("h1");
         title.textContent = this.title;
         const authorLabel = document.createElement("h2");
-        authorLabel.textContent = this.author;
+        authorLabel.textContent = this.author.display.name;
+        authorLabel.style.color = this.author.display.color;
+        authorLabel.title = this.author.id
         const buttons_container = document.createElement("div");
         buttons_container.classList.add("flex-container", "row", "footer");
         
@@ -84,7 +110,7 @@ class Poll {
             return div;
         }
     
-        let t = (i, pressed) => {
+        let t = async (i, pressed) => {
             ele.querySelectorAll(".footer button div").forEach(p => {
                 p.style.display = "block";
                 if(p != pressed.querySelector("div")) setTimeout(() => { p.classList.add("active") }, 100)
@@ -98,14 +124,33 @@ class Poll {
             pressed.classList.add("selected");
             pressed.classList.remove("unselected");
 
-            this.vote(i)
+            await this.vote(i)
         };
         const whole = this.values[0] + this.values[1];
-        const button1 = createButton(this.buttonColors[0], Math.floor((this.values[0]/whole)*100), this.labels[0], (p) => { t(0, p)});
-        const button2 = createButton(this.buttonColors[1], Math.floor((this.values[0]/whole)*100), this.labels[1], (p) => { t(1, p)});
+        const buttons = [
+            createButton(this.buttonColors[0], Math.floor((this.values[0]/whole)*100), this.labels[0], async (p) => { await t(0, p)}),
+            createButton(this.buttonColors[1], Math.floor((this.values[1]/whole)*100), this.labels[1], async (p) => { await t(1, p)})
+        ]
+        buttons.forEach(b => buttons_container.appendChild(b));
     
-        buttons_container.appendChild(button1);
-        buttons_container.appendChild(button2);
+        if (this.vote_status != null) {
+            const button = buttons[this.vote_status].querySelector("button");
+        
+            buttons_container.querySelectorAll("button div").forEach(p => {
+                p.style.display = "block";
+        
+                if (p !== button.querySelector("div")) setTimeout(() => p.classList.add("active"), 100);
+                else p.classList.add("active");
+            });
+        
+            buttons_container.querySelectorAll("button").forEach(b => {
+                b.classList.remove("selected");
+                b.classList.add("unselected");
+            });
+        
+            button.classList.add("selected");
+            button.classList.remove("unselected");
+        }
     
         time_header.appendChild(time);
     
@@ -131,15 +176,47 @@ class Poll {
         this.progress[1].style.width = `${Math.floor((this.values[1]/whole)*100)}%`;
     }
 
-    vote(index) {
-        const a = Math.floor(Math.random()*100)
-        const b =  Math.floor(Math.random()*100);
-        this.modifyValues([a, b])
+    async vote(index) {
+        const user = JSON.parse(window.localStorage.getItem("user"));
+        const link = getApiLink("/poll/vote");
+        const req = await fetch(link, { method: "POST", body: JSON.stringify({
+            "name": user.account.name,
+            "pass": user.account.pass,
+            "id": this.id,
+            "option": index
+        })});
+        if(req.status != 200) {
+            console.error(`problem voting (${req.status})`);
+            return;
+        }
+        const json = await req.json();
+        this.modifyValues(json.votes)
+    }
+
+    async getVoteStatus() {
+        const user = JSON.parse(window.localStorage.getItem("user"));
+        const link = getApiLink("/poll/checkVoteStatus");
+        const req = await fetch(link, { method: "POST", body: JSON.stringify({
+            "name": user.account.name,
+            "pass": user.account.pass,
+            "id": this.id
+        })});
+        if(req.status != 200) {
+            console.error(`problem checking vote (${req.status})`);
+            return;
+        }
+        const json = await req.json();
+        return json.vote;
     }
 }
 
 const manager = new PollManager();
-manager.create(generateRandomString(10), getRandomName());
+const server = new Server();
+
+const test_vals = await server.getPollsByAuthor("u_0-OVYBg8VnPntje2O");
+const test = Object.values(test_vals)[0];
+
+await manager.create(test);
 
 const update = () => {
     manager.updateAll();

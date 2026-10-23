@@ -481,10 +481,6 @@ class Instance {
         this.eng = engine;
         this.next_timestep = null;
 
-        /*this.data = {
-            "player_id": 
-        }*/
-
         this.location = null;
 
         this.setupKeybinds();
@@ -499,7 +495,6 @@ class Instance {
         ])
         const moveAction = (dir) => {
             this.sock.sendPacket(new ActionPacket(ActionType.MOVE, dir));
-            this.render_info.map.bg_override.get(`${x};${y}`)
         }
         kb.setFunctionOnKeyPress("KeyQ", () => moveAction(5))
         kb.setFunctionOnKeyPress("KeyW", () => moveAction(0))

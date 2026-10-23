@@ -74,33 +74,37 @@ export function getCookie(cname) {
     return "";
 }
 
-export function formatSeconds(ms, decimals = 1) {  
+export function formatSeconds(ms, decimals = 1) {
+    if (ms === 0) return "now";
+
+    const isNegative = ms < 0;
+    ms = Math.abs(ms);
+
     const units = [
-  { label: "centamillennium", ms: 1000 * 60 * 60 * 24 * 365 * 10 * 10 * 10 * 10 * 10 },
-   { label: "decamillennium", ms: 1000 * 60 * 60 * 24 * 365 * 10 * 10 * 10 * 10 },
-        { label: "millenium", ms: 1000 * 60 * 60 * 24 * 365 * 10 * 10 * 10 },
-        { label: "century",   ms: 1000 * 60 * 60 * 24 * 365 * 10 * 10 },
-        { label: "decade",    ms: 1000 * 60 * 60 * 24 * 365 * 10 },
-        { label: "year",      ms: 1000 * 60 * 60 * 24 * 365 },
-        { label: "week",      ms: 1000 * 60 * 60 * 24 * 7 },
-        { label: "day",       ms: 1000 * 60 * 60 * 24 },
-        { label: "hour",      ms: 1000 * 60 * 60 },
-        { label: "minute",    ms: 1000 * 60 },
-        { label: "second",    ms: 1000 }
+        { label: "centamillennium", ms: 1000 * 60 * 60 * 24 * 365 * 1e5 },
+        { label: "decamillennium",  ms: 1000 * 60 * 60 * 24 * 365 * 1e4 },
+        { label: "millennium",      ms: 1000 * 60 * 60 * 24 * 365 * 1e3 },
+        { label: "century",         ms: 1000 * 60 * 60 * 24 * 365 * 100 },
+        { label: "decade",          ms: 1000 * 60 * 60 * 24 * 365 * 10 },
+        { label: "year",            ms: 1000 * 60 * 60 * 24 * 365 },
+        { label: "week",            ms: 1000 * 60 * 60 * 24 * 7 },
+        { label: "day",             ms: 1000 * 60 * 60 * 24 },
+        { label: "hour",            ms: 1000 * 60 * 60 },
+        { label: "minute",          ms: 1000 * 60 },
+        { label: "second",          ms: 1000 }
     ];
 
     for (const unit of units) {
         const value = ms / unit.ms;
         if (value >= 1) {
             const rounded = Number(value.toFixed(decimals));
-            return `${rounded} ${unit.label}${rounded !== 1 ? "s" : ""}`;
-        }
-        else if(value <= 0) {
-            return `now`
+            const result = `${rounded} ${unit.label}${rounded !== 1 ? "s" : ""}`;
+
+            return isNegative ? `${result} ago` : result;
         }
     }
 
-    return `${ms} ms`;
+    return isNegative ? `${ms} ms ago` : `${ms} ms`;
 }
 
 export function formatBytes(bytes, decimals = 2) {
