@@ -312,6 +312,7 @@ async function handleSignIn() {
     }
     let json = await req.json();
     window.localStorage.setItem("user", JSON.stringify(json));
+    saved_data = json;
     await openMenu();
 }
 
@@ -363,7 +364,7 @@ function sanitize(str) {
 
 export async function handle_updating() {
     alert("fixing bug with this rn, please wait :(");
-    return;
+    /*return;
     let saved_data = JSON.parse(window.localStorage.getItem("user"));
     let name = saved_data["account"]["name"];
     let pass = saved_data["account"]["pass"];
@@ -375,7 +376,7 @@ export async function handle_updating() {
     });
     let new_data = await req.json();
     window.localStorage.setItem("user", JSON.stringify(new_data));
-    alert("updated");
+    alert("updated");*/
 }
 
 update_button.addEventListener("click", async () => {
@@ -526,6 +527,7 @@ document.getElementById("gambling-link").addEventListener("click", () => { redir
 document.getElementById("music-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/music`) })
 document.getElementById("mmo-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/mmo`) })
 document.getElementById("garden-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/mini/garden`) })
+document.getElementById("polls-link").addEventListener("click", () => { if(saved_data == null) { openMenu(); return; }  redirect(`${location.protocol}//${location.host}/mini/polls?method=author&id=${saved_data.account.id}`)})
 
 async function getRepoStars(owner, repo) {
     const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);

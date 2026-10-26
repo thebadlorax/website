@@ -29,6 +29,8 @@ export class PollWizard {
     protected db: Database;
     protected log: LogWizard;
 
+    protected dirty: boolean = false;
+
     public polls: Array<Poll> = new Array();
 
     constructor(db: Database) {
@@ -37,23 +39,41 @@ export class PollWizard {
         this.log = new LogWizard();
     }
 
+    static pollExpTime = 1000*60*60*24*7; // 1 week
+    static pollShouldBeCleaned(poll: Poll): boolean {
+        const rt = PollWizard.getRemainingTime(poll);
+        if(rt < PollWizard.pollExpTime*-1) return true;
+        return false;
+    }
+    clean(): number {
+        let a = 0;
+        this.polls.forEach((p, i) => { 
+            if(PollWizard.pollShouldBeCleaned(p)) { this.polls.splice(i, 1); a += 1; } 
+        })
+        if(a != 0) this.dirty = true;
+        return a;
+    }
+
     async init(): Promise<void> {
         await this.refreshFromDB();
 
         setInterval(async () => {
-            await this.updateDB()
-        }, 5000);
+            this.clean();
+            if(this.dirty) await this.updateDB()
+        }, 10000);
     }
 
     getPollsByID(id: string): Poll[] { return this.polls.filter(p => p.author == id) }
     createPoll(poll: Poll): void { 
         this.polls.push(poll); 
+        this.dirty = true;
         this.log.log("creating new poll", "POLLWIZARD"); 
     }
     async updateDB(): Promise<void> {
         this.db.modify("polls", {
             "objects": this.polls
-        })
+        });
+        this.dirty = false;
     }
     async refreshFromDB(): Promise<void> {
         const db_obj = await this.db.fetch("polls") ?? { "objects": [] };
@@ -61,7 +81,7 @@ export class PollWizard {
         this.polls = data;
     }
 
-    static getRemainingTime(poll: Poll): number | null { 
+    static getRemainingTime(poll: Poll): number { 
         const n = Date.now();
         const d = n-poll.end;
         return d*-1;
@@ -123,6 +143,8 @@ export class PollWizard {
             if(v) opt.splice(vmap.indexOf(v), 1);
         }) // remove other votes
         poll.votes[option].push(vote);
+
+        this.dirty = true;
 
         return true;
     }

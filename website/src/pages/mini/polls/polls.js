@@ -116,6 +116,9 @@ create_button.addEventListener("click", () => {
         const button = document.createElement("button");
         const label = document.createElement("input");
         labels.push(label);
+        if(labels.length >= 4) {
+            create_new_button.parentElement.remove();
+        }
         label.placeholder = `choice ${button_count+1}`;
         label.style.borderBottom = "2px black solid"
         label.style.fontWeight = 200;
@@ -207,7 +210,7 @@ class Poll {
         this.id = id;
 
         this.timeText = null;
-        this.progress = [null, null];
+        this.progress = new Array();
         this.buttons = null;
     }
 
@@ -224,7 +227,6 @@ class Poll {
         const time = document.createElement("h3");
         const a = this.end - Date.now();
         const b = formatSeconds(a, 1);
-        time.textContent = `${a <= 0 ? "ended " : ""}${b}`;
         this.timeText = time;
         const title = document.createElement("h1");
         title.textContent = this.title;
@@ -257,8 +259,7 @@ class Poll {
                 if(!button.classList.contains("disabled")) await onPress(button)
             })
 
-            if(this.progress[0] == null) this.progress[0] = progress_bar
-            else if(this.progress[1] == null) this.progress[1] = progress_bar
+            this.progress.push(progress_bar);
     
             return div;
         }
@@ -279,7 +280,7 @@ class Poll {
                 pressed.classList.add("selected");
                 pressed.classList.remove("unselected");
                 await this.vote(i)
-            }))
+            }));
         })
         this.modifyValues(this.values);
         this.buttons.forEach(b => buttons_container.appendChild(b));
@@ -327,7 +328,7 @@ class Poll {
     updateElement() {
         const a = this.end - Date.now();
         const b = formatSeconds(a, 1);
-        this.timeText.textContent = `${a <= 0 ? "ended " : ""}${b}`;
+        this.timeText.textContent = `${a <= 0 ? "ended " : ""}${b}${a > 0 ? " left" : ""}`;
 
         if(a <= 0 && this.buttons != null) {
             this.buttons.forEach(b => {
