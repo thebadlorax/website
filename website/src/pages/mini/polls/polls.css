@@ -40,6 +40,9 @@ body {
     align-items: center;
     justify-content: center;
 }
+.justify-center {
+    justify-content: center;
+}
 .align-right {
     justify-content: right;
 }
@@ -77,7 +80,7 @@ body {
 
     flex: 1 1 calc(50% - 10px); /* 2 columns layout */
 
-    /* unselectable  */
+    /* unselectable   */
     -webkit-touch-callout: none;-webkit-user-select: none;-khtml-user-select: none;-moz-user-select: none;-ms-user-select: none;user-select: none;
 }
 
@@ -89,6 +92,8 @@ body {
     font-weight: 700;
     margin-top: 0.25%;
     margin-bottom: -1%;
+    width: fit-content;
+    cursor: pointer;
 }
 .item h2 {
     position: relative;
@@ -97,6 +102,8 @@ body {
     font-size: 3.5vw;
     font-weight: 200;
     margin-top: 0%;
+    width: fit-content;
+    cursor: pointer;
 }
 
 .item button {
@@ -121,6 +128,11 @@ body {
 .item button.unselected {
     filter: grayscale(0.8);
 }
+.item button.disabled {
+    filter: grayscale(0.9) !important; 
+    filter: brightness(0.8) !important;
+    cursor: not-allowed !important;
+}
 
 .item button div {
     position: absolute;
@@ -135,7 +147,6 @@ body {
     border: 0;
     filter: brightness(1);
     
-    /* Default base state */
     clip-path: circle(0% at 0% 50%);
     transition: filter 0.2s ease, width 0.1s ease;
 }
@@ -144,12 +155,10 @@ body {
     filter: brightness(0.85);
 }
 
-/* When active is applied, run the keyframe animation */
 .item button div.active {
     animation: revealCircle 1s ease forwards;
 }
 
-/* This forces the browser to frame-by-frame animate the clip path */
 @keyframes revealCircle {
     from {
         clip-path: circle(0% at 0% 50%);
@@ -164,6 +173,21 @@ body {
     position: relative;
     z-index: 2;
     pointer-events: none;
+}
+
+.item input {
+    font-family: "Jersey 20", sans-serif;
+    font-size: 7.5vw;
+    font-weight: 700;
+    font-style: normal;
+    width: fit-content;
+
+    background: none;
+    border: none;
+}
+.item input:focus {
+    outline: none;
+    box-shadow: none;
 }
 
 .footer {
@@ -185,4 +209,39 @@ body {
     height: 20%; 
     margin-top: 3vw;
     margin-right: 1vw;
+}
+
+.create-button {
+    display: flex;
+    flex-direction: column;
+    width: 40%;
+    height: 45%;
+
+    border: 2px black solid;
+    border-radius: 40px; 
+    corner-shape: squircle; 
+    overflow: hidden;
+
+    background-repeat:repeat;
+    /*background-size: 10vw;
+    background-position: -4vw;*/
+    background-color: #545454;
+    padding-left: 1%;
+
+    margin-bottom: 5%;
+
+    text-wrap: wrap;
+
+    justify-content: center;
+    align-items: center;
+
+    flex: 1 1 calc(50% - 10px); /* 2 columns layout */
+
+    /* unselectable  */
+    -webkit-touch-callout: none;-webkit-user-select: none;-khtml-user-select: none;-moz-user-select: none;-ms-user-select: none;user-select: none;
+
+    cursor: pointer
+}
+.create-button h1 {
+    font-size: 5vw;
 }

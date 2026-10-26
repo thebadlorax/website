@@ -155,6 +155,16 @@ export function getApiLink(route) {
     return link
 }
 
+export function getRoute(route) {
+    let link;
+    if(location.host.includes("66.65.25.15")) {
+        link = location.protocol + '//' + location.host + route
+    } else {
+        link = location.protocol + '//' + location.host + route
+    }
+    return link
+}
+
 export function getTextWidth(text, font) {
     const canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
     const context = canvas.getContext("2d");

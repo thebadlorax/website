@@ -20,7 +20,8 @@ type Poll = {
     end: number,
     start: number,
     votes: Array<Array<Vote>>,
-    id: string
+    id: string,
+    labels: Array<string>
 };
 
 export class PollWizard {
@@ -79,7 +80,8 @@ export class PollWizard {
         },
         "timeLeft": PollWizard.getRemainingTime(poll),
         "votes": PollWizard.sumVotes(poll),
-        "id": poll.id
+        "id": poll.id,
+        "labels": poll.labels
     }};
 
     async getVoterVoteOnPoll(poll: Poll, user: string) {
@@ -92,7 +94,7 @@ export class PollWizard {
         return a;
     }
 
-    static pollFromClient(title: string, author: string, length: number, optionCount: number = 2): Poll {
+    static pollFromClient(title: string, author: string, length: number, labels: Array<string>): Poll {
         const n = Date.now()
         const p = {
             title: title,
@@ -101,9 +103,10 @@ export class PollWizard {
             start: n,
             votes: new Array(),
             id: generateRandomString(5),
+            labels: labels
         } as Poll;
 
-        for(let x = 0; x < optionCount; x++) p.votes.push(new Array());
+        for(let x = 0; x < labels.length; x++) p.votes.push(new Array());
 
         return p;
     };

@@ -1214,10 +1214,12 @@ const server = Bun.serve({
             let user = await auth.fetchAccount(json.name, json.pass);
             if(!user) return corsResponse(null, { status: 401 });
 
+            let labels = json.labels.map((l: string, i: number) => l == "" ? `choice ${i}` : l);
             const p = PollWizard.pollFromClient(
-              json.title,
+              json.title || "untitled poll",
               user.account.id,
-              json.length
+              json.length || 60000,
+              labels
             );
 
             poll.createPoll(p);
