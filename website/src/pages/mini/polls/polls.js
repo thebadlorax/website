@@ -9,6 +9,9 @@ import { formatSeconds, getApiLink, getRoute } from "../../common.js";
 const container = document.getElementById("container");
 const create_button = document.getElementById("create-button");
 const user = JSON.parse(window.localStorage.getItem("user"));
+if(!user) {
+    alert("make an account"); window.location.href = `${location.protocol}//${location.host}/?account`
+}
 let pressed_create = false;
 create_button.addEventListener("click", () => {
     if(pressed_create) return;
