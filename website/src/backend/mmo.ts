@@ -5,6 +5,11 @@
  * copyright 2026
 */
 
+/* TODO:
+ * swap entity ids from string to uint16
+ * make timestep interval area-specific / entity-specific
+ */
+
 import { LogWizard } from "./logging";
 import { AuthorizationWizard, type User } from "./auth";
 import { Database } from "./db";
@@ -145,7 +150,8 @@ enum PacketType {
     AUTHORIZATION_REQUEST = 10,
     FIND_INSTANCE = 11,
     INSTANCE_CONNECTION = 12,
-    ACTION = 13
+    ACTION = 13,
+    CHANGE_TIMESTEP_INTERVAL = 14
 }
 class PacketWriter {
     public static EMPTY = (): Uint8Array => { return new Uint8Array(new ArrayBuffer(0)); }
@@ -407,6 +413,21 @@ class InstanceConnectionPacket extends AbstractPacket {
         return writer.toUint8Array();
     }
 }
+class ChangeTimestepIntervalPacket extends AbstractPacket {
+    private interval: number;
+    constructor(interval: number) {
+        super(PacketType.CHANGE_TIMESTEP_INTERVAL);
+        this.interval = interval;
+    }
+
+    protected getPayload(): Uint8Array {
+        const writer = new PacketWriter();
+
+        writer.writeUint32(this.interval);
+
+        return writer.toUint8Array()
+    }
+}
 
 class SocketConnection {
     public ws: ServerWebSocket<{ source: string; }>;
@@ -417,8 +438,10 @@ class SocketConnection {
         this.ws = ws;
     }
     public async _onPacket(data: ArrayBuffer)  { await this.onPacket(data) }
-    public sendPacket(packet: AbstractPacket)  { this.sendRaw(packet.toBuffer()) }
-    public sendRaw(data: ArrayBuffer)          { this.ws.send(data) }
+
+    public sendPacket(packet: AbstractPacket)             { this.sendRaw(packet.toBuffer()) }
+    public sendPackets(...packets: Array<AbstractPacket>) { packets.forEach(p => this.sendPacket(p)) }
+    public sendRaw(data: ArrayBuffer)                     { this.ws.send(data) }
 }
 
 enum ActionType {
@@ -433,7 +456,7 @@ class Player {
     private db: Database;
     public sock: SocketConnection;
     public entity: Entity;
-    public queuedActions: Array<Action> = new Array();
+    public queuedAction: Action | null = null;
     public extra_data: any;
 
     constructor(db: Database, sock: SocketConnection) {
@@ -497,16 +520,18 @@ class MMOInstance {
     private timestep() {
         if(this.shouldKill) return;
         this.players.forEach(p => {
-            if(p.queuedActions.length > 0) {
-                this.executeAction(p.queuedActions[0]!, p)
-                p.queuedActions.shift();
+            if(p.queuedAction != null) {
+                this.executeAction(p.queuedAction, p)
+                p.queuedAction = null;
             }
         });
         this.next_timestep = Date.now()+this.timestepInterval;
         this.broadcast(new TimestepPacket())
-        setTimeout(() => {
-            this.timestep();
-        }, this.timestepInterval)
+        setTimeout(() => { this.timestep() }, this.timestepInterval)
+    }
+    private changeTimestepInterval(newInterval: number) {
+        this.timestepInterval = newInterval;
+        this.broadcast(new ChangeTimestepIntervalPacket(newInterval));
     }
 
     public connect(sock: SocketConnection) {
@@ -526,24 +551,20 @@ class MMOInstance {
         
     }
 
+    private setPlayerQueuedAction(player: Player, action: Action) {
+        player.queuedAction = action;
+    }
     private queueAction(player: Player, action: Action) {
         const evaluateMovement = (offset: Vector2) => {
-            player.extra_data.queued_pos.addIp(offset);
+            const next_position = player.entity.pos.add(offset)
             const d = this.loc.getAllData(player.entity.locID!);
-            const queued_tile = this.loc.getTile(d[0], d[1], player.extra_data.queued_pos.x, player.extra_data.queued_pos.y);
-            const queued_entity = this.loc.getEntityOnTile(d[1], player.extra_data.queued_pos.x, player.extra_data.queued_pos.y);
-            if(queued_tile!.type == 0) {
-                player.extra_data.queued_pos.subIp(offset);
-                return;
-            }
+            const queued_tile = this.loc.getTile(d[0], d[1], next_position.x, next_position.y);
+            const queued_entity = this.loc.getEntityOnTile(d[1], next_position.x, next_position.y);
+            if(queued_tile!.type == 0) return;
             if(queued_entity != undefined) {
-                if(queued_entity.type == 0) {
-                    player.extra_data.queued_pos.x -= offset.x;
-                    player.extra_data.queued_pos.y -= offset.y;
-                    return;
-                }
+                if(queued_entity.type == 0) return;
             }
-            player.queuedActions.push(action);
+            this.setPlayerQueuedAction(player, action)
         }
         switch(action.type) {
             case ActionType.MOVE: {
@@ -567,7 +588,10 @@ class MMOInstance {
         const loc_data = this.loc.getAllData(loc_id);
         this.broadcast(new CreateEntityPacket(player.entity), [player]);
         if(!player.entity.locID) return;
-        player.sock.sendPacket(new MapUpdatePacket(loc_data[0], loc_data[1]));
+        player.sock.sendPackets(
+            new MapUpdatePacket(loc_data[0], loc_data[1]),
+            new ChangeTimestepIntervalPacket(this.timestepInterval)
+        );
     }
     private onPlayerLeave(player: Player) {
         this.broadcast(new DestroyEntityPacket(player.entity), [player])
@@ -599,7 +623,9 @@ class MMOInstance {
         }
     }
 
-    destroy() {}
+    destroy() {
+        this.shouldKill = true;
+    }
     
     public isFull()      { return this.playerCount() >= MMOWizard.INSTANCE_MAX_PLAYER_COUNT }
     public playerCount() { return this.players.length }

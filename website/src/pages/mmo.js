@@ -114,6 +114,7 @@ const Tile_Colors = {
         "tile": "PLAYER"
     }
 ];
+
 const ActionType = {
     MOVE: 0
 }
@@ -177,9 +178,7 @@ class Renderer {
                         const t = loc.data.tiles[c];
                         let tile = this.character_cache.get(Object.keys(Tile_Colors)[t.fg_color])[t.type];
                         const entity = inst.getEntityOnTile(x, y);
-                        if(entity != undefined) {
-                            tile = this.character_cache.get("GREY")[Object.values(Tileset).indexOf(Tileset[entity.type.tile])]
-                        }
+                        if(entity != undefined) tile = this.character_cache.get("GREY")[Object.values(Tileset).indexOf(Tileset[entity.type.tile])]
                         ctx.fillStyle = Object.values(Tile_Colors)[t.bg_color];
                         const o = this.render_info.map.bg_override.get(`${x};${y}`)
                         if(o != undefined) ctx.fillStyle = o;
@@ -217,6 +216,8 @@ class Renderer {
             ctx.fillText(t < 0 ? `next ts: soon?` : `next ts: ${t}ms`, ctx.canvas.width-(Renderer.SIDEBAR_WIDTH*Renderer.TILE_SIZE)+10, 15);
 
             ctx.fillText(`inst id: ${inst.id}`, ctx.canvas.width-(Renderer.SIDEBAR_WIDTH*Renderer.TILE_SIZE)+10, 40);
+
+            ctx.fillText(`act: ${inst.queuedAction != null ? `${Object.keys(ActionType)[inst.queuedAction.type]} | ${JSON.stringify(inst.queuedAction.data)}` : "none"}`, ctx.canvas.width-(Renderer.SIDEBAR_WIDTH*Renderer.TILE_SIZE)+10, 70);
         }
     }
 }
@@ -320,7 +321,8 @@ const PacketType = {
     AUTHORIZATION_REQUEST: 10,
     FIND_INSTANCE: 11,
     INSTANCE_CONNECTION: 12,
-    ACTION: 13
+    ACTION: 13,
+    CHANGE_TIMESTEP_INTERVAL: 14
 }
 class PacketWriter {
     static EMPTY = () => { return new Uint8Array(new ArrayBuffer(0)); }
@@ -475,6 +477,8 @@ class SocketConnection {
 }
 
 class Instance {
+    static DEFAULT_TIMESTEP_INTERVAL = 1000;
+    static JOB_QUEUE_SIZE = 10;
     constructor(sock, info, engine) {
         this.sock = sock;
         this.id = info.id;
@@ -483,19 +487,25 @@ class Instance {
 
         this.location = null;
 
+        this.queuedAction = null;
+
+        this.timestepInterval = Instance.DEFAULT_TIMESTEP_INTERVAL;
+
+        this.jobQueue = new Array(Instance.JOB_QUEUE_SIZE).fill(null);
+
         this.setupKeybinds();
     }
 
     setupKeybinds() {
         const kb = this.eng.keyboard;
         kb.listenForEvents([
+            // movement
             "KeyQ", "KeyW", "KeyE", 
-            "KeyA",         "KeyD",
+            "KeyA", "KeyS", "KeyD",
             "KeyZ", "KeyX", "KeyC", 
+            
         ])
-        const moveAction = (dir) => {
-            this.sock.sendPacket(new ActionPacket(ActionType.MOVE, dir));
-        }
+        const moveAction = (dir) => { this.queueAction(ActionType.MOVE, { "direction": dir }) }
         kb.setFunctionOnKeyPress("KeyQ", () => moveAction(5))
         kb.setFunctionOnKeyPress("KeyW", () => moveAction(0))
         kb.setFunctionOnKeyPress("KeyE", () => moveAction(4))
@@ -504,6 +514,43 @@ class Instance {
         kb.setFunctionOnKeyPress("KeyZ", () => moveAction(7))
         kb.setFunctionOnKeyPress("KeyX", () => moveAction(2))
         kb.setFunctionOnKeyPress("KeyC", () => moveAction(6))
+
+        kb.setFunctionOnKeyPress("KeyS", () => this.debugAction())
+    }
+    debugAction() {
+        this.queueJob(() => {
+            console.log("son")
+        }, 2)
+    }
+
+    queueAction(type, data) {
+        this.queuedAction = { "type": type, "data": data};
+        switch(type) {
+            case ActionType.MOVE: {
+                this.sock.sendPacket(new ActionPacket(type, data.direction));
+            }
+        }
+    }
+
+    queueJob(job, time) {
+        if(time >= Instance.JOB_QUEUE_SIZE) { console.error(`tried to queue a job more than ${Instance.JOB_QUEUE_SIZE} timesteps ahead`); return; };
+        if(time < 0)                        { console.error("tried to queue a job negative timesteps in the future"); return; }
+        if(time == 0)                       { console.warn ("job queued for current timestep, running immediately"); job(); return; }
+
+        if(this.jobQueue[time-1] == null) this.jobQueue[time-1] = new Array();
+        this.jobQueue[time-1].push(job);
+    }
+    onTimestep() {
+        if(this.jobQueue[0] != null) this.jobQueue[0].forEach(job => job());
+        // shift job queue 1 to the left
+        for(let x = 1; x < Instance.JOB_QUEUE_SIZE-1; x++) {
+            this.jobQueue[x-1] = this.jobQueue[x];
+        }
+        this.jobQueue[Instance.JOB_QUEUE_SIZE-1] = null
+
+
+        this.next_timestep = Date.now()+this.timestepInterval;
+        this.queuedAction = null;
     }
 
     transferSocketControl() {
@@ -523,11 +570,21 @@ class Instance {
                     break;
                 }
                 case PacketType.CREATE_ENTITY: {
+                    const entityID = reader.readString(true);
+                    const pos = Vector.two(reader.readUint32(), reader.readUint32());
+                    const type = EntityTypes[reader.readUint16()];
+                    const locID = reader.readString(true);
+
+                    if(type.name == "player") {
+                        this.eng.renderer.render_info.map.bg_override.set(`${pos.x};${pos.y}`, Tile_Colors.YELLOW);
+                        this.queueJob(() => this.eng.renderer.render_info.map.bg_override.delete(`${pos.x};${pos.y}`))
+                    }
+
                     this.location.data.entities.push({
-                        entityID: reader.readString(true),
-                        pos: Vector.two(reader.readUint32(), reader.readUint32()),
-                        type: EntityTypes[reader.readUint16()],
-                        locID: reader.readString(true)
+                        entityID: entityID,
+                        pos: pos,
+                        type: type,
+                        locID: locID
                     });
                     break;
                 }
@@ -576,7 +633,12 @@ class Instance {
                     break;
                 }
                 case PacketType.TIMESTEP: {
-                    this.next_timestep = Date.now()+1000;
+                    this.onTimestep();
+                    break;
+                }
+                case PacketType.CHANGE_TIMESTEP_INTERVAL: {
+                    const interval = reader.readUint32();
+                    this.timestepInterval = interval;
                     break;
                 }
                 case PacketType.ERROR: {
