@@ -7,6 +7,7 @@
 /* TODO:
  *
  * find a way to compress dirt simulation states down way more (greedy meshing type approach?)
+ * make it so local saves store they've been downloaded so they can't be uploaded
  *  
 */
 
@@ -503,10 +504,12 @@ class Clickbox {
         this.useAbsoluteScaling = false;
         this.important = false;
 
-        this.moveable = false;
+        this.movable = false;
         this.restricedAxies = {
-            "horizontal": false,
-            "vertical": false
+            "positiveHorizontal": false,
+            "negativeHorizontal": false,
+            "positiveVertical": false,
+            "negativeVertical": false
         }
     }
 
@@ -544,6 +547,18 @@ class Clickbox {
     }
     isActive(flag=true) {
         this.active = flag;
+        return this;
+    }
+    isMovable(flag=true) {
+        this.movable = flag;
+        this.cursor = "grab"; // use withCursorStyle() after isMovable() to use a different cursor type
+        return this;
+    }
+    restrictAxiesOfMovement(...axies) {
+        if(axies[0] != null) this.restricedAxies.positiveHorizontal = axies[0]
+        if(axies[1] != null) this.restricedAxies.negativeHorizontal = axies[1]
+        if(axies[2] != null) this.restricedAxies.positiveVertical = axies[2]
+        if(axies[3] != null) this.restricedAxies.negativeVertical = axies[3]
         return this;
     }
 }
@@ -1184,6 +1199,8 @@ class Engine {
                 "clamp": [null, null],
                 "active": false
             },
+            "heldClickbox": null,
+            "heldClickboxOffset": Vector.two(0, 0),
             "timePaused": false,
             "cursorPlant": {
                 "active": false
@@ -1327,19 +1344,21 @@ class Engine {
         });
 
         this.ctx.canvas.addEventListener("mousedown", e => {
-            if(!this.data.promptObject.active) {
+            if(e.button === 0) this.onClick();
+
+            if(!this.data.promptObject.active && this.data.heldClickbox == null) {
                 if(e.button === 0) this.dirt.simulation.typeToPlace = 0
                 else this.dirt.simulation.typeToPlace = 1;
                 if(!this.data.cursorPlant.active) this.dirt.simulation.mousePressed = true;
             }
-
-            if(e.button === 0) this.onClick();
         });
         
         this.ctx.canvas.addEventListener("mouseup", () => {
             if(this.data.promptObject.active) return;
             this.dirt.simulation.mousePressed = false;
             this.dirt.timeout_timer = 5;
+
+            this.onRelease();
         });
 
         document.addEventListener("visibilitychange", () => {
@@ -1732,6 +1751,10 @@ class Engine {
         }).usesAbsoluteCoordinates().isImportant().isActive(false);
         this.globalClickboxes.push(cut_diagram_clickbox);
         this.data.promptObject.cutDiagramClickbox = cut_diagram_clickbox;
+
+        const test_clickbox = new Clickbox(new Rect2D(Vector.two(0, 0), 0.1, 0.1), () => {})
+            .isMovable().restrictAxiesOfMovement(true, true, true, true);
+        this.globalClickboxes.push(test_clickbox);
 
         document.title = "the garden"
     }
@@ -2342,6 +2365,11 @@ class Engine {
                 const bb = c.getBounds(bounds);
                 if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
                     c.onclick(this);
+                    if(c.movable) {
+                        if(c.cursor == "grab") c.withCursorStyle("grabbing");
+                        this.data.heldClickbox = c;
+                        this.data.heldClickboxOffset = this.mouse.pos.xySub(bb.x, bb.y);
+                    }
                 }
             });
         } else if(!this.data.promptObject.active) {
@@ -2349,6 +2377,11 @@ class Engine {
                 const bb = c.getBounds(bounds);
                 if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
                     c.onclick(this);
+                    if(c.movable) {
+                        if(c.cursor == "grab") c.withCursorStyle("grabbing");
+                        this.data.heldClickbox = c;
+                        this.data.heldClickboxOffset = this.mouse.pos.xySub(bb.x, bb.y)
+                    }
                 }
             });
         }
@@ -2356,8 +2389,20 @@ class Engine {
             const bb = c.getBounds(bounds);
             if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
                 c.onclick(this);
+                if(c.movable) {
+                    if(c.cursor == "grab") c.withCursorStyle("grabbing");
+                    this.data.heldClickbox = c;
+                    this.data.heldClickboxOffset = this.mouse.pos.xySub(bb.x, bb.y)
+                }
             }
         });
+    }
+    onRelease() {
+        const hc = this.data.heldClickbox;
+        if(hc != null) {
+            if(hc.cursor == "grabbing") hc.withCursorStyle("grab");
+            this.data.heldClickbox = null;
+        }
     }
     increaseClickCounter() {
         this.save.statistics.clicks += 1;
@@ -2458,11 +2503,32 @@ class Engine {
             }
         };
 
+        const hc = this.data.heldClickbox
+        if(hc != null) {
+            const mx = (this.mouse.pos.x - this.data.heldClickboxOffset.x) - bounds.x;
+            const my = (this.mouse.pos.y - this.data.heldClickboxOffset.y) - bounds.y;
+
+            if(hc.useAbsoluteCoordinates) {
+                hc.rect.pos.xySetIp(
+                    hc.restricedAxies.horizontal ? hc.rect.pos.x : clamp(mx, bounds.x, bounds.x+bounds.w),
+                    hc.restricedAxies.vertical   ? hc.rect.pos.y : clamp(my, bounds.y, bounds.y+bounds.h)
+                )
+            } else {
+                const nx = clamp(mx / bounds.w, 0, 1-hc.rect.w);
+                const ny = clamp(my / bounds.h, 0, 1-hc.rect.h);
+
+                if(hc.rect.pos.x < nx && hc.restricedAxies.positiveHorizontal) hc.rect.pos.x = nx; 
+                else if(hc.rect.pos.x > nx && hc.restricedAxies.negativeHorizontal) hc.rect.pos.x = nx;
+
+                if(hc.rect.pos.y < ny && hc.restricedAxies.positiveVertical) hc.rect.pos.y = ny; 
+                else if(hc.rect.pos.y > ny && hc.restricedAxies.negativeVertical) hc.rect.pos.y = ny;
+            }
+            if(hc.extraData.moveFn != null) hc.extraData.moveFn();
+        }
+
         this.data.notifications.forEach(n => {
             n.lifetime -= (delta*1000);
-            if(n.lifetime < 0) {
-                this.data.notifications.splice(this.data.notifications.indexOf(n), 1);
-            }
+            if(n.lifetime < 0) this.data.notifications.splice(this.data.notifications.indexOf(n), 1);
         });
 
         // cursor effects
@@ -2471,9 +2537,6 @@ class Engine {
         if(this.data.dialogue.active) {
             document.body.style.cursor = "pointer";
             return;
-        }
-        if(this.dirt.simulation.mousePressed && this.data.hands.active && !this.data.cursorPlant.active) {
-            if((this.mouse.pos.y-bounds.y) / bounds.h < 0.65) document.body.style.cursor = "none"
         }
         if(!this.data.hands.active) {
             const d = {};
@@ -2510,6 +2573,9 @@ class Engine {
                     document.body.style.cursor = "pointer";
                 }
             })
+        }
+        if(this.dirt.simulation.mousePressed && this.data.hands.active && !this.data.cursorPlant.active) {
+            if((this.mouse.pos.y-bounds.y) / bounds.h < 0.65) document.body.style.cursor = "none"
         }
 
         this.globalClickboxes.filter(c => c.active && c.important).forEach(c => {
