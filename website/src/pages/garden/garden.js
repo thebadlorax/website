@@ -1752,10 +1752,6 @@ class Engine {
         this.globalClickboxes.push(cut_diagram_clickbox);
         this.data.promptObject.cutDiagramClickbox = cut_diagram_clickbox;
 
-        const test_clickbox = new Clickbox(new Rect2D(Vector.two(0, 0), 0.1, 0.1), () => {})
-            .isMovable().restrictAxiesOfMovement(true, true, true, true);
-        this.globalClickboxes.push(test_clickbox);
-
         document.title = "the garden"
     }
     tick(elapsed) {
@@ -2507,22 +2503,23 @@ class Engine {
         if(hc != null) {
             const mx = (this.mouse.pos.x - this.data.heldClickboxOffset.x) - bounds.x;
             const my = (this.mouse.pos.y - this.data.heldClickboxOffset.y) - bounds.y;
+            let nx, ny;
 
             if(hc.useAbsoluteCoordinates) {
-                hc.rect.pos.xySetIp(
-                    hc.restricedAxies.horizontal ? hc.rect.pos.x : clamp(mx, bounds.x, bounds.x+bounds.w),
-                    hc.restricedAxies.vertical   ? hc.rect.pos.y : clamp(my, bounds.y, bounds.y+bounds.h)
-                )
+                const cx = hc.useAbsoluteScaling ? hc.rect.w : hc.rect.w*bounds.w;
+                const cy = hc.useAbsoluteScaling ? hc.rect.h : hc.rect.h*bounds.h;
+                nx = clamp(mx + bounds.x, bounds.x, (bounds.x+bounds.w)-cx);
+                ny = clamp(my + bounds.y, bounds.y, (bounds.y+bounds.h)-cy);
             } else {
-                const nx = clamp(mx / bounds.w, 0, 1-hc.rect.w);
-                const ny = clamp(my / bounds.h, 0, 1-hc.rect.h);
-
-                if(hc.rect.pos.x < nx && hc.restricedAxies.positiveHorizontal) hc.rect.pos.x = nx; 
-                else if(hc.rect.pos.x > nx && hc.restricedAxies.negativeHorizontal) hc.rect.pos.x = nx;
-
-                if(hc.rect.pos.y < ny && hc.restricedAxies.positiveVertical) hc.rect.pos.y = ny; 
-                else if(hc.rect.pos.y > ny && hc.restricedAxies.negativeVertical) hc.rect.pos.y = ny;
+                nx = clamp(mx / bounds.w, 0, 1-hc.rect.w);
+                ny = clamp(my / bounds.h, 0, 1-hc.rect.h);   
             }
+            if(hc.rect.pos.x < nx && hc.restricedAxies.positiveHorizontal) hc.rect.pos.x = nx; 
+            else if(hc.rect.pos.x > nx && hc.restricedAxies.negativeHorizontal) hc.rect.pos.x = nx;
+
+            if(hc.rect.pos.y < ny && hc.restricedAxies.positiveVertical) hc.rect.pos.y = ny; 
+            else if(hc.rect.pos.y > ny && hc.restricedAxies.negativeVertical) hc.rect.pos.y = ny;
+
             if(hc.extraData.moveFn != null) hc.extraData.moveFn();
         }
 
