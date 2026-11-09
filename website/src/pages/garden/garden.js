@@ -1965,7 +1965,7 @@ class Engine {
         this.data.blockClickboxes = true;
         e.onBlack = () => {
             this.data.scene = newScene;
-            document.title = `the garden - ${newScene}`
+            document.title = `the garden${newScene != "garden" ? ` - ${newScene}` : ""}`
             this.refreshMovementArrows();
 
             if(this.data.hands.active && releaseHands) {
