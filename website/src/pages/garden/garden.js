@@ -4,6 +4,12 @@
  * copyright 2026
 */
 
+/* TODO:
+ *
+ * find a way to compress dirt simulation states down way more (greedy meshing type approach?)
+ *  
+*/
+
 import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
     gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini/mini-common.js";
 import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../mini/maths.js";
@@ -495,7 +501,13 @@ class Clickbox {
         this.extraData = {};
         this.useAbsoluteCoordinates = false;
         this.useAbsoluteScaling = false;
-        this.important = false
+        this.important = false;
+
+        this.moveable = false;
+        this.restricedAxies = {
+            "horizontal": false,
+            "vertical": false
+        }
     }
 
     getBounds(bounds) {
@@ -1054,10 +1066,10 @@ class Save {
             hands_opened: 0,
             clicks: 0,
             dialogues_opened: 0,
-            days_passed: 0,
+            days_passed: 0
         };
 
-        this.time = Engine.starting_time;
+        this.time = Engine.STARTING_TIME;
 
         this.settings = Save.DEFAULT_SETTINGS();
     }
@@ -1101,12 +1113,12 @@ class Save {
 }
 
 class Engine {
-    static starting_time = 190*1000;
-    static save_cooldown = 2000;
+    static STARTING_TIME = 190*1000;
+    static SAVE_COOLDOWN = 2000;
 
     static VERSION_OVERLAY_SIZE = 0.02;
     static VERSION_OVERLAY_OPACITY = 0.2;
-    static VERSION = [0, 0, 1]; 
+    static VERSION = [0, 0, 2]; 
     static VERSION_TEXT = `v${Engine.VERSION[0]}.${Engine.VERSION[1]}.${Engine.VERSION[2]}`;
 
     static DIALOGUE_FONT_SCALING = 0.04;
@@ -1153,7 +1165,7 @@ class Engine {
             "gardenbg": null,
             "scale": 1.5,
             "dayLength": (1000*60)*10, // ms
-            "time": Engine.starting_time,
+            "time": Engine.STARTING_TIME,
             "showClickboxes": false,
             "tabOutTime": 0,
             "cloudTimer": Math.floor(Math.random()*10),
@@ -1166,11 +1178,13 @@ class Engine {
             "lastHandlerPressed": null,
             "haltAutosaves": false,
             "frame": 0,
+            "importedLocalSave": false,
             "hands": {
                 "yVel": null,
                 "clamp": [null, null],
                 "active": false
             },
+            "timePaused": false,
             "cursorPlant": {
                 "active": false
             },
@@ -1237,7 +1251,7 @@ class Engine {
         await this.load();
         await this.init();
         const loadTime = performance.now() - loadStartTime;
-        console.log(`loaded in ${loadTime/1000}s!`);
+        console.log(`finished loading in ${loadTime/1000}s!`);
         clearInterval(dot_interval);
 
         loading_div.remove();
@@ -1247,7 +1261,7 @@ class Engine {
     async load() {
         let r = await fetch(getApiLink("/garden/files"));
         r = await r.json();
-        await Promise.all(r.map(url => this.loader.loadImage(url.replace(".png", ""), `../res/garden/${url}`)));
+        await Promise.all(r.map(url => this.loader.loadImage(url.split(".")[0], `../res/garden/${url}`)));
 
         console.log('loaded all assets into memory');
 
@@ -1264,7 +1278,7 @@ class Engine {
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
-        this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU"]);
+        this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU", "KeyP"]);
         this.keyboard.setFunctionOnKeyPress("Space", () => {
             if(this.data.scene != "garden" || this.data.promptObject.active) return;
             this.toggleHands();
@@ -1272,8 +1286,12 @@ class Engine {
 
         this.keyboard.setFunctionOnKeyPress("KeyS", async () => {
             try {
-                if(performance.now()-this.data.lastSavePerf < Engine.save_cooldown) {
+                if(performance.now()-this.data.lastSavePerf < Engine.SAVE_COOLDOWN) {
                     this.spawnNotification("wait a little bit", `you're on cooldown pal`, 1*1000, { "color": "rgba(155, 40, 40, 1)"});
+                    return;
+                } else if(this.data.importedLocalSave) {
+                    await this.downloadLocalSave();
+                    this.spawnNotification("backing up your save", `you can't upload local saves :(`, 6*1000, { "color": "rgba(155, 40, 40, 1)"});
                     return;
                 }
                 this.data.lastSavePerf = performance.now()
@@ -1290,6 +1308,9 @@ class Engine {
         this.keyboard.setFunctionOnKeyPress("KeyC", async () => {
             this.dirt.simulation.resetArrays();
             this.dirt.timeout_timer = 5;
+        });
+        this.keyboard.setFunctionOnKeyPress("KeyP", async () => {
+            this.data.timePaused = !this.data.timePaused;
         })
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
             this.data.showClickboxes = !this.data.showClickboxes
@@ -1344,9 +1365,8 @@ class Engine {
         this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL]; // must be after refreshSave
         this.setupSprites();
         this.down_clickbox = new Clickbox(new Rect2D(Vector.two(0.45, 0.75), 0.18, 0.18), (eng) => { sceneData[eng.data.scene].movement.down(eng) })
-            .withCursorStyle("alias")
+            .withCursorStyle("alias").isActive(false)
         const bb = this.getBoundingBox();
-        this.down_clickbox.active = false;
         this.globalClickboxes.push(this.down_clickbox);
         this.refreshMovementArrows();
 
@@ -1745,7 +1765,7 @@ class Engine {
                 if(this.frame == 0) this.dirt.simulation.update(delta*2);
             } else this.dirt.simulation.update(delta);
             this.dirt.simulation.render()
-        }
+        };
 
         this.physics.simulation.iterations = this.save.settings[Save.settings_index.PHYSICS_ITERATIONS];
         this.physics.simulation.step(delta);
@@ -2148,6 +2168,7 @@ class Engine {
     }
 
     async autosave() {
+        if(this.data.importedLocalSave) return;
         try {
             await this.uploadSaveData();
             this.spawnNotification("autosave", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
@@ -2186,7 +2207,7 @@ class Engine {
             ctx.font = `normal ${dialogue_font_size}px Jersey20`;
             const line = this.data.dialogue.data.lines[this.data.dialogue.line].text;
             const characters = line.slice(0, this.data.dialogue.timer / this.data.dialogue.speed * 1000)
-            this.drawTextWrap(characters, dialogue_rect.pos.x, dialogue_rect.pos.y+dialogue_font_size, dialogue_rect.w, dialogue_font_size);
+            this.drawTextWrap(characters, dialogue_rect.pos.x+(dialogue_font_size/2), dialogue_rect.pos.y+dialogue_font_size, dialogue_rect.w, dialogue_font_size);
         }
 
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
@@ -2364,36 +2385,54 @@ class Engine {
     
     update(delta) {
         if(!delta) return;
-        this.data.time += delta * 1000;
-    
-        if(this.data.time >= this.data.dayLength) this.data.time %= this.data.dayLength;
-        const percent = (this.data.time / this.data.dayLength) * 100;
-
         const bounds = this.getBoundingBox();
 
-        this.updateEffects(delta);
-    
-        // modify bg for shadows
-        let scene = 6;
-        if(percent >= 15) scene = 1;
-        if(percent >= 25) scene = 2;
-        if(percent >= 42) scene = 3;
-        if(percent >= 50) scene = 4;
-        if(percent >= 55) scene = 5;
-        if(percent >= 78) scene = 6;
-    
-        if(scene !== this.data.scenetime) this.setSceneTime(scene);
+        if(!this.data.timePaused) {
+            this.data.time += delta * 1000;
+
+            if(this.data.time >= this.data.dayLength) this.data.time %= this.data.dayLength;
+            const percent = (this.data.time / this.data.dayLength) * 100;
+
+            this.updateEffects(delta);
+        
+            // modify bg for shadows
+            let scene = 6;
+            if(percent >= 15) scene = 1;
+            if(percent >= 25) scene = 2;
+            if(percent >= 42) scene = 3;
+            if(percent >= 50) scene = 4;
+            if(percent >= 55) scene = 5;
+            if(percent >= 78) scene = 6;
+        
+            if(scene !== this.data.scenetime) this.setSceneTime(scene);
+
+            if(this.save.settings[Save.settings_index.DO_CLOUDS]) {
+                this.data.cloudTimer -= delta;
+                if(this.data.cloudTimer < 0) {
+                    this.spawnCloud()
+                    this.data.cloudTimer = Math.floor(Math.random()*30);
+                }
+            };
+
+            this.save.statistics.playtime += delta;
+
+            if(this.data.dialogue.active) this.data.dialogue.timer += delta;
+
+            if(this.save.settings[Save.settings_index.DO_AUTOSAVES] && !this.data.haltAutosaves) {
+                this.data.timeToNextAutosave -= delta;
+                if(this.data.timeToNextAutosave < 0) {
+                    this.autosave();
+                    this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL];
+                }
+            };
+        }
 
         this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => s.anim.update(delta));
         this.allSprites.forEach(s => s.extraData.updateFn(delta))
-
-        if(this.save.settings[Save.settings_index.DO_CLOUDS]) {
-            this.data.cloudTimer -= delta;
-            if(this.data.cloudTimer < 0) {
-                this.spawnCloud()
-                this.data.cloudTimer = Math.floor(Math.random()*30);
-            }
-        }
+        
+        this.physics.simulation.physicsObjects.forEach(o => {
+            if(bounds.h - o.pos.y < o.size*-1.1) this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1)
+        });
 
         if (this.data.promptObject.active) {
             const center = Vector.two(bounds.w / 2, bounds.h / 2);
@@ -2417,30 +2456,14 @@ class Engine {
                 )
                 this.data.promptObject.cutDiagramClickbox.rect.pos.setIp(newPos)
             }
-        }
-
-        this.save.statistics.playtime += delta;
-        
-        this.physics.simulation.physicsObjects.forEach(o => {
-            if(bounds.h - o.pos.y < o.size*-1.1) this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1)
-        })
-
-        if(this.data.dialogue.active) this.data.dialogue.timer += delta;
-
-        if(this.save.settings[Save.settings_index.DO_AUTOSAVES] && !this.data.haltAutosaves) {
-            this.data.timeToNextAutosave -= delta;
-            if(this.data.timeToNextAutosave < 0) {
-                this.autosave();
-                this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL];
-            }
-        }
+        };
 
         this.data.notifications.forEach(n => {
             n.lifetime -= (delta*1000);
             if(n.lifetime < 0) {
                 this.data.notifications.splice(this.data.notifications.indexOf(n), 1);
             }
-        })
+        });
 
         // cursor effects
         document.body.style.cursor = "default";
@@ -2525,6 +2548,10 @@ class Engine {
         if(f == null) return;
         let data = await f.text();
         this.save = await Save.fromSerialized(data);
+
+        this.data.importedLocalSave = true;
+        this.data.haltAutosaves = true;
+
         this.swapScenes("garden", () => {
             this.resetLocal();
             this.save.refreshValuesInEngine(this);
