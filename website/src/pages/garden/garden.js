@@ -1454,7 +1454,7 @@ class Engine {
                 ctx.textBaseline = "middle";
                 ctx.font = `${bb.w*0.02}px Arial`;
                 ctx.rotate(-optimize_for_performance.angle);
-                ctx.fillText("performance", invHalf+(optimize_for_performance.size/2), invHalf+(optimize_for_performance.size/2));
+                ctx.fillText("performance preset", invHalf+(optimize_for_performance.size/2), invHalf+(optimize_for_performance.size/2));
                 ctx.restore();
             }
             optimize_for_performance.onclick = async () => {
@@ -1478,7 +1478,7 @@ class Engine {
                 ctx.textBaseline = "middle";
                 ctx.font = `${bb.w*0.02}px Arial`;
                 ctx.rotate(-reset_to_default.angle);
-                ctx.fillText("reset", invHalf+(reset_to_default.size/2), invHalf+(reset_to_default.size/2));
+                ctx.fillText("reset settings", invHalf+(reset_to_default.size/2), invHalf+(reset_to_default.size/2));
                 ctx.restore();
             }
             reset_to_default.onclick = async () => {
@@ -2225,6 +2225,11 @@ class Engine {
             }
         });
 
+        const version_size = Math.floor(parseInt(ctx.canvas.width) * 0.015);
+        ctx.font = `${version_size}px Arial`;
+        ctx.fillStyle = `rgba(255, 255, 255, 0.2)`;
+        ctx.fillText("v0.0.1", 10, ctx.canvas.height-10)
+
         if(this.data.showClickboxes) {
             sceneData[this.data.scene].clickboxes.filter(c => c.active).forEach(c => {
                 c.render(ctx, bb)
@@ -2499,6 +2504,7 @@ class Engine {
     async refreshSave() {
         const save_data = await this.fetchSaveData();
         this.resetLocal();
+        this.spawnNotification("welcome to the beta", `please send feedback`, 6*1000, { "color": "rgba(102, 205, 170, 1)"});
         if(save_data != null) {
             this.save = await Save.fromSerialized(save_data);
             this.save.refreshValuesInEngine(this);
