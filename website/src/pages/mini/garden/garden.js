@@ -6,10 +6,10 @@
 
 import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
     gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini-common.js";
-import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../maths.js";
+import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices, Vector2 } from "../maths.js";
 import { getApiLink, clamp, formatSeconds, formatNumber } from "../../common.js";
 
-export class Keyboard {
+class Keyboard {
     _keys = {};
     _key_functions = {};
     constructor() {
@@ -482,18 +482,20 @@ class Clickbox {
         this.rect = rect;
         this.onclick = onclick;
         this.active = true;
-        this.cursor = "pointer"
+        this.cursor = "pointer";
 
-        this.extraData = {
-        }
+        this.extraData = {};
+        this.useAbsoluteCoordinates = false;
+        this.useAbsoluteScaling = false;
+        this.important = false
     }
 
     getBounds(bounds) {
         return {
-            x: bounds.x + bounds.w * this.rect.pos.x,
-            y: bounds.y + bounds.h * this.rect.pos.y,
-            w: bounds.w * this.rect.w,
-            h: bounds.h * this.rect.h
+            x: this.useAbsoluteCoordinates ? this.rect.pos.x : bounds.x + bounds.w * this.rect.pos.x,
+            y: this.useAbsoluteCoordinates ? this.rect.pos.y : bounds.y + bounds.h * this.rect.pos.y,
+            w: this.useAbsoluteScaling ? this.rect.w : bounds.w * this.rect.w,
+            h: this.useAbsoluteScaling ? this.rect.h : bounds.h * this.rect.h
         };
     }
 
@@ -503,8 +505,25 @@ class Clickbox {
         ctx.fillRect(bb.x, bb.y, bb.w, bb.h);
     }
 
+    // builder functions
     withCursorStyle(cursor) {
         this.cursor = cursor;
+        return this;
+    }
+    usesAbsoluteCoordinates(flag=true) {
+        this.useAbsoluteCoordinates = flag;
+        return this;
+    }
+    usesAbsoluteScaling(flag=true) {
+        this.useAbsoluteScaling = flag;
+        return this;
+    }
+    isImportant(flag=true) {
+        this.important = flag;
+        return this;
+    }
+    isActive(flag=true) {
+        this.active = flag;
         return this;
     }
 }
@@ -968,7 +987,6 @@ const sceneData = {
     }
 }
 
-
 class Item {
     constructor(id, metadata={}) {
         this.id = id;
@@ -1135,6 +1153,9 @@ class Engine {
                 "clamp": [null, null],
                 "active": false
             },
+            "cursorPlant": {
+                "active": false
+            },
             "notifications": [],
             "dialogue": {
                 "active": false,
@@ -1159,7 +1180,8 @@ class Engine {
                 "showCutDiagram": false,
                 "cutDiagramHueShift": 0,
                 "cutDiagramHueShiftFlag": false,
-                "cutDiagramProgress": 0
+                "cutDiagramProgress": 0,
+                "cutDiagramDirty": true
             }
         }
 
@@ -1253,7 +1275,7 @@ class Engine {
             if(!this.data.promptObject.active) {
                 if(e.button === 0) this.dirt.simulation.typeToPlace = 0
                 else this.dirt.simulation.typeToPlace = 1;
-                this.dirt.simulation.mousePressed = true;
+                if(!this.data.cursorPlant.active) this.dirt.simulation.mousePressed = true;
             }
 
             if(e.button === 0) this.onClick();
@@ -1293,6 +1315,8 @@ class Engine {
         this.down_clickbox.active = false;
         this.globalClickboxes.push(this.down_clickbox);
         this.refreshMovementArrows();
+
+        const bounds = this.getBoundingBox();
         
         let timeout;
         const callHandler = (fn) => {
@@ -1512,7 +1536,7 @@ class Engine {
         };
         this.data.promptObject.cutDiagram = this.loader.getImage("garden-art-41")
         const seeds_handler = () => {
-            const w = 150;
+            const w = 0.2*bounds.w;
 
             this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
 
@@ -1550,6 +1574,7 @@ class Engine {
                     this.data.promptObject.endSize = o.size*4;
 
                     this.data.promptObject.showCutDiagram = true;
+                    this.data.promptObject.cutDiagramClickbox.active = true;
 
                     this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1);
                 }
@@ -1646,6 +1671,13 @@ class Engine {
         ]
         this.hand_clickboxes.forEach(c => c.active = false)
         this.globalClickboxes = this.globalClickboxes.concat(this.hand_clickboxes).reverse();
+
+        const cut_diagram_clickbox = new Clickbox(new Rect2D(Vector.two(0, 0), 0.12, 0.1), () => {
+            this.data.promptObject.active = false;
+            cut_diagram_clickbox.active = false;
+        }).usesAbsoluteCoordinates().isImportant().isActive(false);
+        this.globalClickboxes.push(cut_diagram_clickbox);
+        this.data.promptObject.cutDiagramClickbox = cut_diagram_clickbox;
     }
     tick(elapsed) {
         if(this._previousElapsed === null) {
@@ -2120,10 +2152,10 @@ class Engine {
             ctx.translate(bb.x + this.data.promptObject.pos.x, bb.y + this.data.promptObject.pos.y);
             ctx.rotate(this.data.promptObject.angle);
             const invHalf = -this.data.promptObject.size / 2;
-            ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size)
+            ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
             if(this.data.promptObject.showCutDiagram) {
                 ctx.rotate(this.data.promptObject.cutDiagramHueShift*0.005);
-                ctx.drawImage(this.data.promptObject.cutDiagram, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size)
+                ctx.drawImage(this.data.promptObject.cutDiagram, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
             }
             ctx.restore();
         }
@@ -2247,6 +2279,12 @@ class Engine {
                 }
             });
         }
+        this.globalClickboxes.filter(c => c.active && c.important).forEach(c => {
+            const bb = c.getBounds(bounds);
+            if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
+                c.onclick(this);
+            }
+        });
     }
     increaseClickCounter() {
         this.save.statistics.clicks += 1;
@@ -2294,9 +2332,7 @@ class Engine {
     
         if(scene !== this.data.scenetime) this.setSceneTime(scene);
 
-        this.allSprites.filter( s => s.scene == this.data.scene ).forEach(s => {
-            s.anim.update(delta)
-            });
+        this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => s.anim.update(delta));
         this.allSprites.forEach(s => s.extraData.updateFn(delta))
 
         if(this.save.settings[Save.settings_index.DO_CLOUDS]) {
@@ -2317,13 +2353,18 @@ class Engine {
             this.data.promptObject.angle = this.data.promptObject.startAngle + (0 - this.data.promptObject.startAngle) * ease;
             this.data.promptObject.size = this.data.promptObject.startSize + (this.data.promptObject.endSize - this.data.promptObject.startSize) * ease;
 
-            if(this.data.promptObject.cutDiagramHueShift >= 1) {
-                this.data.promptObject.cutDiagramHueShiftFlag = false
+            if(this.data.promptObject.showCutDiagram) {
+                if(this.data.promptObject.cutDiagramHueShift >= 1) this.data.promptObject.cutDiagramHueShiftFlag = false
+                if(this.data.promptObject.cutDiagramHueShift <= 0) this.data.promptObject.cutDiagramHueShiftFlag = true
+                this.data.promptObject.cutDiagramHueShift += this.data.promptObject.cutDiagramHueShiftFlag ? 0.02 : -0.02;
+
+                const invHalf = -(this.data.promptObject.size*0.95) / 2;
+                const newPos = Vector.two(
+                    invHalf + bounds.x + this.data.promptObject.pos.x, 
+                    invHalf + bounds.y + this.data.promptObject.pos.y
+                )
+                this.data.promptObject.cutDiagramClickbox.rect.pos.setIp(newPos)
             }
-            if(this.data.promptObject.cutDiagramHueShift <= 0) {
-                this.data.promptObject.cutDiagramHueShiftFlag = true
-            }
-            this.data.promptObject.cutDiagramHueShift += this.data.promptObject.cutDiagramHueShiftFlag ? 0.02 : -0.02;
         }
 
         this.save.statistics.playtime += delta;
@@ -2356,7 +2397,7 @@ class Engine {
             document.body.style.cursor = "pointer";
             return;
         }
-        if(this.dirt.simulation.mousePressed && this.data.hands.active) {
+        if(this.dirt.simulation.mousePressed && this.data.hands.active && !this.data.cursorPlant.active) {
             if((this.mouse.pos.y-bounds.y) / bounds.h < 0.65) document.body.style.cursor = "none"
         }
         if(!this.data.hands.active) {
@@ -2395,6 +2436,13 @@ class Engine {
                 }
             })
         }
+
+        this.globalClickboxes.filter(c => c.active && c.important).forEach(c => {
+            const bb = c.getBounds(bounds);
+            if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
+                document.body.style.cursor = c.cursor;
+            }
+        });
     }
 
     resetLocal() {

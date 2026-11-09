@@ -1015,6 +1015,13 @@ const server = Bun.serve({
             return corsResponse(null, { status: 200 });
             break;
           }
+          case "/archive/mmo/live": {
+            const success = server.upgrade(req, {
+              data: { source: "/mmo/live" }, // Attach per-socket data
+            });
+            if(success) return undefined;
+            return corsResponse("WebSocket upgrade failed", { status: 400 });
+          }
 
           case "/music/streamAudio": {
             const u = req_url.searchParams.get("url");
@@ -1299,14 +1306,6 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify({"isValid": all_keys.includes(json.key)}), { status: 200 });
           }
 
-          case "/mmo/live": {
-            const success = server.upgrade(req, {
-              data: { source: "/mmo/live" }, // Attach per-socket data
-            });
-            if(success) return undefined;
-            return corsResponse("WebSocket upgrade failed", { status: 400 });
-          }
-
           case "/health": return corsResponse("OK"); 
           default: // dynamic route endpoints
             if(url.startsWith("/file/fetch/")) {
@@ -1344,10 +1343,6 @@ const server = Bun.serve({
             if(!disabled_features.includes("music")) return corsResponse(Bun.file("src/pages/music.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
-          case "/mmo": { 
-            if(!disabled_features.includes("mmo")) return corsResponse(Bun.file("src/pages/mmo.html"), { headers: { "Content-Type": "text/html" } }); 
-            else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
-          }
 
           case "/archive": return corsResponse(Bun.file("src/pages/archive.html"), { headers: { "Content-Type": "text/html" } }); 
 
@@ -1361,6 +1356,7 @@ const server = Bun.serve({
           case "/archive/logclicker": return corsResponse(Bun.file("src/pages/mini/logclicker/clicker.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/game": return corsResponse(Bun.file("src/pages/game/game.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/thelongwalk": return corsResponse(Bun.file("src/pages/mini/thelongwalk/walk.html"), { headers: { "Content-Type": "text/html" } });
+          case "/archive/mmo": return corsResponse(Bun.file("src/pages/mmo.html"), { headers: { "Content-Type": "text/html" } })
 
           case "/admin": return corsResponse(Bun.file("src/pages/admin.html"), { headers: { "Content-Type": "text/html" } });
           case "/credits": return corsResponse(Bun.file("src/pages/credits.html"), { headers: { "Content-Type": "text/html" } });

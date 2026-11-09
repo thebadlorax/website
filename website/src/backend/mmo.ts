@@ -594,7 +594,7 @@ class MMOInstance {
         );
     }
     private onPlayerLeave(player: Player) {
-        this.broadcast(new DestroyEntityPacket(player.entity), [player])
+        this.broadcast(new DestroyEntityPacket(player.entity))
     }
     private onPlayerPacket(data: ArrayBuffer, player: Player) {
         const reader = new PacketReader(data);

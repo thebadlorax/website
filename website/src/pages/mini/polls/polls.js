@@ -202,7 +202,7 @@ class PollManager {
 class Poll {
     static BUTTON_COLORS = ["green", "red", "magenta", "lightblue", "gold", "purple"]
     constructor(title, author, values, labels, timeLeft, id) {
-        this.labels = labels
+        this.labels = labels;
         this.values = values;
         this.title = title;
         this.author = author;
@@ -335,7 +335,7 @@ class Poll {
                 b.querySelectorAll("button").forEach(b1 => {
                     b1.classList.remove("selected");
                     b1.classList.remove("unselected");
-                    b1.classList.add("disabled")
+                    b1.classList.add("disabled");
                 });
             })
         }
@@ -354,7 +354,7 @@ class Poll {
 
         this.values.forEach((v, i) => {
             this.progress[i].style.width = `${Math.floor((v/whole)*100)}%`;
-        })
+        });
     }
 
     async vote(index) {

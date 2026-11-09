@@ -525,7 +525,6 @@ document.getElementById("files-link").addEventListener("click", () => { redirect
 document.getElementById("chat-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/chat`) })
 document.getElementById("gambling-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/gambling`) })
 document.getElementById("music-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/music`) })
-document.getElementById("mmo-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/mmo`) })
 document.getElementById("garden-link").addEventListener("click", () => { redirect(`${location.protocol}//${location.host}/mini/garden`) })
 document.getElementById("polls-link").addEventListener("click", () => { if(saved_data == null) { openMenu(); return; }  redirect(`${location.protocol}//${location.host}/mini/polls?method=author&id=${saved_data.account.id}`)})
 
@@ -579,7 +578,6 @@ async function update_stats(do_fetch) {
     document.getElementById("chat-link").style.display = data.disabled_features.includes("chat") ? "none" : "block";
     document.getElementById("gambling-link").style.display = data.disabled_features.includes("gambling") ? "none" : "block";
     document.getElementById("music-link").style.display = data.disabled_features.includes("music") ? "none" : "block";
-    document.getElementById("mmo-link").style.display = data.disabled_features.includes("mmo") ? "none" : "block";
 }
 
 document.getElementById("sfb").addEventListener("click", async () => {

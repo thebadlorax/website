@@ -236,7 +236,7 @@ class Engine {
         this._resize();
     }
     init() {
-        this.sock = new SocketConnection("/mmo/live")
+        this.sock = new SocketConnection("/archive/mmo/live")
         const sock = this.sock;
 
         sock.open(() => {
@@ -555,8 +555,10 @@ class Instance {
 
     transferSocketControl() {
         console.log(`swapping to instance ${this.id}'s control`)
-        this.sock.onMessage = (data) => {
-            const reader = new PacketReader(data);
+        this.sock.onMessage = (data) => this.onPacket(data);
+    }
+    onPacket(data) {
+        const reader = new PacketReader(data);
             const type = reader.readUint8();
 
             switch(type) {
@@ -577,7 +579,7 @@ class Instance {
 
                     if(type.name == "player") {
                         this.eng.renderer.render_info.map.bg_override.set(`${pos.x};${pos.y}`, Tile_Colors.YELLOW);
-                        this.queueJob(() => this.eng.renderer.render_info.map.bg_override.delete(`${pos.x};${pos.y}`))
+                        this.queueJob(() => this.eng.renderer.render_info.map.bg_override.delete(`${pos.x};${pos.y}`), 1)
                     }
 
                     this.location.data.entities.push({
@@ -648,7 +650,6 @@ class Instance {
                 }
                 default: console.warn(`unhandled packet:\n${Object.keys(PacketType)[type]}`)
             }
-        }
     }
 
     getEntityOnTile(x, y) {
@@ -667,3 +668,9 @@ c.height = window.innerHeight;
 const e = new Engine(c.getContext("2d"));
 e.init();
 window.requestAnimationFrame(e.tick.bind(e));
+
+const has_played = window.localStorage.getItem("MMO_played");
+if(!has_played) {
+    alert("controls are: \n\nqwe\na_d\nzxc \nto move (all 8 directions) \n\nmultiplayer MIGHT work im not fixing it anymore")
+    window.localStorage.setItem("MMO_played", true)
+}
