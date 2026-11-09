@@ -5,9 +5,9 @@
 */
 
 import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
-    gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini-common.js";
-import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices, Vector2 } from "../maths.js";
-import { getApiLink, clamp, formatSeconds, formatNumber } from "../../common.js";
+    gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini/mini-common.js";
+import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices, Vector2 } from "../mini/maths.js";
+import { getApiLink, clamp, formatSeconds, formatNumber } from "../common.js";
 
 class Keyboard {
     _keys = {};
@@ -1227,9 +1227,9 @@ class Engine {
         window.requestAnimationFrame(this.tick.bind(this));
     }
     async load() {
-        let r = await fetch(getApiLink("/mini/garden/files"));
+        let r = await fetch(getApiLink("/garden/files"));
         r = await r.json();
-        await Promise.all(r.map(url => this.loader.loadImage(url.replace(".png", ""), `../res/mini/garden/${url}`)));
+        await Promise.all(r.map(url => this.loader.loadImage(url.replace(".png", ""), `../res/garden/${url}`)));
     }
     async init() {
         this.ctx.webkitImageSmoothingEnabled = false;
@@ -1406,7 +1406,7 @@ class Engine {
                 this.spawnNotification("wiping save", "", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.15, 0.06] })
 
                 const user = JSON.parse(window.localStorage.getItem("user"));
-                const req = await fetch(getApiLink("/mini/garden/saves/wipe"), {
+                const req = await fetch(getApiLink("/garden/saves/wipe"), {
                     method: "POST",
                     body: JSON.stringify({
                         "name": user.account.name,
@@ -1965,6 +1965,7 @@ class Engine {
         this.data.blockClickboxes = true;
         e.onBlack = () => {
             this.data.scene = newScene;
+            document.title = `the garden - ${newScene}`
             this.refreshMovementArrows();
 
             if(this.data.hands.active && releaseHands) {
@@ -2453,7 +2454,7 @@ class Engine {
     }
     async uploadSaveData() {
         const user = JSON.parse(window.localStorage.getItem("user"));
-        await fetch(getApiLink("/mini/garden/saves/set"), {
+        await fetch(getApiLink("/garden/saves/set"), {
             method: "POST",
             body: JSON.stringify({
                 "name": user.account.name,
@@ -2482,7 +2483,7 @@ class Engine {
     async fetchSaveData() {
         try {
             const user = JSON.parse(window.localStorage.getItem("user"));
-            const req = await fetch(getApiLink("/mini/garden/saves/get"), {
+            const req = await fetch(getApiLink("/garden/saves/get"), {
                 method: "POST",
                 body: JSON.stringify({
                     "name": user.account.name,
@@ -2513,7 +2514,7 @@ class Engine {
     }
     async refreshSaveInformation() {
         const user = JSON.parse(window.localStorage.getItem("user"));
-        const req = await fetch(getApiLink("/mini/garden/saves/list"), {
+        const req = await fetch(getApiLink("/garden/saves/list"), {
             method: "POST",
             body: JSON.stringify({
                 "name": user.account.name,
@@ -2525,7 +2526,7 @@ class Engine {
     }
     async swapSave(slot) {
         const user = JSON.parse(window.localStorage.getItem("user"));
-        await fetch(getApiLink("/mini/garden/saves/setSlot"), {
+        await fetch(getApiLink("/garden/saves/setSlot"), {
             method: "POST",
             body: JSON.stringify({
                 "name": user.account.name,

@@ -1111,19 +1111,19 @@ const server = Bun.serve({
             return corsResponse(JSON.stringify(data), { status: 200 }); 
           }
 
-          case "/mini/garden/files": {
-            const glob2 = new Glob(`src/res/mini/garden/**/*`);
+          case "/garden/files": {
+            const glob2 = new Glob(`src/res/garden/**/*`);
             var data = [];
       
             for (const file of glob2.scanSync(".")) {
-              data.push(file.replace("src/res/mini/garden/", ""));
+              data.push(file.replace("src/res/garden/", ""));
             }
 
             return corsResponse(JSON.stringify(data), {
               headers: { "Content-Type": "application/json" },
             });
           }
-          case "/mini/garden/saves/set": {
+          case "/garden/saves/set": {
             const json = await req.json();
             let user = await auth.fetchAccount(json.name, json.pass);
             
@@ -1137,7 +1137,7 @@ const server = Bun.serve({
             db.modify("garden", data);
             return corsResponse(null, { status: 200 });
           }
-          case "/mini/garden/saves/wipe": {
+          case "/garden/saves/wipe": {
             const json = await req.json();
             let user = await auth.fetchAccount(json.name, json.pass);
             
@@ -1153,7 +1153,7 @@ const server = Bun.serve({
               "remaining_saves": pd.saves.filter(s => s != null).map(s => pd.saves.indexOf(s))
             }), { status: 200 });
           }
-          case "/mini/garden/saves/get": {
+          case "/garden/saves/get": {
             const json = await req.json();
             let user = await auth.fetchAccount(json.name, json.pass);
             
@@ -1165,7 +1165,7 @@ const server = Bun.serve({
             if(save == null) return corsResponse(null, { status: 404 });
             return corsResponse(save, { status: 200 });
           }
-          case "/mini/garden/saves/list": {
+          case "/garden/saves/list": {
             const json = await req.json();
             let user = await auth.fetchAccount(json.name, json.pass);
             
@@ -1185,7 +1185,7 @@ const server = Bun.serve({
               }
             ], "selected_slot": pd.selected_slot}), { status: 200 });
           }
-          case "/mini/garden/saves/setSlot": {
+          case "/garden/saves/setSlot": {
             const json = await req.json();
             let user = await auth.fetchAccount(json.name, json.pass);
             
@@ -1343,11 +1343,14 @@ const server = Bun.serve({
             if(!disabled_features.includes("music")) return corsResponse(Bun.file("src/pages/music.html"), { headers: { "Content-Type": "text/html" } }); 
             else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
           }
+          case "/garden": { 
+            if(!disabled_features.includes("garden")) return corsResponse(Bun.file("src/pages/garden/garden.html"), { headers: { "Content-Type": "text/html" } }); 
+            else return corsResponse(Bun.file("src/pages/error.html"), { status: 404, headers: { "Content-Type": "text/html" } });
+          }
 
           case "/archive": return corsResponse(Bun.file("src/pages/archive.html"), { headers: { "Content-Type": "text/html" } }); 
 
           case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles/particles.html"), { headers: { "Content-Type": "text/html" } }); 
-          case "/mini/garden": return corsResponse(Bun.file("src/pages/mini/garden/garden.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/mini/polls": return corsResponse(Bun.file("src/pages/mini/polls/polls.html"), { headers: { "Content-Type": "text/html" } }); 
           
           case "/archive/emulator": return corsResponse(Bun.file("src/pages/mini/emulator/emulator.html"), { headers: { "Content-Type": "text/html" } }); 
