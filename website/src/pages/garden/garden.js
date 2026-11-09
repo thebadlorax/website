@@ -7,7 +7,15 @@
 import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
     gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini/mini-common.js";
 import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../mini/maths.js";
-import { getApiLink, clamp, formatSeconds, formatNumber } from "../common.js";
+import { getApiLink, clamp, formatSeconds, formatNumber, checkIfDisabled } from "../common.js";
+
+if(window.localStorage.getItem("user") == null) {
+    alert("make an account");
+    window.location.href = `${location.protocol}//${location.host}/?account`;
+}
+
+const disabledCheck = async () => { if(await checkIfDisabled("garden")) window.location.href = "/" }
+await disabledCheck()
 
 class Keyboard {
     _keys = {};
@@ -777,9 +785,9 @@ const sceneData = {
             ctx.drawImage(eng.loader.getImage("garden-art-07"), 0, 0, 512, 512, bb.x, bb.y, bb.w, bb.h);
         },
         "clickboxes": [
-            new Clickbox(new Rect2D(Vector.two(0.49, 0.28), 0.1, 0.1), (eng) => { 
+            new Clickbox(new Rect2D(Vector.two(0.5, 0.28), 0.1, 0.1), (eng) => { 
                 eng.spriteMap.shopkeep.anim.changeAnim("talk"); 
-                eng.openRandomDialogueFromList(ALL_DIALOGUE.shopkeep.idle)
+                eng.openRandomDialogueFromList(ALL_DIALOGUE.shopkeep.idle);
             }),
             new Clickbox(new Rect2D(Vector.two(0.145, 0.275), 0.16, 0.12), (eng) => { console.log("a") }),
             new Clickbox(new Rect2D(Vector.two(0.19, 0.06), 0.12, 0.14), (eng) => { console.log("b") }),
@@ -1094,7 +1102,15 @@ class Save {
 
 class Engine {
     static starting_time = 190*1000;
-    static save_cooldown = 1000
+    static save_cooldown = 2000;
+
+    static VERSION_OVERLAY_SIZE = 0.02;
+    static VERSION_OVERLAY_OPACITY = 0.2;
+    static VERSION = [0, 0, 1]; 
+    static VERSION_TEXT = `v${Engine.VERSION[0]}.${Engine.VERSION[1]}.${Engine.VERSION[2]}`;
+
+    static DIALOGUE_FONT_SCALING = 0.04;
+
     constructor(ctx) {
         this.ctx = ctx;
         this.loader = new Loader();
@@ -1232,6 +1248,16 @@ class Engine {
         let r = await fetch(getApiLink("/garden/files"));
         r = await r.json();
         await Promise.all(r.map(url => this.loader.loadImage(url.replace(".png", ""), `../res/garden/${url}`)));
+
+        console.log('loaded all assets into memory');
+
+        // font
+        const jersey20 = new FontFace('Jersey20', `url("/res/Jersey20-Regular.ttf")`);
+        try {
+            const loadedFont = await jersey20.load();
+            document.fonts.add(loadedFont);
+            console.log('loaded jersey 20 into browser fonts');
+        } catch (error) { console.error(`jersey 20 load failed: \n${error}`) }
     }
     async init() {
         this.ctx.webkitImageSmoothingEnabled = false;
@@ -1250,6 +1276,7 @@ class Engine {
                     this.spawnNotification("wait a little bit", `you're on cooldown pal`, 1*1000, { "color": "rgba(155, 40, 40, 1)"});
                     return;
                 }
+                this.data.lastSavePerf = performance.now()
                 await this.uploadSaveData();
                 this.spawnNotification("saved the game", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
                 this.data.lastSave = new Date().toLocaleTimeString();
@@ -1361,10 +1388,10 @@ class Engine {
                     ctx.fillStyle = "black";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle"
-                    ctx.font = `${bb.w*0.01}px Arial`
+                    ctx.font = `${bb.w*0.01}px Jersey20`
                     ctx.rotate(-o.angle);
                     ctx.fillText(Object.keys(Save.settings_index)[a], invHalf+(o.size/2), invHalf+(o.size/3))
-                    ctx.font = `${bb.w*0.03}px Arial`
+                    ctx.font = `${bb.w*0.03}px Jersey20`
                     ctx.fillText(this.save.settings[a], invHalf+(o.size/2), invHalf+(o.size/1.5))
                     ctx.restore();
                 }
@@ -1398,7 +1425,7 @@ class Engine {
                 ctx.fillStyle = "black";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = `${bb.w*0.025}px Arial`;
+                ctx.font = `${bb.w*0.025}px Jersey20`;
                 ctx.rotate(-wipe_save.angle);
                 ctx.fillText("wipe save", invHalf+(wipe_save.size/2), invHalf+(wipe_save.size/2));
                 ctx.restore();
@@ -1459,7 +1486,7 @@ class Engine {
                 ctx.fillStyle = "black";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = `${bb.w*0.02}px Arial`;
+                ctx.font = `${bb.w*0.02}px Jersey20`;
                 ctx.rotate(-optimize_for_performance.angle);
                 ctx.fillText("performance preset", invHalf+(optimize_for_performance.size/2), invHalf+(optimize_for_performance.size/2));
                 ctx.restore();
@@ -1483,7 +1510,7 @@ class Engine {
                 ctx.fillStyle = "black";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = `${bb.w*0.02}px Arial`;
+                ctx.font = `${bb.w*0.02}px Jersey20`;
                 ctx.rotate(-reset_to_default.angle);
                 ctx.fillText("reset settings", invHalf+(reset_to_default.size/2), invHalf+(reset_to_default.size/2));
                 ctx.restore();
@@ -1507,7 +1534,7 @@ class Engine {
                 ctx.fillStyle = "black";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = `${bb.w*0.015}px Arial`;
+                ctx.font = `${bb.w*0.015}px Jersey20`;
                 ctx.rotate(-download_local_save.angle);
                 ctx.fillText("download save", invHalf+(download_local_save.size/2), invHalf+(download_local_save.size/2));
                 ctx.restore();
@@ -1530,7 +1557,7 @@ class Engine {
                 ctx.fillStyle = "black";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = `${bb.w*0.018}px Arial`;
+                ctx.font = `${bb.w*0.018}px Jersey20`;
                 ctx.rotate(-import_local_save.angle);
                 ctx.fillText("import save", invHalf+(import_local_save.size/2), invHalf+(import_local_save.size/2));
                 ctx.restore();
@@ -1620,10 +1647,10 @@ class Engine {
     
                     ctx.fillStyle = "black";
                     ctx.textAlign = "center";
-                    ctx.font = `${bb.w*sizes[0]}px Arial`
+                    ctx.font = `${bb.w*sizes[0]}px Jersey20`
                     ctx.rotate(-o.angle);
                     ctx.fillText(label, invHalf+(o.size/2), invHalf+(o.size/3))
-                    ctx.font = `${bb.w*sizes[1]}px Arial`
+                    ctx.font = `${bb.w*sizes[1]}px Jersey20`
                     ctx.fillText(stat(), invHalf+(o.size/2), invHalf+(o.size*0.9))
                     ctx.restore();
                 }
@@ -2141,16 +2168,25 @@ class Engine {
         if(this.data.scenetime == 6 && this.data.scene == "garden") ctx.filter = "brightness(50%)"
         this.allSprites.filter(s => s.scene == this.data.scene && s.layer > 0).sort((a, b) => a.layer - b.layer).forEach(s => s.render(ctx, bb));
         if(this.data.dialogue.active) {
+            const dialogue_rect = new Rect2D(
+                Vector.two(
+                    bb.x+(bb.w*0.05), 
+                    bb.y+(bb.h*0.7)
+                ), 
+                bb.w-(bb.w*0.1), 
+                (bb.w*0.25)
+            )
             ctx.fillStyle = `rgba(255, 255, 255, 1)`;
-            ctx.fillRect(bb.x+50, ctx.canvas.height-225, bb.w-100, 200);
+            ctx.fillRect(dialogue_rect.pos.x, dialogue_rect.pos.y, dialogue_rect.w, dialogue_rect.h);
             ctx.strokeStyle = `rgba(0, 0, 0, 1)`;
-            ctx.strokeRect(bb.x+50, ctx.canvas.height-225, bb.w-100, 200);
+            ctx.strokeRect(dialogue_rect.pos.x, dialogue_rect.pos.y, dialogue_rect.w, dialogue_rect.h);
 
+            const dialogue_font_size = bb.w*Engine.DIALOGUE_FONT_SCALING;
             ctx.fillStyle = `rgba(0, 0, 0, 1)`;
-            ctx.font = `30px Arial`;
+            ctx.font = `normal ${dialogue_font_size}px Jersey20`;
             const line = this.data.dialogue.data.lines[this.data.dialogue.line].text;
             const characters = line.slice(0, this.data.dialogue.timer / this.data.dialogue.speed * 1000)
-            this.drawTextWrap(characters, bb.x+60, ctx.canvas.height-190, bb.w-100, 40);
+            this.drawTextWrap(characters, dialogue_rect.pos.x, dialogue_rect.pos.y+dialogue_font_size, dialogue_rect.w, dialogue_font_size);
         }
 
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
@@ -2194,9 +2230,9 @@ class Engine {
     
                 ctx.fillStyle = `rgba(0, 0, 0, 1)`;
                 const font_sizes = (n.fontSizes ?? [0.1, 0.08]).map(s => s *= notifProperties.w);
-                ctx.font = `${font_sizes[0]}px Arial`;
+                ctx.font = `${font_sizes[0]}px Jersey20`;
                 ctx.fillText(n.title, pos.x+Math.floor(font_sizes[0]/3), pos.y+font_sizes[0])
-                ctx.font = `${font_sizes[1]}px Arial`;
+                ctx.font = `${font_sizes[1]}px Jersey20`;
                 ctx.fillStyle = `rgba(128, 128, 128, 1)`;
                 ctx.fillText(n.subtitle, pos.x+Math.floor(font_sizes[0]/3), pos.y+notifProperties.h-(font_sizes[1]/2))
             });
@@ -2234,10 +2270,10 @@ class Engine {
             }
         });
 
-        const version_size = Math.floor(parseInt(ctx.canvas.width) * 0.015);
-        ctx.font = `${version_size}px Arial`;
-        ctx.fillStyle = `rgba(255, 255, 255, 0.2)`;
-        ctx.fillText("v0.0.1", 10, ctx.canvas.height-10);
+        const version_size = parseInt(ctx.canvas.width) * Engine.VERSION_OVERLAY_SIZE;
+        ctx.font = `${version_size}px Jersey20`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${Engine.VERSION_OVERLAY_OPACITY})`;
+        ctx.fillText(Engine.VERSION_TEXT, 10, ctx.canvas.height-10);
         if(this.data.save_information != null) ctx.fillText(`save ${this.data.save_information.selected_slot+1}`, 10, ctx.canvas.height-(version_size*2))
 
         if(this.data.showClickboxes) {
@@ -2561,11 +2597,4 @@ const ctx = canvas.getContext("2d");
 const engine = new Engine(ctx);
 await engine.run();
 
-const checkIfDisabled = async () => {
-    await fetch(getApiLink("/stats")).then(async e => {
-        let json = await e.json();
-        if(json.disabled_features.includes("garden")) window.location.href = "/";
-    })
-}
-await checkIfDisabled()
-setInterval(async () => { await checkIfDisabled() }, 10000);
+setInterval(async () => { await disabledCheck() }, 10000);

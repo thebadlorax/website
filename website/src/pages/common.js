@@ -165,6 +165,15 @@ export function getRoute(route) {
     return link
 }
 
+export async function checkIfDisabled(feature) {
+    let disabled = false
+    await fetch(getApiLink("/stats")).then(async e => {
+        let json = await e.json();
+        if(json.disabled_features.includes(feature)) disabled = true;
+    })
+    return disabled
+}
+
 export function getTextWidth(text, font) {
     const canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
     const context = canvas.getContext("2d");
