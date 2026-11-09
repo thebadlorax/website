@@ -39,9 +39,7 @@ export class Database {
         
     }
 
-    async fullCacheReset() {
-        this.cached = await Bun.file(this.path).json();
-    }
+    async fullCacheReset() { this.cached = await Bun.file(this.path).json() }
 
     async init() {
         if(!await Bun.file(this.path).exists()) await Bun.file(this.path).write(`{}`);

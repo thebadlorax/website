@@ -904,7 +904,9 @@ const server = Bun.serve({
 
             let disabled = await db.fetch("disabled_features") || [];
             disabled.push(json.feature);
+            disabled = [...new Set(disabled)];
             disabled_features.push(json.feature);
+            disabled_features = [...new Set(disabled_features)];
             db.modify("disabled_features", disabled);
 
             switch(json.feature) {
@@ -926,7 +928,9 @@ const server = Bun.serve({
             let disabled = await db.fetch("disabled_features") || [];
             if(!disabled.includes(json.feature)) return corsResponse(null, { status: 200 });;
             disabled.splice(disabled.indexOf(json.feature));
+            disabled = [...new Set(disabled)];
             disabled_features.splice(disabled_features.indexOf(json.feature));
+            disabled_features = [...new Set(disabled_features)];
             db.modify("disabled_features", disabled);
             return corsResponse(null, { status: 200 });
           }

@@ -6,7 +6,7 @@
 
 import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
     gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini/mini-common.js";
-import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices, Vector2 } from "../mini/maths.js";
+import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../mini/maths.js";
 import { getApiLink, clamp, formatSeconds, formatNumber } from "../common.js";
 
 class Keyboard {
@@ -2544,3 +2544,12 @@ const ctx = canvas.getContext("2d");
 
 const engine = new Engine(ctx);
 await engine.run();
+
+const checkIfDisabled = async () => {
+    await fetch(getApiLink("/stats")).then(async e => {
+        let json = await e.json();
+        if(json.disabled_features.includes("garden")) window.location.href = "/";
+    })
+}
+await checkIfDisabled()
+setInterval(async () => { await checkIfDisabled() }, 10000);
