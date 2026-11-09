@@ -1094,6 +1094,7 @@ class Save {
 
 class Engine {
     static starting_time = 190*1000;
+    static save_cooldown = 1000
     constructor(ctx) {
         this.ctx = ctx;
         this.loader = new Loader();
@@ -1142,6 +1143,7 @@ class Engine {
             "cloudTimer": Math.floor(Math.random()*10),
             "cursorOverride": null,
             "lastSave": new Date().toLocaleTimeString(),
+            "lastSavePerf": performance.now(),
             "timeToNextAutosave": null,
             "wantsToWipe": false,
             "blockClickboxes": false,
@@ -1244,10 +1246,15 @@ class Engine {
 
         this.keyboard.setFunctionOnKeyPress("KeyS", async () => {
             try {
+                if(performance.now()-this.data.lastSavePerf < Engine.save_cooldown) {
+                    this.spawnNotification("wait a little bit", `you're on cooldown pal`, 1*1000, { "color": "rgba(155, 40, 40, 1)"});
+                    return;
+                }
                 await this.uploadSaveData();
                 this.spawnNotification("saved the game", `last saved: ${this.data.lastSave}`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
                 this.data.lastSave = new Date().toLocaleTimeString();
                 this.data.timeToNextAutosave = this.save.settings[Save.settings_index.AUTOSAVE_INTERVAL];
+                this.data.lastSavePerf = performance.now()
             } catch {
                 this.spawnNotification("couldn't upload save", "backing up your save!", 5*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.08, 0.06] })
                 await this.downloadLocalSave();
@@ -1678,6 +1685,8 @@ class Engine {
         }).usesAbsoluteCoordinates().isImportant().isActive(false);
         this.globalClickboxes.push(cut_diagram_clickbox);
         this.data.promptObject.cutDiagramClickbox = cut_diagram_clickbox;
+
+        document.title = "the garden"
     }
     tick(elapsed) {
         if(this._previousElapsed === null) {
@@ -2228,7 +2237,8 @@ class Engine {
         const version_size = Math.floor(parseInt(ctx.canvas.width) * 0.015);
         ctx.font = `${version_size}px Arial`;
         ctx.fillStyle = `rgba(255, 255, 255, 0.2)`;
-        ctx.fillText("v0.0.1", 10, ctx.canvas.height-10)
+        ctx.fillText("v0.0.1", 10, ctx.canvas.height-10);
+        if(this.data.save_information != null) ctx.fillText(`save ${this.data.save_information.selected_slot+1}`, 10, ctx.canvas.height-(version_size*2))
 
         if(this.data.showClickboxes) {
             sceneData[this.data.scene].clickboxes.filter(c => c.active).forEach(c => {
