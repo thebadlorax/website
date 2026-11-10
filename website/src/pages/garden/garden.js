@@ -1354,11 +1354,11 @@ class Engine {
         });
         
         this.ctx.canvas.addEventListener("mouseup", () => {
+            this.onRelease();
+
             if(this.data.promptObject.active) return;
             this.dirt.simulation.mousePressed = false;
             this.dirt.timeout_timer = 5;
-
-            this.onRelease();
         });
 
         document.addEventListener("visibilitychange", () => {
@@ -1607,7 +1607,7 @@ class Engine {
 
             this.physics.simulation.addObjects(wipe_save, optimize_for_performance, reset_to_default, download_local_save, import_local_save)
         };
-        this.data.promptObject.cutDiagram = this.loader.getImage("garden-art-41")
+        this.data.promptObject.cutDiagram = [this.loader.getImage("garden-art-41"), this.loader.getImage("garden-art-42")]
         const seeds_handler = () => {
             const w = 0.2*bounds.w;
 
@@ -1745,10 +1745,23 @@ class Engine {
         this.hand_clickboxes.forEach(c => c.active = false)
         this.globalClickboxes = this.globalClickboxes.concat(this.hand_clickboxes).reverse();
 
-        const cut_diagram_clickbox = new Clickbox(new Rect2D(Vector.two(0, 0), 0.12, 0.1), () => {
-            this.data.promptObject.active = false;
-            cut_diagram_clickbox.active = false;
-        }).usesAbsoluteCoordinates().isImportant().isActive(false);
+        const cut_diagram_clickbox = new Clickbox(new Rect2D(Vector.two(0, 0), 0.12, 0.1), () => {})
+            .isImportant().isActive(false).isMovable().restrictAxiesOfMovement(true, false, false, false);
+        cut_diagram_clickbox.extraData.moveFn = () => {
+            const bb = this.getBoundingBox();
+            const curX = cut_diagram_clickbox.rect.pos.x * bb.w
+
+            const endPos = this.data.promptObject.pos.x + this.data.promptObject.size / 2;
+            const startX = (-(this.data.promptObject.size*0.95) / 2) + this.data.promptObject.pos.x;
+            const progress = (curX - startX) / (endPos - startX);
+
+            this.data.promptObject.cutDiagramProgress = clamp(progress, 0, 1);
+            if(progress > .9) {
+                this.data.promptObject.active = false;
+                cut_diagram_clickbox.active = false;
+                this.data.promptObject.cutDiagramProgress = 0;
+            }
+        }
         this.globalClickboxes.push(cut_diagram_clickbox);
         this.data.promptObject.cutDiagramClickbox = cut_diagram_clickbox;
 
@@ -2241,7 +2254,13 @@ class Engine {
             ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
             if(this.data.promptObject.showCutDiagram) {
                 ctx.rotate(this.data.promptObject.cutDiagramHueShift*0.005);
-                ctx.drawImage(this.data.promptObject.cutDiagram, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                ctx.drawImage(this.data.promptObject.cutDiagram[0], invHalf+((this.data.promptObject.size*this.data.promptObject.cutDiagramProgress)), invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                ctx.save()
+                ctx.beginPath()
+                ctx.rect(invHalf+((this.data.promptObject.size*this.data.promptObject.cutDiagramProgress))-(invHalf*0.2), invHalf, bb.w, bb.h*0.1);
+                ctx.clip()
+                ctx.drawImage(this.data.promptObject.cutDiagram[1], invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                ctx.restore()
             }
             ctx.restore();
         }
@@ -2480,8 +2499,9 @@ class Engine {
             const start = this.data.promptObject.startPos;
             const t = Math.min((performance.now() - this.data.promptObject.startTime) / 350, 1);
             const ease = Math.pow(t, 5);
+            const settled = (performance.now() - this.data.promptObject.startTime) / 350 > 1.5;
             
-            this.data.promptObject.pos.xySetIp(start.x + (center.x - start.x) * ease, start.y + (center.y - start.y) * ease)
+            this.data.promptObject.pos.xySetIp(start.x + (center.x - start.x) * ease, start.y + (center.y - start.y) * ease);
             this.data.promptObject.angle = this.data.promptObject.startAngle + (0 - this.data.promptObject.startAngle) * ease;
             this.data.promptObject.size = this.data.promptObject.startSize + (this.data.promptObject.endSize - this.data.promptObject.startSize) * ease;
 
@@ -2490,12 +2510,16 @@ class Engine {
                 if(this.data.promptObject.cutDiagramHueShift <= 0) this.data.promptObject.cutDiagramHueShiftFlag = true
                 this.data.promptObject.cutDiagramHueShift += this.data.promptObject.cutDiagramHueShiftFlag ? 0.02 : -0.02;
 
-                const invHalf = -(this.data.promptObject.size*0.95) / 2;
-                const newPos = Vector.two(
-                    invHalf + bounds.x + this.data.promptObject.pos.x, 
-                    invHalf + bounds.y + this.data.promptObject.pos.y
-                )
-                this.data.promptObject.cutDiagramClickbox.rect.pos.setIp(newPos)
+                if(!settled) {
+                    const invHalf = -(this.data.promptObject.size*0.95) / 2;
+                    const newPos = Vector.two(
+                        invHalf + this.data.promptObject.pos.x, 
+                        invHalf + this.data.promptObject.pos.y
+                    )
+                    newPos.xyDivIp(bounds.w, bounds.h);
+                    this.data.promptObject.cutDiagramClickbox.rect.pos.setIp(newPos);
+                    this.data.promptObject.cutDiagramProgress = 0;
+                }
             }
         };
 
