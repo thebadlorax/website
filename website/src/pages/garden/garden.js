@@ -766,6 +766,7 @@ const ITEM_DATA = {
         description: "awesomely cheap and basic grass plant",
     }
 }
+const getItemDataFromIndex = (index) => { return Object.values(ITEM_DATA)[index] };
 
 const sceneData = {
     "garden": {
@@ -2251,16 +2252,43 @@ class Engine {
             ctx.translate(bb.x + this.data.promptObject.pos.x, bb.y + this.data.promptObject.pos.y);
             ctx.rotate(this.data.promptObject.angle);
             const invHalf = -this.data.promptObject.size / 2;
-            ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
             if(this.data.promptObject.showCutDiagram) {
-                ctx.rotate(this.data.promptObject.cutDiagramHueShift*0.005);
-                ctx.drawImage(this.data.promptObject.cutDiagram[0], invHalf+((this.data.promptObject.size*this.data.promptObject.cutDiagramProgress)), invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                //ctx.drawImage(this.loader.getImage("garden-art-43"), invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                
                 ctx.save()
+                ctx.beginPath()
+                //ctx.rect(invHalf, invHalf, this.data.promptObject.size*this.data.promptObject.cutDiagramProgress-(invHalf*0.2), bb.h*0.1)
+                ctx.rect(invHalf, invHalf*.666, this.data.promptObject.size, bb.h)
+                ctx.clip();
+                ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                ctx.restore();
+                
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(invHalf, invHalf, this.data.promptObject.size*this.data.promptObject.cutDiagramProgress-(invHalf*0.21), this.data.promptObject.size*0.25);
+                ctx.clip();
+                ctx.drawImage(this.loader.getImage("garden-art-43"), invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                ctx.restore();
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(invHalf+((this.data.promptObject.size*this.data.promptObject.cutDiagramProgress))-(invHalf*0.2), invHalf, bb.w, this.data.promptObject.size*0.25);
+                ctx.fillStyle = "black";
+                ctx.clip()
+                ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                ctx.restore();
+                
+                ctx.save();
                 ctx.beginPath()
                 ctx.rect(invHalf+((this.data.promptObject.size*this.data.promptObject.cutDiagramProgress))-(invHalf*0.2), invHalf, bb.w, bb.h*0.1);
                 ctx.clip()
                 ctx.drawImage(this.data.promptObject.cutDiagram[1], invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
                 ctx.restore()
+
+                ctx.rotate(this.data.promptObject.cutDiagramHueShift*0.005);
+                ctx.drawImage(this.data.promptObject.cutDiagram[0], invHalf+((this.data.promptObject.size*this.data.promptObject.cutDiagramProgress)), invHalf, this.data.promptObject.size, this.data.promptObject.size);
+            } else {
+                ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
             }
             ctx.restore();
         }
