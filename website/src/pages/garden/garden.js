@@ -1218,6 +1218,7 @@ class Engine {
             "promptObject": {
                 "active": false,
                 "art": null,
+                "cutArt": null,
                 "startTime": null,
                 "pos": null,
                 "startPos": null,
@@ -1231,7 +1232,8 @@ class Engine {
                 "cutDiagramHueShift": 0,
                 "cutDiagramHueShiftFlag": false,
                 "cutDiagramProgress": 0,
-                "cutDiagramDirty": true
+                "cutDiagramDirty": true,
+                "forceCutArt": false
             }
         }
 
@@ -1635,6 +1637,7 @@ class Engine {
                 o.onclick = () => {
                     this.data.promptObject.active = true;
                     this.data.promptObject.art = a;
+                    this.data.promptObject.cutArt = this.loader.getImage("garden-art-43");
                     this.data.promptObject.startTime = performance.now();
 
                     this.data.promptObject.pos = o.pos.copy();
@@ -1758,9 +1761,10 @@ class Engine {
 
             this.data.promptObject.cutDiagramProgress = clamp(progress, 0, 1);
             if(progress > .9) {
-                this.data.promptObject.active = false;
+                this.data.promptObject.showCutDiagram = false;
+                this.data.promptObject.forceCutArt = true;
                 cut_diagram_clickbox.active = false;
-                this.data.promptObject.cutDiagramProgress = 0;
+                //this.data.promptObject.cutDiagramProgress = 0;
             }
         }
         this.globalClickboxes.push(cut_diagram_clickbox);
@@ -2253,23 +2257,23 @@ class Engine {
             ctx.rotate(this.data.promptObject.angle);
             const invHalf = -this.data.promptObject.size / 2;
             if(this.data.promptObject.showCutDiagram) {
-                //ctx.drawImage(this.loader.getImage("garden-art-43"), invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
-                
+                // draw art under the cut diagram
                 ctx.save()
                 ctx.beginPath()
-                //ctx.rect(invHalf, invHalf, this.data.promptObject.size*this.data.promptObject.cutDiagramProgress-(invHalf*0.2), bb.h*0.1)
                 ctx.rect(invHalf, invHalf*.666, this.data.promptObject.size, bb.h)
                 ctx.clip();
                 ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
                 ctx.restore();
                 
+                // draw the cut art behind the scissors
                 ctx.save();
                 ctx.beginPath();
                 ctx.rect(invHalf, invHalf, this.data.promptObject.size*this.data.promptObject.cutDiagramProgress-(invHalf*0.21), this.data.promptObject.size*0.25);
                 ctx.clip();
-                ctx.drawImage(this.loader.getImage("garden-art-43"), invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                ctx.drawImage(this.data.promptObject.cutArt, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
                 ctx.restore();
 
+                // draw the normal art in front of the scissors
                 ctx.save();
                 ctx.beginPath();
                 ctx.rect(invHalf+((this.data.promptObject.size*this.data.promptObject.cutDiagramProgress))-(invHalf*0.2), invHalf, bb.w, this.data.promptObject.size*0.25);
@@ -2278,6 +2282,7 @@ class Engine {
                 ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
                 ctx.restore();
                 
+                // draw the scissors and path
                 ctx.save();
                 ctx.beginPath()
                 ctx.rect(invHalf+((this.data.promptObject.size*this.data.promptObject.cutDiagramProgress))-(invHalf*0.2), invHalf, bb.w, bb.h*0.1);
@@ -2287,6 +2292,20 @@ class Engine {
 
                 ctx.rotate(this.data.promptObject.cutDiagramHueShift*0.005);
                 ctx.drawImage(this.data.promptObject.cutDiagram[0], invHalf+((this.data.promptObject.size*this.data.promptObject.cutDiagramProgress)), invHalf, this.data.promptObject.size, this.data.promptObject.size);
+            } else if(this.data.promptObject.forceCutArt) {
+                ctx.save()
+                ctx.beginPath()
+                ctx.rect(invHalf, invHalf*.666, this.data.promptObject.size, bb.h)
+                ctx.clip();
+                ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                ctx.restore();
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(invHalf, invHalf, this.data.promptObject.size-(invHalf*0.21), this.data.promptObject.size*0.25);
+                ctx.clip();
+                ctx.drawImage(this.data.promptObject.cutArt, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
+                ctx.restore();
             } else {
                 ctx.drawImage(this.data.promptObject.art, invHalf, invHalf, this.data.promptObject.size, this.data.promptObject.size);
             }
