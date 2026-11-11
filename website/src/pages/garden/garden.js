@@ -12,6 +12,14 @@
  *  
 */
 
+/* SPRITE RENDER LAYERS:
+ * 0: behind everything but above garden bg
+ * 1 -> 99: normal z layer behavior
+ * 100: above hands and simulations but below promptobject
+ * 101: above everything including promptobject
+ * 102: above the black border
+*/
+
 import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
     gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini/mini-common.js";
 import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../mini/maths.js";
@@ -763,7 +771,7 @@ const ALL_DIALOGUE = {
     } 
 }
 
-const plantData = { // make plants go plant
+const plantData = {
     "grass": {
         "seeds": {
             "art": "garden-art-44"
@@ -1052,7 +1060,8 @@ class Save {
         SCENE_TRANSITION_SPEED: 5,
         DO_CURSOR_EFFECTS: 6,
         OPTIMIZE_DIRT: 7,
-        PHYSICS_ITERATIONS: 8
+        PHYSICS_ITERATIONS: 8,
+        GLOW_EFFECTS: 9
     }
     static PERFORMANCE_SETTINGS = {
         0: null,
@@ -1063,7 +1072,8 @@ class Save {
         5: null,
         6: false,
         7: true,
-        8: 1
+        8: 1,
+        9: false
     }
     static DEFAULT_SETTINGS = () => {return [
         60,
@@ -1074,7 +1084,8 @@ class Save {
         400,
         true,
         false,
-        10
+        10,
+        true
     ]}
     constructor() {
         this.dirt = null;
@@ -1762,7 +1773,9 @@ class Engine {
         const seed_pack_seed_clickbox = new Clickbox(new Rect2D(Vector.two(0.5, 0.5), 0.1, 0.1), () => {})
             .isImportant().isActive(false).isMovable().restrictAxiesOfMovement(true, true, true, true);
         seed_pack_seed_clickbox.extraData.moveFn = () => {
-            this.spriteMap.seed.rect.pos.xySetIp(seed_pack_seed_clickbox.rect.pos.x-.2, seed_pack_seed_clickbox.rect.pos.y-.2);
+            const seed = this.spriteMap.seed
+            if(seed.extraData.glowStrength > 0) seed.extraData.glowStrength -= 0.1;
+            seed.rect.pos.xySetIp(seed_pack_seed_clickbox.rect.pos.x-.2, seed_pack_seed_clickbox.rect.pos.y-.2);
         }
         this.globalClickboxes.push(seed_pack_seed_clickbox);
         this.data.cursorPlant.seedPackClickbox = seed_pack_seed_clickbox;
@@ -1787,8 +1800,8 @@ class Engine {
                 seed_pack_seed_clickbox.rect.pos.xySetIp(0.45, 0.45)
                 this.spriteMap.seed.hidden = false;
                 this.spriteMap.seed.anim.changeAnim("grass");
-                console.log(this.spriteMap.seed)
                 this.spriteMap.seed.rect.pos.xySetIp(0.25, 0.25);
+                this.spriteMap.seed.extraData.glowStrength = 1;
 
                 this.data.promptObject.mode = "gravity";
                 this.data.promptObject.gravity.xySetIp(/*(Math.floor(Math.random()*7)-3)*1000*/0, 5*1000)
@@ -1954,10 +1967,26 @@ class Engine {
         Object.values(plantData).forEach((p, i) => {
             seed_animator.addAnim(new Animation(this.loader.imageSet(p.seeds.art), -1), Object.keys(plantData)[i]) 
         })
-        
         const seed = this.createSprite(new Rect2D(Vector.two(0, 0), 0.5, 0.5), seed_animator, "garden").isHidden();
         seed_animator.changeAnim(Object.keys(seed_animator.animations)[0])
         seed.layer = 100;
+        seed.extraData.applyGlow = true;
+        seed.extraData.renderFn = (ctx, bounds) => {
+            const bb = seed.getBounds(bounds);
+
+            if(this.save.settings[9] && seed.extraData.glowStrength > 0) {
+                ctx.save()
+                ctx.shadowColor = `rgba(255, 255, 255, ${seed.extraData.glowStrength})`;
+                ctx.shadowBlur = 20;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+
+                ctx.drawImage(seed.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
+                ctx.restore();
+            } else {
+                ctx.drawImage(seed.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
+            }
+        }
         this.spriteMap.seed = seed;
 
         let hand_animator = new Animator();
@@ -2005,19 +2034,22 @@ class Engine {
             save.extraData.renderFn = (ctx, bounds) => {
                 const bb = save.getBounds(bounds);
 
-                // todo: turn off w/ performance mode
-                const selected = this.data.save_information.selected_slot == slot;
-                const exists = this.data.save_information.saves[slot].exists || selected;
-
-                ctx.globalAlpha = exists ? 1 : 0.5
-                ctx.shadowColor = colors[slot];
-                ctx.shadowBlur = selected ? 40 : 0;
-                ctx.shadowOffsetX = 0;
-                ctx.shadowOffsetY = 0;
-
-                ctx.drawImage(save.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
-                ctx.shadowBlur = 0; 
-                ctx.globalAlpha = 1
+                if(this.save.settings[9]) {
+                    const selected = this.data.save_information.selected_slot == slot;
+                    const exists = this.data.save_information.saves[slot].exists || selected;
+    
+                    ctx.save()
+                    ctx.globalAlpha = exists ? 1 : 0.5
+                    ctx.shadowColor = colors[slot];
+                    ctx.shadowBlur = selected ? 40 : 0;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+    
+                    ctx.drawImage(save.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(save.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
+                }
             }
         }
 
@@ -2350,6 +2382,8 @@ class Engine {
             }
             ctx.restore();
         }
+
+        this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 101).forEach(s => s.render(ctx, bb));
         ctx.filter = `none`;
 
         if(!this.save.settings[Save.settings_index.HIDE_NOTIFICATIONS]) {
@@ -2388,6 +2422,8 @@ class Engine {
         ctx.clearRect(0, bb.y + bb.h, ctx.canvas.width, ctx.canvas.height);
         ctx.clearRect(0, bb.y, bb.x, bb.h);
         ctx.clearRect(bb.x + bb.w, bb.y, ctx.canvas.width, bb.h);
+
+        this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 102).forEach(s => s.render(ctx, bb));
 
         this.screenEffects.forEach(e => {
             switch(e.type) {
