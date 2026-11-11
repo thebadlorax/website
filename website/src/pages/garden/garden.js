@@ -1211,6 +1211,7 @@ class Engine {
                 "active": false,
                 "art": null,
                 "cutArt": null,
+
                 "startTime": null,
                 "pos": null,
                 "startPos": null,
@@ -1219,6 +1220,11 @@ class Engine {
                 "size": null,
                 "startSize": null,
                 "endSize": null,
+
+                "mode": "ease",
+
+                "gravity": Vector.two(0, 0),
+                "velocity": Vector.two(0, 0),
 
                 "showCutDiagram": false,
                 "cutDiagramHueShift": 0,
@@ -1756,7 +1762,9 @@ class Engine {
                 this.data.promptObject.showCutDiagram = false;
                 this.data.promptObject.forceCutArt = true;
                 cut_diagram_clickbox.active = false;
-                //this.data.promptObject.cutDiagramProgress = 0;
+
+                this.data.promptObject.mode = "gravity";
+                this.data.promptObject.gravity.xySetIp(1000, 5*1000)
             }
         }
         this.globalClickboxes.push(cut_diagram_clickbox);
@@ -2534,30 +2542,45 @@ class Engine {
         });
 
         if (this.data.promptObject.active) {
-            const center = Vector.two(bounds.w / 2, bounds.h / 2);
-            const start = this.data.promptObject.startPos;
-            const t = Math.min((performance.now() - this.data.promptObject.startTime) / 350, 1);
-            const ease = Math.pow(t, 5);
-            const settled = (performance.now() - this.data.promptObject.startTime) / 350 > 1.5;
-            
-            this.data.promptObject.pos.xySetIp(start.x + (center.x - start.x) * ease, start.y + (center.y - start.y) * ease);
-            this.data.promptObject.angle = this.data.promptObject.startAngle + (0 - this.data.promptObject.startAngle) * ease;
-            this.data.promptObject.size = this.data.promptObject.startSize + (this.data.promptObject.endSize - this.data.promptObject.startSize) * ease;
-
-            if(this.data.promptObject.showCutDiagram) {
-                if(this.data.promptObject.cutDiagramHueShift >= 1) this.data.promptObject.cutDiagramHueShiftFlag = false
-                if(this.data.promptObject.cutDiagramHueShift <= 0) this.data.promptObject.cutDiagramHueShiftFlag = true
-                this.data.promptObject.cutDiagramHueShift += this.data.promptObject.cutDiagramHueShiftFlag ? 0.02 : -0.02;
-
-                if(!settled) {
-                    const invHalf = -(this.data.promptObject.size*0.95) / 2;
-                    const newPos = Vector.two(
-                        invHalf + this.data.promptObject.pos.x, 
-                        invHalf + this.data.promptObject.pos.y
-                    )
-                    newPos.xyDivIp(bounds.w, bounds.h);
-                    this.data.promptObject.cutDiagramClickbox.rect.pos.setIp(newPos);
-                    this.data.promptObject.cutDiagramProgress = 0;
+            switch(this.data.promptObject.mode) {
+                case "ease": {
+                    const center = Vector.two(bounds.w / 2, bounds.h / 2);
+                    const start = this.data.promptObject.startPos;
+                    const t = Math.min((performance.now() - this.data.promptObject.startTime) / 350, 1);
+                    const ease = Math.pow(t, 5);
+                    const settled = (performance.now() - this.data.promptObject.startTime) / 350 > 1.5;
+                    
+                    this.data.promptObject.pos.xySetIp(start.x + (center.x - start.x) * ease, start.y + (center.y - start.y) * ease);
+                    this.data.promptObject.angle = this.data.promptObject.startAngle + (0 - this.data.promptObject.startAngle) * ease;
+                    this.data.promptObject.size = this.data.promptObject.startSize + (this.data.promptObject.endSize - this.data.promptObject.startSize) * ease;
+        
+                    if(this.data.promptObject.showCutDiagram) {
+                        if(this.data.promptObject.cutDiagramHueShift >= 1) this.data.promptObject.cutDiagramHueShiftFlag = false
+                        if(this.data.promptObject.cutDiagramHueShift <= 0) this.data.promptObject.cutDiagramHueShiftFlag = true
+                        this.data.promptObject.cutDiagramHueShift += this.data.promptObject.cutDiagramHueShiftFlag ? 0.02 : -0.02;
+        
+                        if(!settled) {
+                            const invHalf = -(this.data.promptObject.size*0.95) / 2;
+                            const newPos = Vector.two(
+                                invHalf + this.data.promptObject.pos.x, 
+                                invHalf + this.data.promptObject.pos.y
+                            )
+                            newPos.xyDivIp(bounds.w, bounds.h);
+                            this.data.promptObject.cutDiagramClickbox.rect.pos.setIp(newPos);
+                            this.data.promptObject.cutDiagramProgress = 0;
+                        }
+                    };
+                    break;
+                }
+                case "gravity": {
+                    if(!Number.isFinite(delta)) return;
+                    
+                    const grav = this.data.promptObject.gravity.sMul(delta);
+                    this.data.promptObject.velocity.addIp(grav);
+                    this.data.promptObject.pos.addIp(this.data.promptObject.velocity.sMul(delta));
+                    const damping = Math.exp(-1 * delta);
+                    
+                    this.data.promptObject.velocity.sMulIp(damping);
                 }
             }
         };
