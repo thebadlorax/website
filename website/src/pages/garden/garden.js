@@ -459,7 +459,7 @@ class Animator {
 class Sprite {
     constructor(rect, animator, scene) {
         this.rect = rect; this.anim = animator;
-        this.scene = scene; this.layer = 1;
+        this.scene = scene; this.layer = 1; this.hidden = false
         this.extraData = {
             "renderOffset": Vector.two(0, 0),
             "updateFn": (delta) => {},
@@ -483,6 +483,7 @@ class Sprite {
     }
 
     render(ctx, bounds) {
+        if(this.hidden) return;
         const bb = this.getBounds(bounds);
         const off = this.extraData.renderOffset;
         if(this.extraData.renderFn != null) {
@@ -490,6 +491,12 @@ class Sprite {
             return;
         }
         ctx.drawImage(this.anim.get(), bb.pos.x + off.x, bb.pos.y + off.y, bb.w, bb.h);
+    }
+
+    // builder functions
+    isHidden(flag=true) {
+        this.hidden = flag;
+        return this;
     }
 }
 
@@ -757,7 +764,11 @@ const ALL_DIALOGUE = {
 }
 
 const plantData = { // make plants go plant
-
+    "grass": {
+        "seeds": {
+            "art": "garden-art-44"
+        }
+    }
 }
 
 const sceneData = {
@@ -1196,7 +1207,8 @@ class Engine {
             "heldClickboxOffset": Vector.two(0, 0),
             "timePaused": false,
             "cursorPlant": {
-                "active": false
+                "active": false,
+                "seedPackClickbox": null
             },
             "notifications": [],
             "dialogue": {
@@ -1747,6 +1759,14 @@ class Engine {
         this.hand_clickboxes.forEach(c => c.active = false)
         this.globalClickboxes = this.globalClickboxes.concat(this.hand_clickboxes).reverse();
 
+        const seed_pack_seed_clickbox = new Clickbox(new Rect2D(Vector.two(0.5, 0.5), 0.1, 0.1), () => {})
+            .isImportant().isActive(false).isMovable().restrictAxiesOfMovement(true, true, true, true);
+        seed_pack_seed_clickbox.extraData.moveFn = () => {
+            this.spriteMap.seed.rect.pos.xySetIp(seed_pack_seed_clickbox.rect.pos.x-.2, seed_pack_seed_clickbox.rect.pos.y-.2);
+        }
+        this.globalClickboxes.push(seed_pack_seed_clickbox);
+        this.data.cursorPlant.seedPackClickbox = seed_pack_seed_clickbox;
+
         const cut_diagram_clickbox = new Clickbox(new Rect2D(Vector.two(0, 0), 0.12, 0.1), () => {})
             .isImportant().isActive(false).isMovable().restrictAxiesOfMovement(true, false, false, false);
         cut_diagram_clickbox.extraData.moveFn = () => {
@@ -1758,13 +1778,20 @@ class Engine {
             const progress = (curX - startX) / (endPos - startX);
 
             this.data.promptObject.cutDiagramProgress = clamp(progress, 0, 1);
-            if(progress > .9) {
+            if(progress > .9 && this.data.promptObject.showCutDiagram) {
                 this.data.promptObject.showCutDiagram = false;
                 this.data.promptObject.forceCutArt = true;
                 cut_diagram_clickbox.active = false;
 
+                seed_pack_seed_clickbox.active = true;
+                seed_pack_seed_clickbox.rect.pos.xySetIp(0.45, 0.45)
+                this.spriteMap.seed.hidden = false;
+                this.spriteMap.seed.anim.changeAnim("grass");
+                console.log(this.spriteMap.seed)
+                this.spriteMap.seed.rect.pos.xySetIp(0.25, 0.25);
+
                 this.data.promptObject.mode = "gravity";
-                this.data.promptObject.gravity.xySetIp(1000, 5*1000)
+                this.data.promptObject.gravity.xySetIp(/*(Math.floor(Math.random()*7)-3)*1000*/0, 5*1000)
             }
         }
         this.globalClickboxes.push(cut_diagram_clickbox);
@@ -1922,6 +1949,16 @@ class Engine {
         const down_arrow = this.createSprite(new Rect2D(Vector.two(0.17, 0.2), 0.8, 0.8), down_arrow_animator, "");
         down_arrow_animator.changeAnim("idle")
         this.spriteMap.down_arrow = down_arrow;
+
+        let seed_animator = new Animator();
+        Object.values(plantData).forEach((p, i) => {
+            seed_animator.addAnim(new Animation(this.loader.imageSet(p.seeds.art), -1), Object.keys(plantData)[i]) 
+        })
+        
+        const seed = this.createSprite(new Rect2D(Vector.two(0, 0), 0.5, 0.5), seed_animator, "garden").isHidden();
+        seed_animator.changeAnim(Object.keys(seed_animator.animations)[0])
+        seed.layer = 100;
+        this.spriteMap.seed = seed;
 
         let hand_animator = new Animator();
         hand_animator.addAnim(new Animation(this.loader.imageSet("garden-art-26"), -1), "idle");
@@ -2224,7 +2261,7 @@ class Engine {
 
         sceneData[this.data.scene].renderFn(this, this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 0));
         if(this.data.scenetime == 6 && this.data.scene == "garden") ctx.filter = "brightness(50%)"
-        this.allSprites.filter(s => s.scene == this.data.scene && s.layer > 0).sort((a, b) => a.layer - b.layer).forEach(s => s.render(ctx, bb));
+        this.allSprites.filter(s => s.scene == this.data.scene && s.layer > 0 && s.layer != 100).sort((a, b) => a.layer - b.layer).forEach(s => s.render(ctx, bb));
         if(this.data.dialogue.active) {
             const dialogue_rect = new Rect2D(
                 Vector.two(
@@ -2250,6 +2287,8 @@ class Engine {
         if(this.data.scenetime == 6) ctx.filter = `brightness(50%)`
         ctx.drawImage(this.dirt.canvas, bb.x, bb.y + (this.spriteMap.hands.rect.pos.y*bb.h), bb.w, bb.h);
         ctx.drawImage(this.physics.canvas, bb.x, bb.y);
+
+        this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 100).forEach(s => s.render(ctx, bb));
 
         if(this.data.promptObject.active) {
             ctx.save();
