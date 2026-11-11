@@ -1341,7 +1341,7 @@ class Engine {
         this.refreshBounds();
         this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU", "KeyP"]);
         this.keyboard.setFunctionOnKeyPress("Space", () => {
-            if(this.data.scene != "garden" || this.data.promptObject.active) return;
+            if(this.data.scene != "garden") return;
             this.toggleHands();
         })
 
@@ -1691,6 +1691,7 @@ class Engine {
 
                 this.data.promptObject.onExit = () => {
                     object.hidden = false;
+                    this.data.promptObject.cutDiagramClickbox.active = false;
                 }
 
                 this.data.promptObject.onCut = () => {
@@ -1897,6 +1898,12 @@ class Engine {
     }
 
     toggleHands() {
+        if(this.data.promptObject.active) {
+            if(!this.data.promptObject.canExit) return;
+            
+            this.data.promptObject.active = false;
+            if(this.data.promptObject.onExit != null) this.data.promptObject.onExit();
+        }
         const hand_amp = 3;
 
         this.data.lastHandlerPressed = null;
@@ -2727,6 +2734,10 @@ class Engine {
 
         const hc = this.data.heldClickbox
         if(hc != null) {
+            if(hc.active == false) {
+                this.data.heldClickbox = null;
+                return;
+            }
             const mx = (this.mouse.pos.x - this.data.heldClickboxOffset.x) - bounds.x;
             const my = (this.mouse.pos.y - this.data.heldClickboxOffset.y) - bounds.y;
             let nx, ny;
