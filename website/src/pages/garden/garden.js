@@ -8,7 +8,17 @@
  *
  * find a way to compress dirt simulation states down way more (greedy meshing type approach?)
  * make it so local saves store they've been downloaded so they can't be uploaded
- * move sprite init out of setup sprites / init and into sceneData
+ *  -> add a local save only mode, probably keep it in the indexeddb so they dont have to constantly importsave
+ * move sprite init out of setupSprites() / init() and into sceneData
+ *  
+*/
+
+/* IDEAS:
+ *
+ * apply timezones (scaled down to relevant time)
+ * prestige system (does nothing)
+ * literal skill tree
+ *  -> alternate: mind garden (alternate garden in your mind that gives passives and actives)
  *  
 */
 
@@ -882,7 +892,7 @@ const sceneData = {
                         "text": "well now, you know what they say about swapping timelines...."
                     }
                 ];
-                if(!eng.data.save_information.saves[1].exists) {
+                if(!eng.data.save_information.saves[0].exists) {
                     l.push({
                         "text": "actually, do you know how hard it is to make a new timeline?"
                     },
@@ -1061,7 +1071,8 @@ class Save {
         DO_CURSOR_EFFECTS: 6,
         OPTIMIZE_DIRT: 7,
         PHYSICS_ITERATIONS: 8,
-        GLOW_EFFECTS: 9
+        GLOW_EFFECTS: 9,
+        ANTIALIASING: 10
     }
     static PERFORMANCE_SETTINGS = {
         0: null,
@@ -1073,7 +1084,8 @@ class Save {
         6: false,
         7: true,
         8: 1,
-        9: false
+        9: false,
+        10: null
     }
     static DEFAULT_SETTINGS = () => {return [
         60,
@@ -1085,7 +1097,8 @@ class Save {
         true,
         false,
         10,
-        true
+        true,
+        false
     ]}
     constructor() {
         this.dirt = null;
@@ -1429,8 +1442,7 @@ class Engine {
             this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
             
             if(this.data.lastHandlerPressed == "settings") {
-                this.data.lastHandlerPressed = null;
-                return;
+                this.data.lastHandlerPressed = null; return;
             }
             this.data.lastHandlerPressed = "settings"
 
@@ -1462,6 +1474,12 @@ class Engine {
                     case "boolean": {
                         o.onclick = () => {
                             this.save.settings[a] = !this.save.settings[a];
+                            switch(a) {
+                                case 10: {
+                                    this.refreshAntiAliasing();
+                                    break;
+                                }
+                            }
                         }; break
                     }
                     default: {
@@ -1521,7 +1539,7 @@ class Engine {
                 else {
                     next_save = json.remaining_saves.sort()[0];
                     notif_text[0] = "swapped saves";
-                    notif_text[1] = `slot ${next_save} had data`
+                    notif_text[1] = `slot ${next_save+1} had data`
                 }
 
                 this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(wipe_save), 1);
@@ -1529,9 +1547,9 @@ class Engine {
                 await this.swapSave(next_save);
                 this.swapScenes("garden", async () => {
                     this.resetLocal();
-                    this.spawnNotification(notif_text[0], notif_text[1], 3*1000, { "color": "rgba(255, 255, 255, 1)"})
                     await this.refreshSave();
                     await this.refreshSaveInformation();
+                    this.spawnNotification(notif_text[0], notif_text[1], 3*1000, { "color": "rgba(255, 255, 255, 1)"})
                 })
             }
 
@@ -1797,7 +1815,7 @@ class Engine {
                 cut_diagram_clickbox.active = false;
 
                 seed_pack_seed_clickbox.active = true;
-                seed_pack_seed_clickbox.rect.pos.xySetIp(0.45, 0.45)
+                seed_pack_seed_clickbox.rect.pos.xySetIp(0.45, 0.45);
                 this.spriteMap.seed.hidden = false;
                 this.spriteMap.seed.anim.changeAnim("grass");
                 this.spriteMap.seed.rect.pos.xySetIp(0.25, 0.25);
@@ -2094,6 +2112,13 @@ class Engine {
         this.changeGardenBg(`garden-art-0${this.data.scenetime-1}`)
     }
 
+    refreshAntiAliasing() { this.setAntialiasing(this.save.settings[10]) }
+    setAntialiasing(flag=true) {
+        this.ctx.webkitImageSmoothingEnabled = flag;
+        this.ctx.mozImageSmoothingEnabled = flag;
+        this.ctx.imageSmoothingEnabled = flag;
+    }
+
     resize() {
         const canvas = this.ctx.canvas;
         canvas.width = window.innerWidth;
@@ -2103,6 +2128,8 @@ class Engine {
         this.dirt.canvas.height = window.innerHeight;
 
         this.refreshBounds();
+
+        this.refreshAntiAliasing();
     }
 
     setMovementBlocking(flag) {
@@ -2567,6 +2594,10 @@ class Engine {
     
     update(delta) {
         if(!delta) return;
+        if(delta <= 0) {
+            console.error(`delta[${delta}] cannot be smaller than 0`);
+            return;
+        }
         const bounds = this.getBoundingBox();
 
         if(!this.data.timePaused) {
@@ -2610,7 +2641,7 @@ class Engine {
         }
 
         this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => s.anim.update(delta));
-        this.allSprites.forEach(s => s.extraData.updateFn(delta))
+        this.allSprites.forEach(s => s.extraData.updateFn(delta));
         
         this.physics.simulation.physicsObjects.forEach(o => {
             if(bounds.h - o.pos.y < o.size*-1.1) this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1)
