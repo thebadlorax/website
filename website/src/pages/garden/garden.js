@@ -8,6 +8,7 @@
  *
  * find a way to compress dirt simulation states down way more (greedy meshing type approach?)
  * make it so local saves store they've been downloaded so they can't be uploaded
+ * move sprite init out of setup sprites / init and into sceneData
  *  
 */
 
@@ -755,18 +756,9 @@ const ALL_DIALOGUE = {
     } 
 }
 
-const ITEM_DATA = {
-    GRASS_SEEDS: {
-        display_name: "Grass Seeds",
-        inventory: {
-            art: "garden-art-29",
-            size: 150
-        },
-        value: 100,
-        description: "awesomely cheap and basic grass plant",
-    }
+const plantData = { // make plants go plant
+
 }
-const getItemDataFromIndex = (index) => { return Object.values(ITEM_DATA)[index] };
 
 const sceneData = {
     "garden": {
@@ -1134,7 +1126,7 @@ class Engine {
 
     static VERSION_OVERLAY_SIZE = 0.02;
     static VERSION_OVERLAY_OPACITY = 0.2;
-    static VERSION = [0, 0, 2]; 
+    static VERSION = [0, 0, 1]; 
     static VERSION_TEXT = `v${Engine.VERSION[0]}.${Engine.VERSION[1]}.${Engine.VERSION[2]}`;
 
     static DIALOGUE_FONT_SCALING = 0.04;

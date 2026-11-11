@@ -418,8 +418,8 @@ export class PhysicsSquare2D extends PhysicsShape2D {
 
     update(bounds, simVariables, delta) {
         if(!Number.isFinite(delta)) return;
-        // bounds = vec4(x, y, w, h)
-        //               x  y  z  w
+        // bounds = vec4(x, y, z, w)
+        //                     w  h
         this.vel.y += simVariables.GRAVITY * delta;
         this.pos.addIp(this.vel.sMul(delta));
         this.angle += this.angularVel * delta;
@@ -485,7 +485,7 @@ export class PhysicsContext2D {
         const invMassSum = obj1.invMass + obj2.invMass;
 
         if (invMassSum > 0 && penetration > 0) {
-            const magnitude =penetration * percent / invMassSum;
+            const magnitude = penetration * percent / invMassSum;
             const correction = Vector.two(normal.x * magnitude, normal.y * magnitude);
         
             obj1.pos.xySubIp(correction.x * obj1.invMass, correction.y * obj1.invMass);

@@ -1,5 +1,7 @@
 import { getCookie, setCookie, formatSeconds, getApiLink, formatNumber } from "./common.js"
 
+if(window.location.href.includes("www.")) window.location.href = window.location.href.replace("www.", "");
+
 const account_button = document.getElementById("account-button");
 const sign_in_button = document.getElementById("sign-in-button");
 const delete_button = document.getElementById("delete-button");

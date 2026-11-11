@@ -5,7 +5,7 @@
  * copyright 2026
 */
 
-import { getApiLink, getSettingOnAccount, changeSettingOnAccount, refreshAccount, preloadImages, isOnlyDigits } from "./common.js";
+import { getApiLink, getSettingOnAccount, changeSettingOnAccount, refreshAccount, preloadImages } from "./common.js";
 
 let color_picker = document.getElementById("color-picker");
 let name_picker = document.getElementById("name-picker");
