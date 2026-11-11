@@ -379,7 +379,9 @@ export const getSquareAsVertices = (pos, size, angle) => {
     ))
 }
 export class PhysicsShape2D {
-    constructor() {}
+    constructor() {
+        this.hidden = false;
+    }
 
     getVertices() {}
     draw(ctx) {}
@@ -407,6 +409,7 @@ export class PhysicsSquare2D extends PhysicsShape2D {
     getVertices() { return getSquareAsVertices(this.pos, this.size, this.angle) }
 
     draw(ctx) {
+        if(this.hidden) return;
         ctx.save();
         ctx.translate(this.pos.x, this.pos.y);
         ctx.rotate(this.angle);

@@ -10,15 +10,21 @@
  * make it so local saves store they've been downloaded so they can't be uploaded
  *  -> add a local save only mode, probably keep it in the indexeddb so they dont have to constantly importsave
  * move sprite init out of setupSprites() / init() and into sceneData
+ * maybe start splitting stuff into multiple files
  *  
 */
 
 /* IDEAS:
  *
  * apply timezones (scaled down to relevant time)
+ *  -> real life dome outside of the main dome, the garden there provides stat buffs, and that day night cycle is based on real life day night
  * prestige system (does nothing)
  * literal skill tree
- *  -> alternate: mind garden (alternate garden in your mind that gives passives and actives)
+ *  -> alternate: mind garden (seperate garden in your mind(?) that gives passives and actives)
+ * add combat (old game's combat?)
+ * story -> happens around you, randomly, through enviromental stuff (you have to look for it kinda)
+ *  -> if it's actually random and not tied to certain actions how will it end?
+ * puzzles -> promptobjects?
  *  
 */
 
@@ -1267,7 +1273,8 @@ class Engine {
                 "cutDiagramHueShiftFlag": false,
                 "cutDiagramProgress": 0,
                 "cutDiagramDirty": true,
-                "forceCutArt": false
+                "forceCutArt": false,
+                "canExit": false
             }
         }
 
@@ -1466,7 +1473,7 @@ class Engine {
                     ctx.font = `${bb.w*0.01}px Jersey20`
                     ctx.rotate(-o.angle);
                     ctx.fillText(Object.keys(Save.settings_index)[a], invHalf+(o.size/2), invHalf+(o.size/3))
-                    ctx.font = `${bb.w*0.03}px Jersey20`
+                    ctx.font = `${bb.w*0.03}px Jersey20`;
                     ctx.fillText(this.save.settings[a], invHalf+(o.size/2), invHalf+(o.size/1.5))
                     ctx.restore();
                 }
@@ -1661,11 +1668,43 @@ class Engine {
             }
             this.data.lastHandlerPressed = "seeds"
             
+            const onSeedClick = (object) => {
+                this.data.promptObject.active = true;
+                this.data.promptObject.art = object.art;
+                this.data.promptObject.cutArt = this.loader.getImage("garden-art-43");
+                this.data.promptObject.startTime = performance.now();
+
+                this.data.promptObject.pos = object.pos.copy();
+                this.data.promptObject.startPos = object.pos.copy();
+
+                this.data.promptObject.angle = object.angle;
+                this.data.promptObject.startAngle = object.angle;
+
+                this.data.promptObject.size = object.size;
+                this.data.promptObject.startSize = object.size;
+                this.data.promptObject.endSize = object.size*4;
+
+                this.data.promptObject.showCutDiagram = true;
+                this.data.promptObject.cutDiagramClickbox.active = true;
+
+                this.data.promptObject.canExit = true;
+
+                this.data.promptObject.onExit = () => {
+                    object.hidden = false;
+                }
+
+                this.data.promptObject.onCut = () => {
+                    this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(object), 1);
+                }
+
+                object.hidden = true;
+            }
             for(let a = 0; a < 10; a++) {
                 const a = Math.random() > 0.5 ? this.loader.getImage("garden-art-29") : this.loader.getImage("garden-art-28");
                 const o = new PhysicsSquare2D(Vector.two(clamp(Math.floor(Math.random() * this.physics.size), w, this.physics.size - w/2), (3*-w) + Math.random()*(2*w)), w);
                 o.art = a
                 o.draw = (ctx) => {
+                    if(o.hidden) return;
                     ctx.save();
                     ctx.translate(o.pos.x, o.pos.y);
                     ctx.rotate(o.angle);
@@ -1674,25 +1713,7 @@ class Engine {
                     ctx.restore();
                 }
                 o.onclick = () => {
-                    this.data.promptObject.active = true;
-                    this.data.promptObject.art = a;
-                    this.data.promptObject.cutArt = this.loader.getImage("garden-art-43");
-                    this.data.promptObject.startTime = performance.now();
-
-                    this.data.promptObject.pos = o.pos.copy();
-                    this.data.promptObject.startPos = o.pos.copy();
-
-                    this.data.promptObject.angle = o.angle;
-                    this.data.promptObject.startAngle = o.angle;
-
-                    this.data.promptObject.size = o.size;
-                    this.data.promptObject.startSize = o.size;
-                    this.data.promptObject.endSize = o.size*4;
-
-                    this.data.promptObject.showCutDiagram = true;
-                    this.data.promptObject.cutDiagramClickbox.active = true;
-
-                    this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1);
+                    onSeedClick(o);
                 }
                 this.physics.simulation.addObject(o)
             };
@@ -1791,7 +1812,7 @@ class Engine {
         const seed_pack_seed_clickbox = new Clickbox(new Rect2D(Vector.two(0.5, 0.5), 0.1, 0.1), () => {})
             .isImportant().isActive(false).isMovable().restrictAxiesOfMovement(true, true, true, true);
         seed_pack_seed_clickbox.extraData.moveFn = () => {
-            const seed = this.spriteMap.seed
+            const seed = this.spriteMap.seed;
             if(seed.extraData.glowStrength > 0) seed.extraData.glowStrength -= 0.1;
             seed.rect.pos.xySetIp(seed_pack_seed_clickbox.rect.pos.x-.2, seed_pack_seed_clickbox.rect.pos.y-.2);
         }
@@ -1823,6 +1844,9 @@ class Engine {
 
                 this.data.promptObject.mode = "gravity";
                 this.data.promptObject.gravity.xySetIp(/*(Math.floor(Math.random()*7)-3)*1000*/0, 5*1000)
+                this.data.promptObject.canExit = false;
+
+                if(this.data.promptObject.onCut != null) this.data.promptObject.onCut();
             }
         }
         this.globalClickboxes.push(cut_diagram_clickbox);
@@ -2560,6 +2584,16 @@ class Engine {
                 }
             }
         });
+
+        if(this.data.promptObject.active && this.data.promptObject.canExit) {
+            const mousePos = this.mouse.pos.xySub(bounds.x, bounds.y);
+            const inside = Maths.rectRect(mousePos.x-5, mousePos.y-5, this.mouse.w, this.mouse.h, this.data.promptObject.pos.x-(this.data.promptObject.size/2), this.data.promptObject.pos.y-(this.data.promptObject.size/2), this.data.promptObject.size, this.data.promptObject.size)
+            if(!inside) {
+                this.data.promptObject.active = false;
+
+                if(this.data.promptObject.onExit != null) this.data.promptObject.onExit();
+            }
+        }
     }
     onRelease() {
         const hc = this.data.heldClickbox;
