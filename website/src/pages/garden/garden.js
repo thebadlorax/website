@@ -12,7 +12,7 @@
  *  -> add a local save only mode, probably keep it in the indexeddb so they dont have to constantly importsave
  * move sprite init out of setupSprites() / init() and into sceneData
  * maybe start splitting stuff into multiple files
- *  
+ * make it so effects can wait until a promise is completed, so saves can have an actual loading screen instead of just swapping in view
 */
 
 /* IDEAS:
@@ -26,7 +26,6 @@
  *  -> if it's actually random and not tied to certain actions how will it end?
  *  -> release in chapters?
  * puzzles -> promptobjects?
- *  
 */
 
 /* SPRITE RENDER LAYERS:
