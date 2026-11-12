@@ -1,7 +1,5 @@
 import { getCookie, setCookie, formatSeconds, getApiLink, formatNumber } from "./common.js"
 
-if(window.location.href.includes("www.")) window.location.href = window.location.href.replace("www.", "");
-
 const account_button = document.getElementById("account-button");
 const sign_in_button = document.getElementById("sign-in-button");
 const delete_button = document.getElementById("delete-button");
@@ -24,6 +22,18 @@ const points_text = document.getElementById("points-acc");
 const timestamp_text = document.getElementById("timestamp-acc");
 const display_name_text = document.getElementById("display-name-acc");
 const unique_text = document.getElementById("unq-visitors");
+const webring_button = document.getElementById("webring-cp");
+webring_button.addEventListener("click", async () => {
+    if(webring_button.textContent == "copied") return;
+    try { 
+        await navigator.clipboard.writeText(`<a href="https://thebadlorax.dev/"><img src="https://thebadlorax.dev/res/webring.png"></a>`);
+        webring_button.textContent = "copied!";
+        setTimeout(() => {
+            webring_button.textContent = "copy html";
+        }, 1000)
+    } 
+    catch (err) { console.error(`clipboard error: ${err}`) }
+})
 let password = ""
 pass_input.value = "";
 let menu_is_open = false;

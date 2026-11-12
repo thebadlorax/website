@@ -4,8 +4,9 @@
  * copyright 2026
 */
 
+// DICK (Dynamic Interactive ClicK-based) Engine
+
 /* TODO:
- *
  * find a way to compress dirt simulation states down way more (greedy meshing type approach?)
  * make it so local saves store they've been downloaded so they can't be uploaded
  *  -> add a local save only mode, probably keep it in the indexeddb so they dont have to constantly importsave
@@ -15,7 +16,6 @@
 */
 
 /* IDEAS:
- *
  * apply timezones (scaled down to relevant time)
  *  -> real life dome outside of the main dome, the garden there provides stat buffs, and that day night cycle is based on real life day night
  * prestige system (does nothing)
@@ -24,6 +24,7 @@
  * add combat (old game's combat?)
  * story -> happens around you, randomly, through enviromental stuff (you have to look for it kinda)
  *  -> if it's actually random and not tied to certain actions how will it end?
+ *  -> release in chapters?
  * puzzles -> promptobjects?
  *  
 */
@@ -2339,7 +2340,7 @@ class Engine {
             this.data.lastSave = new Date().toLocaleTimeString();
         } catch {
             this.spawnNotification("couldn't save properly", "backing up your save", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.08, 0.06] })
-            await this.downloadLocalSave();
+            await this.downloadLocalSave(true);
             this.data.haltAutosaves = true;
         }
     }
@@ -2838,10 +2839,10 @@ class Engine {
         });
         await this.refreshSaveInformation()
     }
-    async downloadLocalSave() {
+    async downloadLocalSave(supressNotifications=false) {
         const data = await this.save.serialize(this);
         downloadBlob(data, `gardenslot${this.data.save_information.selected_slot}_(${new Date().toLocaleDateString()}).wonderfulandbeautifulsaveextension`, "text/plain");
-        this.spawnNotification("downloaded save", `keep it safe!`, 5*1000, { "color": "rgba(255, 255, 255, 1)"});
+        if(!supressNotifications) this.spawnNotification("downloaded save", `keep it safe!`, 5*1000, { "color": "rgba(255, 255, 255, 1)"});
     }
     async importLocalSave() {
         let f = await pickFile();

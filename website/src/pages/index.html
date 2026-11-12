@@ -19,6 +19,12 @@
 
     <meta name="description" content="thebadlorax's super cool awesome website">
   </head>
+
+  <!-- idk why putting this in the js of the page didn't work, but it works here :3 -->
+  <script> 
+    if(window.location.href.includes("www.")) window.location.href = window.location.href.replace("www.", "");
+  </script>
+
   <body>
     <p class="unhide" style="color: white;">this website really doesn't like small resolutions / non square viewports</p>
     <p class="unhide" style="color: white;">there will (someday?) be support for this but for now please try a device with a wider screen</p>
@@ -38,7 +44,7 @@
                        <p style="display: none;" class="basic-text" id="chat-link"><a class="basic-link">chat</a></p>
                        <p style="display: none;" class="basic-text" id="gambling-link"><a class="basic-link">casino</a></p>
                        <p style="display: none;" class="basic-text" id="music-link"><a class="basic-link">music</a></p>
-                       <p class="basic-text"><a class="basic-link" id="garden-link">garden (beta)</a></p>
+                       <p style="display: none;" class="basic-text"><a class="basic-link" id="garden-link">garden (beta)</a></p>
                        <p class="basic-text"><a class="basic-link" href="/archive">the archive</a></p>
                        <p class="basic-text" id="admin-link" style="display: none;"><a class="basic-link" style="color: darkred">admin panel</a></p>
                     </div>
@@ -53,7 +59,7 @@
                     <div class="large-item" style="padding-left: 0.7vw; padding-right: 3vw;">
                         about me
                         <!--<p class="basic-text unselectable" style="color: darkred; font-size: 10vw; margin-top: 17vw; transform: rotate(-90deg)">Work In Progress</p>-->
-                        <p class="basic-text unselectable" style="margin-top: 0.5vw;">
+                        <p class="basic-text unselectable" style="margin-top: 0.5vw; font-size: 1.45vw;">
                             hello, i'm thebadlorax! i made this website <i>(and still make it)</i>, and i guess i'm here to talk about myself and this place. this website is hosted by myself, and made with very few libraries, to get me to learn the most <i>(ofc limited <a class="basic-text" style="padding-left: 0px;" target="_blank" rel="noopener noreferrer" href="/ai">ai</a> <!--notice how <a> sounds like ai? not a coincidence....--> usage as well)</i>
                             <br><br>i've been making stuff for a long time <i>(since middle school)</i>, but finaly i felt the urge to make somewhere i could put all of it. i was also enticed with learning web dev, because i used to think it was super easy, like im so cool with my elite python skills they don't know anything.
                             <i>(i was definitely deluded)</i>
@@ -217,6 +223,11 @@
                                     <!--yo-->
                                 </div>
                                 <a class="basic-link" style="font-size: 1.5vw; position: absolute; top: 88vw; left: 11vw;" href="/credits">credits & attributions</a>
+                                
+                                <div style="position: absolute; top: 87vw; left: 75vw; width: 6vw;">
+                                    <a href="/"><img width="100%" src="https://thebadlorax.dev/res/webring.png"></a>
+                                </div>
+                                <button id="webring-cp" class="input" style="position: absolute; top: 89.5vw; left: 75.5vw; z-index: 1; width: 5vw; font-size: 1vw; cursor: pointer;">copy html</button>
                             </div>
                         </div>
                     </div>
