@@ -2809,7 +2809,11 @@ class Engine {
             })
         }
         if(this.dirt.simulation.mousePressed && this.data.hands.active && !this.data.cursorPlant.active) {
-            if((this.mouse.pos.y-bounds.y) / bounds.h < 0.65) document.body.style.cursor = "none"
+            if(
+                (this.mouse.pos.y-bounds.y) / bounds.h < 0.65 && 
+                this.mouse.pos.x > bounds.x && this.mouse.pos.y > bounds.y &&
+                this.mouse.pos.x < bounds.x+bounds.w && this.mouse.pos.y < bounds.y+bounds.h
+            ) document.body.style.cursor = "none"
         }
 
         this.globalClickboxes.filter(c => c.active && c.important).forEach(c => {
