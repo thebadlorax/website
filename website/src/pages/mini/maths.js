@@ -251,6 +251,8 @@ export class Vector2 {
 
     copy()         { return new Vector2(this.x, this.y); }
 
+    sum()          { return this.x + this.y }
+
     dist(vector)   { return Math.sqrt(Math.pow(vector.x-this.x,2) + Math.pow(vector.y-this.y,2)) }
 
     toString()     { return `Vector2(${this.x}, ${this.y})` }
@@ -304,6 +306,8 @@ export class Vector3 {
 
     copy()             { return new Vector3(this.x, this.y, this.z); }
 
+    sum()              { return this.x + this.y + this.z }
+
     dist(vector)       { return Math.sqrt(Math.pow(vector.x-this.x,2) + Math.pow(vector.y-this.y,2) + Math.pow(vector.z-this.z,2)) }
 
     toString()         { return `Vector3(${this.x}, ${this.y}, ${this.z})` }
@@ -356,6 +360,8 @@ export class Vector4 {
     isNull()               { return (this.x == null || this.y == null || this.z == null || this.w == null) }
 
     copy()                 { return new Vector4(this.x, this.y, this.z, this.w); }
+
+    sum()                  { return this.x + this.y + this.z + this.w }
 
     dist(vector)           { return Math.sqrt(Math.pow(vector.x-this.x,2) + Math.pow(vector.y-this.y,2) + Math.pow(vector.z-this.z,2) + Math.pow(vector.w-this.w,2)) }
 

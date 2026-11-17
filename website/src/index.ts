@@ -1136,7 +1136,7 @@ const server = Bun.serve({
 
             let data = await db.fetch("garden") ?? { "player_data": {} };
             let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null], "selected_slot": 0 }
-            pd.saves[pd.selected_slot] = json.save;
+            pd.saves[pd.selected_slot] = {"data": json.save, "time": json.time };
             data.player_data[user.account.id] = pd;
             db.modify("garden", data);
             return corsResponse(null, { status: 200 });
@@ -1167,7 +1167,7 @@ const server = Bun.serve({
             let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null], "selected_slot": 0 }
             const save = pd.saves[pd.selected_slot];
             if(save == null) return corsResponse(null, { status: 404 });
-            return corsResponse(save, { status: 200 });
+            return corsResponse(JSON.stringify(save), { status: 200 });
           }
           case "/garden/saves/list": {
             const json = await req.json();
@@ -1179,13 +1179,16 @@ const server = Bun.serve({
             let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null], "selected_slot": 0 }
             return corsResponse(JSON.stringify({ "saves": [
               {
-                "exists": pd.saves[0] != null
+                "exists": pd.saves[0] != null,
+                "time": pd.saves[0] != null ? pd.saves[0].time : null
               },
               {
-                "exists": pd.saves[1] != null
+                "exists": pd.saves[1] != null,
+                "time": pd.saves[1] != null ? pd.saves[1].time : null
               },
               {
-                "exists": pd.saves[2] != null
+                "exists": pd.saves[2] != null,
+                "time": pd.saves[2] != null ? pd.saves[2].time : null
               }
             ], "selected_slot": pd.selected_slot}), { status: 200 });
           }

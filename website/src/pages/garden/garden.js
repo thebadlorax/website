@@ -7,9 +7,7 @@
 // DICK (Dynamic Interactive ClicK-based) Engine
 
 /* TODO:
- * find a way to compress dirt simulation states down way more (greedy meshing type approach?)
- * make it so local saves store they've been downloaded so they can't be uploaded
- *  -> add a local save only mode, probably keep it in the indexeddb so they dont have to constantly importsave
+ * compress settings portion of the save file
  * move sprite init out of setupSprites() / init() and into sceneData
  * maybe start splitting stuff into multiple files
  * make it so effects can wait until a promise is completed, so saves can have an actual loading screen instead of just swapping in view
@@ -36,8 +34,11 @@
  * 102: above the black border
 */
 
-import { Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
-    gzipCompressString, gzipDecompressString, downloadBlob, pickFile } from "../mini/mini-common.js";
+import { 
+    Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
+    gzipCompressString, gzipDecompressString, downloadBlob, pickFile, trackPromise,
+    asyncIDBwaitForTransactionCompletion, gzipCompressUInt8, gzipDecompressUInt8
+} from "../mini/mini-common.js";
 import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../mini/maths.js";
 import { getApiLink, clamp, formatSeconds, formatNumber, checkIfDisabled } from "../common.js";
 
@@ -132,6 +133,84 @@ class Keyboard {
     }
 }
 
+class DataWriter {
+    static EMPTY = () => { return new Uint8Array(new ArrayBuffer(0)); }
+    
+    static EMPTY_UINT4 = () =>  { return 0b0000 }
+    static EMPTY_UINT8 = () =>  { return 0b00000000 }
+    static EMPTY_UINT16 = () => { return 0b0000000000000000 }
+    static EMPTY_UINT32 = () => { return 0b00000000000000000000000000000000 }
+    
+    data = [];
+
+    writeUint8(value) { this.data.push(value & 0xFF) }
+    writeUint16(value) {
+        this.data.push(
+            (value >>> 8) & 0xFF,
+            value & 0xFF
+        );
+    }
+    writeUint32(value) { this.data.push(
+        (value >>> 24) & 0xFF,
+        (value >>> 16) & 0xFF,
+        (value >>> 8) & 0xFF,
+        value & 0xFF
+    ) }
+    writeString(value, sixteenBit = false) {
+        const bytes = new TextEncoder().encode(value);
+        sixteenBit ? this.writeUint16(bytes.length) : this.writeUint32(bytes.length)
+        for(const byte of bytes) this.data.push(byte);
+    }
+
+    toUint8Array() { return new Uint8Array(this.data) }
+}
+class DataReader {
+    data;
+    offset = 0;
+
+    constructor(data) {
+        this.data = data instanceof Uint8Array ? data : new Uint8Array(data);
+    }
+
+    readUint8() { return this.data[this.offset++]; }
+
+    readUint16() {
+        const value =
+            (this.data[this.offset] << 8) |
+            this.data[this.offset + 1];
+
+        this.offset += 2;
+
+        return value;
+    }
+
+    readUint32() {
+        const value =
+            (this.data[this.offset] << 24) |
+            (this.data[this.offset + 1] << 16) |
+            (this.data[this.offset + 2] << 8) |
+            this.data[this.offset + 3];
+
+        this.offset += 4;
+
+        return value >>> 0;
+    }
+
+    readString(sixteenBit = false) {
+        const length = sixteenBit
+            ? this.readUint16()
+            : this.readUint32();
+
+        const bytes = this.data.slice(
+            this.offset,
+            this.offset + length
+        );
+
+        this.offset += length;
+
+        return new TextDecoder().decode(bytes);
+    }
+}
 class DirtSimulation {
     constructor(ctx) {
         this.ctx = ctx;
@@ -348,54 +427,72 @@ class DirtSimulation {
         ctx.putImageData(image, 0, 0);
     }
 
-    serializeBinary() {
-        const bufferToBase64 = (buf) => {
-            let binary = '';
-            const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-            for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
+    async serializeBinary() {
+        const writer = new DataWriter();
+        writer.writeUint8(this.gridWidth);
+        writer.writeUint8(this.gridHeight);
+        const size = this.gridWidth * this.gridHeight;
+        let n = DataWriter.EMPTY_UINT8();
+        for(let x = 0; x < size; x += 7) {
+            for(let y = 0; y < 7 && x + y < size; y++) {
+                n |= (this.grid[x + y] & 1) << y;
             }
-            return btoa(binary);
-        };
-    
-        return JSON.stringify({
-            width: this.gridWidth,
-            height: this.gridHeight,
-            grid: bufferToBase64(this.grid),
-            types: bufferToBase64(this.types),
-            colors: bufferToBase64(this.colors)
-        });
+        
+            writer.writeUint8(n);
+            n = DataWriter.EMPTY_UINT8();
+        }
+
+        for(let x = 0; x < size; x += 2) {
+            const type1 = this.types[x] & 15;
+            const type2 = (this.types[x + 1] ?? 0) & 15;
+        
+            writer.writeUint8(type1 | (type2 << 4));
+        }
+
+        const data = writer.toUint8Array();
+        return await gzipCompressUInt8(data);
     }
     
-    deserializeBinary(jsonString) {
-        if (!jsonString) return;
-    
-        const base64ToUint8 = (base64) => {
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
+    async deserializeBinary(rawData) {
+        const data = await gzipDecompressUInt8(rawData);
+        const reader = new DataReader(data);
+        const width = reader.readUint8();
+        const height = reader.readUint8();
+
+        const size = width * height;
+
+        const grid = new Uint8Array(size);
+        for(let x = 0; x < size; x += 7) {
+            const n = reader.readUint8();
+        
+            for(let y = 0; y < 7 && x + y < size; y++) {
+                grid[x + y] = (n >> y) & 1;
             }
-            return bytes;
-        };
-    
-        try {
-            const data = JSON.parse(jsonString);
-    
-            const loadedGrid = base64ToUint8(data.grid);
-            const loadedTypes = base64ToUint8(data.types);
-            const loadedColors = base64ToUint8(data.colors);
-    
-            this.grid.set(loadedGrid);
-            this.types.set(loadedTypes);
-            this.colors.set(loadedColors);
-            
-            this.velocity.fill(0);
-            this.progress.fill(0);
-            this.updated.fill(0);
-        } catch (err) {
-            console.error("Failed to load binary simulation state:", err);
         }
+
+        const types = new Uint8Array(size);
+        const colors = new Uint8Array(size);
+        for(let x = 0; x < size; x += 2) {
+            const n = reader.readUint8();
+        
+            const a = n & 15;
+            types[x] = a;
+            colors[x] = Math.floor(Math.random() * this.typeColors[a].length);
+        
+            if(x + 1 < size) {
+                const b = (n >> 4) & 15
+                types[x + 1] = b;
+                colors[x + 1] = Math.floor(Math.random() * this.typeColors[b].length);
+            }
+        }
+
+        this.grid.set(grid);
+        this.types.set(types);
+
+        this.colors.set(colors);
+        this.velocity.fill(0);
+        this.progress.fill(0);
+        this.updated.fill(0);
     }
 }
 
@@ -795,6 +892,61 @@ const plantData = {
     }
 }
 
+const SAVE_CLICKBOX_ONCLICK = (eng, slot, lines) => {
+    if(eng.data.save_information.selected_slot == slot) {
+        eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+        eng.openDialogue({
+            "lines": [
+                {
+                    "text": "hey you're already in that timeline"
+                },
+                {
+                    "text": "don't mess with me"
+                }
+            ],
+            "fns": {"onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }}
+        });
+        return;
+    }
+    eng.spriteMap.stopgo.anim.changeAnim("talk"); 
+    if(!eng.data.save_information.saves[slot].exists) {
+        lines.push({
+            "text": "actually, do you know how hard it is to make a new timeline?"
+        },
+        {
+            "text": "it's quite a lot of work. why should i, at your whim?"
+        },
+        {
+            "text": "hmmm????"
+        },
+        {
+            "text": "oh im just messing around here you go"
+        })
+    }
+    eng.openDialogue({
+        "lines": lines,
+        "fns": { 
+            "onEnd": async (eng) => { 
+                eng.swapScenes("garden", null, true, () => new Promise(async (resolve, reject) => {
+                    const local_data = await eng.getLocalSaveInformation();
+                    const cloud_data = await eng.getCloudSaveInformation();
+                    const conflicts = local_data.saves[slot].exists && cloud_data.saves[slot].exists;
+                    if(conflicts) {
+                        const times = [local_data.saves[slot].time, cloud_data.saves[slot].time];
+                        const local_is_newer = times[0] > times[1];
+
+                        alert(`save conflict: ${local_is_newer ? `local` : `cloud`} save is newer`)
+                    }
+
+                    await eng.swapSave(slot);  
+                    await eng.refreshSave();
+                    eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
+                    resolve();
+                }));
+            }
+        }
+    })
+}
 const sceneData = {
     "garden": {
         "renderFn": (eng, layer0Sprites) => {
@@ -871,23 +1023,7 @@ const sceneData = {
             }),
 
             new Clickbox(new Rect2D(Vector.two(0.15, 0.1), 0.2, 0.28), (eng) => { 
-                if(eng.data.save_information.selected_slot == 0) {
-                    eng.spriteMap.stopgo.anim.changeAnim("talk"); 
-                    eng.openDialogue({
-                        "lines": [
-                            {
-                                "text": "hey you're already in that timeline"
-                            },
-                            {
-                                "text": "don't mess with me"
-                            }
-                        ],
-                        "fns": {"onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }}
-                    });
-                    return;
-                }
-                eng.spriteMap.stopgo.anim.changeAnim("talk"); 
-                let l = [
+                SAVE_CLICKBOX_ONCLICK(eng, 0, [
                     {
                         "text": "well now, that's certainly a choice"
                     },
@@ -897,54 +1033,10 @@ const sceneData = {
                     {
                         "text": "well now, you know what they say about swapping timelines...."
                     }
-                ];
-                if(!eng.data.save_information.saves[0].exists) {
-                    l.push({
-                        "text": "actually, do you know how hard it is to make a new timeline?"
-                    },
-                    {
-                        "text": "it's quite a lot of work. why should i, at your whim?"
-                    },
-                    {
-                        "text": "hmmm????"
-                    },
-                    {
-                        "text": "oh im just messing around here you go"
-                    })
-                }
-                eng.openDialogue({
-                    "lines": l,
-                    "fns": {"onEnd": async (eng) => { 
-                        eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
-                        await eng.swapSave(0); 
-                        eng.swapScenes("garden", async () => {
-                            await eng.refreshSave();
-                            await eng.refreshSaveInformation();
-                        })
-                    }}
-                })
+                ]);
             }),
             new Clickbox(new Rect2D(Vector.two(0.4, 0.1), 0.2, 0.28), (eng) => { 
-                if(eng.data.save_information.selected_slot == 1) {
-                    eng.spriteMap.stopgo.anim.changeAnim("talk"); 
-                    eng.spriteMap.stopgo.anim.current.setFrame(1);
-                    eng.openDialogue({
-                        "lines": [
-                            {
-                                "text": "hey you're already in that timeline"
-                            },
-                            {
-                                "text": "don't mess with me"
-                            }
-                        ],
-                        "fns": {"onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }}
-                    });
-                    return;
-                }
-                eng.spriteMap.stopgo.anim.changeAnim("talk"); 
-                eng.spriteMap.stopgo.anim.current.setFrame(1);
-
-                let l = [
+                SAVE_CLICKBOX_ONCLICK(eng, 1, [
                     {
                         "text": "good pick, lad"
                     },
@@ -954,54 +1046,10 @@ const sceneData = {
                     {
                         "text": "well, off we go!"
                     }
-                ]
-                if(!eng.data.save_information.saves[1].exists) {
-                    l.push({
-                        "text": "actually, do you know how hard it is to make a new timeline?"
-                    },
-                    {
-                        "text": "it's quite a lot of work. why should i, at your whim?"
-                    },
-                    {
-                        "text": "hmmm????"
-                    },
-                    {
-                        "text": "oh im just messing around here you go"
-                    })
-                }
-                eng.openDialogue({
-                    "lines": l,
-                    "fns": {"onEnd": async (eng) => { 
-                        eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
-                        await eng.swapSave(1); 
-                        eng.swapScenes("garden", async () => {
-                            await eng.refreshSave();
-                            await eng.refreshSaveInformation();
-                        })
-                    }}
-                })
+                ]);
             }),
             new Clickbox(new Rect2D(Vector.two(0.65, 0.1), 0.2, 0.28), (eng) => { 
-                if(eng.data.save_information.selected_slot == 2) {
-                    eng.spriteMap.stopgo.anim.changeAnim("talk"); 
-                    eng.spriteMap.stopgo.anim.current.setFrame(2);
-                    eng.openDialogue({
-                        "lines": [
-                            {
-                                "text": "hey you're already in that timeline"
-                            },
-                            {
-                                "text": "don't mess with me"
-                            }
-                        ],
-                        "fns": {"onEnd": (eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }}
-                    });
-                    return;
-                }
-                eng.spriteMap.stopgo.anim.changeAnim("talk"); 
-                eng.spriteMap.stopgo.anim.current.setFrame(2);
-
-                let l = [
+                SAVE_CLICKBOX_ONCLICK(eng, 2, [
                     {
                         "text": "you actually chose slot 3?"
                     },
@@ -1011,32 +1059,7 @@ const sceneData = {
                     {
                         "text": "3's an unlucky number, you know..."
                     }
-                ]
-                if(!eng.data.save_information.saves[2].exists) {
-                    l.push({
-                        "text": "actually, do you know how hard it is to make a new timeline?"
-                    },
-                    {
-                        "text": "it's quite a lot of work. why should i, at your whim?"
-                    },
-                    {
-                        "text": "hmmm????"
-                    },
-                    {
-                        "text": "oh im just messing around here you go"
-                    })
-                }
-                eng.openDialogue({
-                    "lines": l,
-                    "fns": {"onEnd": async (eng) => { 
-                        eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
-                        await eng.swapSave(2); 
-                        eng.swapScenes("garden", async () => {
-                            await eng.refreshSave()
-                            await eng.refreshSaveInformation();
-                        })
-                    }}
-                })
+                ]);
             }),
         ],
         "movement": {
@@ -1078,7 +1101,8 @@ class Save {
         OPTIMIZE_DIRT: 7,
         PHYSICS_ITERATIONS: 8,
         GLOW_EFFECTS: 9,
-        ANTIALIASING: 10
+        ANTIALIASING: 10,
+        DO_CLOUD_SAVES: 11
     }
     static PERFORMANCE_SETTINGS = {
         0: null,
@@ -1091,7 +1115,8 @@ class Save {
         7: true,
         8: 1,
         9: false,
-        10: null
+        10: null,
+        11: null
     }
     static DEFAULT_SETTINGS = () => {return [
         60,
@@ -1104,7 +1129,8 @@ class Save {
         false,
         10,
         true,
-        false
+        false,
+        true
     ]}
     constructor() {
         this.dirt = null;
@@ -1129,11 +1155,10 @@ class Save {
     removeItemFromInventory(item) { this.inventory.splice(this.inventory.indexOf(item)) };
 
     async serialize(eng) {
-        this.refreshValuesFromEngine(eng);
+        await this.refreshValuesFromEngine(eng);
         return await gzipCompressString(JSON.stringify({
-            "dirt": this.dirt,
+            "dirt": this.dirt.toBase64(),
             "settings": this.settings,
-            "inventory": this.inventory.map(i => i.serialize()),
             "statistics": this.statistics,
             "time": this.time
         }));
@@ -1141,22 +1166,24 @@ class Save {
     static async fromSerialized(data) {
         const json = JSON.parse(await gzipDecompressString(data));
         const save = new Save();
-        save.dirt = json.dirt;
+        save.dirt = Uint8Array.fromBase64(json.dirt);
         save.settings = json.settings;
+        if(window.localStorage.getItem("garden_doLocalSaving")) save.settings[11] = false;
+        else save.settings[11] = true;
         save.inventory.forEach(i => save.inventory.push(Item.fromSerialized(i)))
         save.statistics = json.statistics;
         save.time = json.time;
         return save;
     }
 
-    refreshValuesInEngine(eng) {
-        eng.dirt.simulation.deserializeBinary(this.dirt);
+    async refreshValuesInEngine(eng) {
+        await eng.dirt.simulation.deserializeBinary(this.dirt);
         if(this.dirt == null) eng.dirt.simulation.resetArrays();
         eng.dirt.timeout_timer = 1;
         eng.data.time = this.time;
     }
-    refreshValuesFromEngine(eng) {
-        this.dirt = eng.dirt.simulation.serializeBinary();
+    async refreshValuesFromEngine(eng) {
+        this.dirt = await eng.dirt.simulation.serializeBinary();
         this.time = eng.data.time;
     }
 }
@@ -1165,7 +1192,7 @@ class Engine {
     static STARTING_TIME = 190*1000;
     static SAVE_COOLDOWN = 2000;
 
-    static VERSION_OVERLAY_SIZE = 0.02;
+    static VERSION_OVERLAY_SIZE = 0.0125;
     static VERSION_OVERLAY_OPACITY = 0.2;
     static VERSION = [0, 0, 1]; 
     static VERSION_TEXT = `v${Engine.VERSION[0]}.${Engine.VERSION[1]}.${Engine.VERSION[2]}`;
@@ -1233,6 +1260,7 @@ class Engine {
                 "clamp": [null, null],
                 "active": false
             },
+            "localDB": null,
             "heldClickbox": null,
             "heldClickboxOffset": Vector.two(0, 0),
             "timePaused": false,
@@ -1313,10 +1341,11 @@ class Engine {
         await this.init();
         const loadTime = performance.now() - loadStartTime;
         console.log(`finished loading in ${loadTime/1000}s!`);
+        
         clearInterval(dot_interval);
-
         loading_div.remove();
         this.ctx.canvas.style.display = "block";
+
         window.requestAnimationFrame(this.tick.bind(this));
     }
     async load() {
@@ -1324,7 +1353,7 @@ class Engine {
         r = await r.json();
         await Promise.all(r.map(url => this.loader.loadImage(url.split(".")[0], `../res/garden/${url}`)));
 
-        console.log('loaded all assets into memory');
+        console.log(`loaded all ${r.length} assets into memory`);
 
         // font
         const jersey20 = new FontFace('Jersey20', `url("/res/Jersey20-Regular.ttf")`);
@@ -1339,6 +1368,7 @@ class Engine {
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
+        await this.initIndexedDB(); // used to only init if local saves were on, now it's always on
         this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU", "KeyP"]);
         this.keyboard.setFunctionOnKeyPress("Space", () => {
             if(this.data.scene != "garden") return;
@@ -1374,7 +1404,8 @@ class Engine {
             this.data.timePaused = !this.data.timePaused;
         })
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
-            this.data.showClickboxes = !this.data.showClickboxes
+            this.data.showClickboxes = !this.data.showClickboxes;
+            console.log(this.spriteMap)
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyU", async () => {
@@ -1387,8 +1418,8 @@ class Engine {
             this.dirt.simulation.mousePos = [e.clientX, e.clientY];
         });
 
-        this.ctx.canvas.addEventListener("mousedown", e => {
-            if(e.button === 0) this.onClick();
+        this.ctx.canvas.addEventListener("mousedown", async e => {
+            if(e.button === 0) await this.onClick();
 
             if(!this.data.promptObject.active && this.data.heldClickbox == null) {
                 if(e.button === 0) this.dirt.simulation.typeToPlace = 0
@@ -1443,7 +1474,7 @@ class Engine {
             timeout = performance.now();
         }
         const settings_handler = () => {
-            const w = 100;
+            const w = 125;
             this.data.wantsToWipe = false;
 
             this.physics.simulation.physicsObjects.forEach(o => o.extraData.floorCollision = false);
@@ -1470,7 +1501,7 @@ class Engine {
                     ctx.fillStyle = "black";
                     ctx.textAlign = "center";
                     ctx.textBaseline = "middle"
-                    ctx.font = `${bb.w*0.01}px Jersey20`
+                    ctx.font = `${bb.w*0.016}px Jersey20`
                     ctx.rotate(-o.angle);
                     ctx.fillText(Object.keys(Save.settings_index)[a], invHalf+(o.size/2), invHalf+(o.size/3))
                     ctx.font = `${bb.w*0.03}px Jersey20`;
@@ -1479,11 +1510,25 @@ class Engine {
                 }
                 switch(typeof this.save.settings[a]) {
                     case "boolean": {
-                        o.onclick = () => {
+                        o.onclick = async () => {
                             this.save.settings[a] = !this.save.settings[a];
                             switch(a) {
                                 case 10: {
                                     this.refreshAntiAliasing();
+                                    break;
+                                }
+                                case 11: {
+                                    await this.uploadSaveData();
+                                    if(this.save.settings[a]) {
+                                        this.spawnNotification("disabling local saving", "this applies to all saves", 6*1000, { "color": "rgba(255, 255, 255, 1)" })
+                                        this.setLocalSavingVariables(false);
+                                    }
+                                    else {
+                                        this.setLocalSavingVariables(true);
+                                        this.spawnNotification("enabling local saving", "this applies to all saves", 6*1000, { "color": "rgba(255, 255, 255, 1)" })
+                                        await this.initIndexedDB();
+                                    }
+                                    await this.uploadSaveData();
                                     break;
                                 }
                             }
@@ -1814,7 +1859,7 @@ class Engine {
             .isImportant().isActive(false).isMovable().restrictAxiesOfMovement(true, true, true, true);
         seed_pack_seed_clickbox.extraData.moveFn = () => {
             const seed = this.spriteMap.seed;
-            if(seed.extraData.glowStrength > 0) seed.extraData.glowStrength -= 0.1;
+            if(seed.extraData.glowStrength > 0) seed.extraData.glowStrength -= 0.07;
             seed.rect.pos.xySetIp(seed_pack_seed_clickbox.rect.pos.x-.2, seed_pack_seed_clickbox.rect.pos.y-.2);
         }
         this.globalClickboxes.push(seed_pack_seed_clickbox);
@@ -1854,6 +1899,7 @@ class Engine {
         this.data.promptObject.cutDiagramClickbox = cut_diagram_clickbox;
 
         document.title = "the garden"
+        console.log("finished initializing")
     }
     tick(elapsed) {
         if(this._previousElapsed === null) {
@@ -1940,17 +1986,17 @@ class Engine {
         this.data.dialogue.last_dialogue = d;
         this.openDialogue(d);
     }
-    progressDialogue() {
+    async progressDialogue() {
         if((this.data.dialogue.timer*1000) < this.data.dialogue.data.lines[this.data.dialogue.line].text.length * this.data.dialogue.speed) {
             this.data.dialogue.timer = 100;
             return;
         }
         this.data.dialogue.line += 1;
         this.data.dialogue.timer = 0;
-        if(this.data.dialogue.line >= this.data.dialogue.data.lines.length) this.closeDialogue();
+        if(this.data.dialogue.line >= this.data.dialogue.data.lines.length) await this.closeDialogue();
     }
-    closeDialogue() {
-        if(this.data.dialogue.data.fns.onEnd != null) this.data.dialogue.data.fns.onEnd(this);
+    async closeDialogue() {
+        if(this.data.dialogue.data.fns.onEnd != null) await this.data.dialogue.data.fns.onEnd(this);
         this.data.dialogue.data = null;
         this.data.dialogue.line = 0;
         this.data.dialogue.active = false;
@@ -1982,22 +2028,26 @@ class Engine {
     }
 
     offlineProgress(ms) {
-        this.update(ms/1000);
+        const sec = ms/1000;
+        this.update(sec);
+        if(sec > 3600) { // 1h
+            this.spawnNotification("offline progress", `gone for ${formatSeconds(ms)}`, 4*1000, { "color": "rgba(255, 255, 255, 1)"});
+        }
     }
 
     setupSprites() {
         let door_animator = new Animator();
-        let open_anim = new Animation(this.loader.imageSet("garden-art-16", "garden-art-17", "garden-art-18"), 0.1)
+        let open_anim = new Animation(this.loader.imageSet("garden-art-16", "garden-art-17", "garden-art-18"), 0.1);
         open_anim.repeat = false;
         open_anim.onComplete = () => {
             this.swapScenes("shop", () => { open_anim.reset(); door_animator.changeAnim("idle") });
         }
         door_animator.addAnim(open_anim, "open")
         
-        door_animator.addAnim(new Animation(this.loader.imageSet("garden-art-15"), -1), "idle")
+        door_animator.addAnim(new Animation(this.loader.imageSet("garden-art-15"), -1), "idle");
         const door = this.createSprite(new Rect2D(Vector.two(-0.125, -0.165), 1, 1), door_animator, "garden");
         this.spriteMap.door = door;
-        door.anim.changeAnim("idle")
+        door.anim.changeAnim("idle");
 
         let shopkeep_animator = new Animator();
         shopkeep_animator.addAnim(new Animation(this.loader.imageSet("garden-art-11", "garden-art-12", "garden-art-13", "garden-art-14"), 12), "idle")
@@ -2066,13 +2116,14 @@ class Engine {
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-36", "garden-art-38", "garden-art-40"), 0.8), "talk");
         const stopgo = this.createSprite(new Rect2D(Vector.two(0, 0.07), 1, 1), stopgo_animator, "saves");
         this.spriteMap.stopgo = stopgo;
-        stopgo_animator.changeAnim("idle")
+        stopgo_animator.changeAnim("idle");
 
         const colors = ["#b26161", "#569353", "#748ebc"];
         const setupSave = (art, pos, amp, speed, slot) => {
             let anim = new Animator();
             anim.addAnim(new Animation(this.loader.imageSet(`garden-art-${art}`), -1), "idle");
             const save = this.createSprite(new Rect2D(pos, 0.5, 0.5), anim, "saves");
+            this.spriteMap[`saveSlot${slot}`] = save; // if i don't keep it in memory somewhere it likes to disappear sometimes
             anim.changeAnim("idle");
 
             save.extraData.time = 0;
@@ -2180,8 +2231,8 @@ class Engine {
         }
     }
 
-    swapScenes(newScene, onSwap=null, releaseHands=true) {
-        let e = this.applyScreenEffect("fadeOutIn", {"ms": this.save.settings[Save.settings_index.SCENE_TRANSITION_SPEED], "blackTime": 100});
+    swapScenes(newScene, onSwap=null, releaseHands=true, promise=null) {
+        let e = this.applyScreenEffect("fadeOutIn", {"ms": this.save.settings[Save.settings_index.SCENE_TRANSITION_SPEED], "blackTime": 100, "promise": promise});
         this.data.blockClickboxes = true;
         e.onBlack = () => {
             this.data.scene = newScene;
@@ -2280,8 +2331,11 @@ class Engine {
                     "fadeOutTime": fadeOutTime,
                     "onFinish": () => {},
                     "onBlack": () => {},
+                    "promise": null,
+                    "promiseStarted": false,
                     "onBlackCompleted": false
                 }
+                if(data.promise != null) e.promise = data.promise;
 
                 this.screenEffects.push(e);
 
@@ -2293,13 +2347,19 @@ class Engine {
         this.screenEffects.forEach((e, index) => {
             switch(e.type) {
                 case "fadeOutIn": {
-                    e.updateTime += delta*1000;
                     const elapsed = e.updateTime - e.startTime;
-                    
                     if(!e.onBlackCompleted && elapsed >= (e.ms+e.blackTime)/2) {
+                        if(e.promise != null) { 
+                            if(!e.promiseStarted) {
+                                e.promise = trackPromise(e.promise());
+                                e.promiseStarted = true;
+                            }
+                            if(!e.promise.isResolved()) return 
+                        }
                         e.onBlackCompleted = true;
                         e.onBlack();
                     }
+                    e.updateTime += delta*1000;
 
                     if(elapsed >= e.ms+200) {
                         this.screenEffects.splice(index, 1);
@@ -2509,11 +2569,11 @@ class Engine {
             }
         });
 
-        const version_size = parseInt(ctx.canvas.width) * Engine.VERSION_OVERLAY_SIZE;
+        const version_size = (parseInt(ctx.canvas.width) + parseInt(ctx.canvas.height)) * Engine.VERSION_OVERLAY_SIZE;
         ctx.font = `${version_size}px Jersey20`;
         ctx.fillStyle = `rgba(255, 255, 255, ${Engine.VERSION_OVERLAY_OPACITY})`;
         ctx.fillText(Engine.VERSION_TEXT, 10, ctx.canvas.height-10);
-        if(this.data.save_information != null) ctx.fillText(`save ${this.data.save_information.selected_slot+1}`, 10, ctx.canvas.height-(version_size*2))
+        if(this.data.save_information != null) ctx.fillText(`save ${this.save.settings[11] ? "C" : "L"}${this.data.save_information.selected_slot+1}`, 10, ctx.canvas.height-(version_size*2))
 
         if(this.data.showClickboxes) {
             sceneData[this.data.scene].clickboxes.filter(c => c.active).forEach(c => {
@@ -2528,7 +2588,7 @@ class Engine {
         }
     }
 
-    onClick() {
+    async onClick() {
         const bounds = this.getBoundingBox();
 
         this.increaseClickCounter();
@@ -2553,7 +2613,7 @@ class Engine {
             }
         }
 
-        if(this.data.dialogue.active) { this.progressDialogue(); return; }
+        if(this.data.dialogue.active) { await this.progressDialogue(); return; }
         if(this.data.blockClickboxes) return;
         if(!this.data.hands.active) {
             sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
@@ -2682,7 +2742,7 @@ class Engine {
         }
 
         this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => s.anim.update(delta));
-        this.allSprites.forEach(s => s.extraData.updateFn(delta));
+        this.allSprites.forEach(s => s.extraData.updateFn(delta)); // todo: make this not run on every sprite ever?
         
         this.physics.simulation.physicsObjects.forEach(o => {
             if(bounds.h - o.pos.y < o.size*-1.1) this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1)
@@ -2828,19 +2888,43 @@ class Engine {
         this.allSprites.filter(s => s.extraData.cloud).forEach(s => this.allSprites.splice(this.allSprites.indexOf(s)));
         this.data.notifications = new Array();
         this.physics.simulation.physicsObjects = new Array();
-
     }
-    async uploadSaveData() {
-        const user = JSON.parse(window.localStorage.getItem("user"));
-        await fetch(getApiLink("/garden/saves/set"), {
-            method: "POST",
-            body: JSON.stringify({
-                "name": user.account.name,
-                "pass": user.account.pass,
-                "save": await this.save.serialize(this)
-            })
-        });
-        await this.refreshSaveInformation()
+    uploadSaveData() {
+        return new Promise(async (resolve, reject) => {
+            if(!window.localStorage.getItem("garden_doLocalSaving")) { // cloud save
+                const user = JSON.parse(window.localStorage.getItem("user"));
+                await fetch(getApiLink("/garden/saves/set"), {
+                    method: "POST",
+                    body: JSON.stringify({
+                        "name": user.account.name,
+                        "pass": user.account.pass,
+                        "save": await this.save.serialize(this),
+                        "time": Date.now()
+                    })
+                });
+                await this.refreshSaveInformation();
+                resolve();
+            } else { // local save
+                await this.refreshSaveInformation();
+                const data = await this.save.serialize(this);
+                const transaction = this.data.localDB.transaction("saves", "readwrite");
+                const objectStore = transaction.objectStore("saves")
+                const req = objectStore.put({
+                    "slot": parseInt(window.localStorage.getItem("garden_selectedSlot") ?? "0"),
+                    "data": data,
+                    "time": Date.now()
+                });
+    
+                req.onsuccess = () => {
+                    resolve();
+                }
+    
+                req.onerror = (err) => {
+                    console.log(err)
+                    reject(err);
+                }
+            }
+        })
     }
     async downloadLocalSave(supressNotifications=false) {
         const data = await this.save.serialize(this);
@@ -2856,27 +2940,45 @@ class Engine {
         this.data.importedLocalSave = true;
         this.data.haltAutosaves = true;
 
-        this.swapScenes("garden", () => {
+        this.swapScenes("garden", async () => {
             this.resetLocal();
-            this.save.refreshValuesInEngine(this);
+            await this.save.refreshValuesInEngine(this);
             this.spawnNotification("imported save", `no save scumming!`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
         })
     }
-    async fetchSaveData() {
-        try {
-            const user = JSON.parse(window.localStorage.getItem("user"));
-            const req = await fetch(getApiLink("/garden/saves/get"), {
-                method: "POST",
-                body: JSON.stringify({
-                    "name": user.account.name,
-                    "pass": user.account.pass
-                })
-            });
-
-            const t = await req.text();
-            if(!t) return null;
-            return t;
-        } catch { console.log("bruh"); return null; }
+    fetchSaveData() {
+        return new Promise(async (resolve, reject) => {
+            if(window.localStorage.getItem("garden_doLocalSaving")) {
+                const transaction = this.data.localDB.transaction("saves", "readonly");
+                const objectStore = transaction.objectStore("saves")
+                const req = objectStore.get(parseInt(window.localStorage.getItem("garden_selectedSlot") ?? "0"));
+    
+                req.onsuccess = () => {
+                    if(req.result == null) resolve(null);
+                    else resolve(req.result.data);
+                }
+    
+                req.onerror = (err) => {
+                    console.error(err)
+                    reject(null);
+                }
+            } else {
+                try {
+                    const user = JSON.parse(window.localStorage.getItem("user"));
+                    const req = await fetch(getApiLink("/garden/saves/get"), {
+                        method: "POST",
+                        body: JSON.stringify({
+                            "name": user.account.name,
+                            "pass": user.account.pass
+                        })
+                    });
+        
+                    const t = await req.json();
+                    if(!t) resolve(null);
+                    resolve(t.data);
+                } catch { console.log("bruh"); resolve(null); }
+            }
+        })
     }
     async refreshSave() {
         const save_data = await this.fetchSaveData();
@@ -2884,39 +2986,132 @@ class Engine {
         this.spawnNotification("welcome to the beta", `please send feedback`, 6*1000, { "color": "rgba(102, 205, 170, 1)"});
         if(save_data != null) {
             this.save = await Save.fromSerialized(save_data);
-            this.save.refreshValuesInEngine(this);
+            await this.save.refreshValuesInEngine(this);
         }
         else {
             this.save = new Save();
             console.log("fresh save");
             this.spawnNotification("welcome to hell", "first join the game", 5*1000, { "color": "rgba(252, 220, 92, 1)" })
-            this.save.refreshValuesInEngine(this);
+            await this.save.refreshValuesInEngine(this);
             await this.uploadSaveData()
         }
         await this.refreshSaveInformation()
     }
-    async refreshSaveInformation() {
-        const user = JSON.parse(window.localStorage.getItem("user"));
-        const req = await fetch(getApiLink("/garden/saves/list"), {
-            method: "POST",
-            body: JSON.stringify({
-                "name": user.account.name,
-                "pass": user.account.pass
-            })
-        });
 
-        this.data.save_information = await req.json();
-    }
-    async swapSave(slot) {
-        const user = JSON.parse(window.localStorage.getItem("user"));
-        await fetch(getApiLink("/garden/saves/setSlot"), {
-            method: "POST",
-            body: JSON.stringify({
-                "name": user.account.name,
-                "pass": user.account.pass,
-                "save_slot": slot
-            })
+    getLocalSaveInformation() {
+        return new Promise(async (resolve, reject) => {
+            const transaction = this.data.localDB.transaction("saves", "readonly");
+            const objectStore = transaction.objectStore("saves");
+            let saves = [
+                objectStore.get(0),
+                objectStore.get(1),
+                objectStore.get(2)
+            ]
+            await asyncIDBwaitForTransactionCompletion(transaction);
+            saves = saves.map(s => s.result);
+            resolve({
+                "saves": [
+                    {
+                        "exists": saves[0] != undefined,
+                        "time": saves[0] != undefined ? saves[0].time : null
+                    },
+                    {
+                        "exists": saves[1] != undefined,
+                        "time": saves[1] != undefined ? saves[1].time : null
+                    },
+                    {
+                        "exists": saves[2] != undefined,
+                        "time": saves[2] != undefined ? saves[2].time : null
+                    }
+                ],
+                "selected_slot": parseInt(window.localStorage.getItem("garden_selectedSlot") ?? "0")
+            });
         });
+    }
+    getCloudSaveInformation() {
+        return new Promise(async (resolve, reject) => {
+            const user = JSON.parse(window.localStorage.getItem("user"));
+            const req = await fetch(getApiLink("/garden/saves/list"), {
+                method: "POST",
+                body: JSON.stringify({
+                    "name": user.account.name,
+                    "pass": user.account.pass
+                })
+            });
+            const json = await req.json();
+            resolve(json);
+        })
+    }
+    refreshSaveInformation() {
+        return new Promise(async (resolve, reject) => {
+            if(!window.localStorage.getItem("garden_doLocalSaving")) {
+                this.data.save_information = await this.getCloudSaveInformation();
+                resolve();
+            }
+            else {
+                this.data.save_information = await this.getLocalSaveInformation();
+                console.log(this.data.save_information)
+                resolve();
+            }
+        })
+    }
+
+    swapSave(slot) {
+        return new Promise(async (resolve, reject) => {
+            if(window.localStorage.getItem("garden_doLocalSaving")) {
+                window.localStorage.setItem("garden_selectedSlot", slot)
+                resolve();
+            } else {
+                const user = JSON.parse(window.localStorage.getItem("user"));
+                await fetch(getApiLink("/garden/saves/setSlot"), {
+                    method: "POST",
+                    body: JSON.stringify({
+                        "name": user.account.name,
+                        "pass": user.account.pass,
+                        "save_slot": slot
+                    })
+                });
+                resolve();
+            }
+            
+        })
+    }
+    wipeSave() {
+        // wipesave impl for local db
+        // how do i make it so id you swap to local saving, make a new save file, swap to a different one and activate cloud saving, that it'll upload properly?
+        // -> local vs cloud save overwrite option?
+
+    }
+
+    setLocalSavingVariables(flag) {
+        if(flag) {
+            window.localStorage.setItem("garden_selectedSlot", this.data.save_information.selected_slot);
+            window.localStorage.setItem("garden_doLocalSaving", true);
+        } else {
+            window.localStorage.removeItem("garden_selectedSlot");
+            window.localStorage.removeItem("garden_doLocalSaving");
+        }
+    }
+    async initIndexedDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open("gardenDB", 1);
+            request.onerror = (err) => {
+                console.error(`problem opening indexedDB: ${err}`)
+                reject();
+            };
+            request.onsuccess = (event) => {
+                this.data.localDB = event.target.result;
+                this.data.localDB.onerror = (event) => { console.error(`garden local indexeddb error: ${event.target.error?.message}`) };
+                resolve();
+            };
+            request.onupgradeneeded = (event) => {
+                console.log("initializing indexeddb for the first time")
+                const db = event.target.result;
+            
+                db.createObjectStore("saves", { keyPath: "slot" });
+            };
+        })
+        
     }
 }
 

@@ -37,6 +37,7 @@ div {
     font-size: 10vw;
     color: white;
     margin-bottom: 2vw;
+    user-select: none;
 }
 
 #loading p {
@@ -44,4 +45,5 @@ div {
     font-size: 3vw;
     font-weight: 300;
     color: grey;
+    user-select: none;
 }

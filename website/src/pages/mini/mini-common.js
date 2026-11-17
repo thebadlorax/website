@@ -168,6 +168,18 @@ export async function gzipDecompressString(base64) {
     return await new Response(stream).text();
 };
 
+export async function gzipCompressUInt8(uint8Array) {
+    const stream = new Blob([uint8Array]).stream().pipeThrough(new CompressionStream("gzip"));
+  
+    const compressedBuffer = await new Response(stream).arrayBuffer();
+    return new Uint8Array(compressedBuffer);
+}
+export async function gzipDecompressUInt8(uint8Array) {
+    const stream = new Blob([uint8Array]).stream().pipeThrough(new DecompressionStream("gzip"));
+  
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
 export function downloadBlob(content, fileName, contentType) {
     const blob = new Blob([content], { type: contentType });
     const url = URL.createObjectURL(blob);
@@ -199,5 +211,46 @@ export async function pickFile() {
         };
 
         input.click();
+    });
+}
+
+export function trackPromise(promise) {
+    let state = 0;
+    
+    const tracked = promise.then(
+      (value) => {
+        state = 1;
+        return value;
+      },
+      (error) => {
+        state = -1;
+        throw error;
+      }
+    );
+  
+    return {
+      promise: tracked,
+      getState: () => state,
+      isResolved: () => state === 1
+    };
+}
+
+export function asyncIDBKeyExists(db, storeName, key) {
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(storeName, "readonly");
+      const store = transaction.objectStore(storeName);
+      const request = store.getKey(key);
+  
+      request.onsuccess = () => { resolve(request.result !== undefined) };
+  
+      request.onerror = () => { reject(request.error) };
+    });
+}
+
+export function asyncIDBwaitForTransactionCompletion(transaction) {
+    return new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
     });
 }
