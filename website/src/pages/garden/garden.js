@@ -37,7 +37,8 @@
 import { 
     Loader, drawRotatedImage, getRandomFromList, easeOutBack, easeInBack, 
     gzipCompressString, gzipDecompressString, downloadBlob, pickFile, trackPromise,
-    asyncIDBwaitForTransactionCompletion, gzipCompressUInt8, gzipDecompressUInt8
+    asyncIDBwaitForTransactionCompletion, gzipCompressUInt8, gzipDecompressUInt8,
+    generateRandomString
 } from "../mini/mini-common.js";
 import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../mini/maths.js";
 import { getApiLink, clamp, formatSeconds, formatNumber, checkIfDisabled } from "../common.js";
@@ -628,6 +629,8 @@ class Clickbox {
         this.active = true;
         this.cursor = "pointer";
 
+        this.id = generateRandomString(5)
+
         this.extraData = {};
         this.useAbsoluteCoordinates = false;
         this.useAbsoluteScaling = false;
@@ -688,6 +691,14 @@ class Clickbox {
         if(axies[1] != null) this.restricedAxies.negativeHorizontal = axies[1]
         if(axies[2] != null) this.restricedAxies.positiveVertical = axies[2]
         if(axies[3] != null) this.restricedAxies.negativeVertical = axies[3]
+        return this;
+    }
+    withHoverFn(fn) {
+        this.extraData.hoverFn = fn;
+        return this;
+    }
+    withExitFn(fn) {
+        this.extraData.exitFn = fn;
         return this;
     }
 }
@@ -1034,7 +1045,9 @@ const sceneData = {
                         "text": "well now, you know what they say about swapping timelines...."
                     }
                 ]);
-            }),
+            }).withHoverFn((eng) => {
+                eng.spriteMap.stopgo.anim.resetAndChangeAnim("red")
+            }).withExitFn((eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }),
             new Clickbox(new Rect2D(Vector.two(0.4, 0.1), 0.2, 0.28), (eng) => { 
                 SAVE_CLICKBOX_ONCLICK(eng, 1, [
                     {
@@ -1047,7 +1060,9 @@ const sceneData = {
                         "text": "well, off we go!"
                     }
                 ]);
-            }),
+            }).withHoverFn((eng) => {
+                eng.spriteMap.stopgo.anim.resetAndChangeAnim("green")
+            }).withExitFn((eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }),
             new Clickbox(new Rect2D(Vector.two(0.65, 0.1), 0.2, 0.28), (eng) => { 
                 SAVE_CLICKBOX_ONCLICK(eng, 2, [
                     {
@@ -1060,7 +1075,9 @@ const sceneData = {
                         "text": "3's an unlucky number, you know..."
                     }
                 ]);
-            }),
+            }).withHoverFn((eng) => {
+                eng.spriteMap.stopgo.anim.resetAndChangeAnim("blue")
+            }).withExitFn((eng) => { eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle") }),
         ],
         "movement": {
             "down": (eng) => {
@@ -1070,6 +1087,20 @@ const sceneData = {
                 })
             }
         }
+    },
+    "overwrite": {
+        "renderFn": (eng) => {
+            const ctx = eng.ctx;
+            const bb = eng.getBoundingBox();
+    
+            ctx.drawImage(eng.loader.getImage("garden-art-45"), 0, 0, 512, 512, bb.x, bb.y, bb.w, bb.h);
+        },
+        "clickboxes": [
+            new Clickbox(new Rect2D(Vector.two(0.5, 0.28), 0.1, 0.3), (eng) => { 
+                eng.spriteMap.overwrite_door.anim.changeAnim("left"); 
+                eng.openRandomDialogueFromList(ALL_DIALOGUE.shopkeep.idle);
+            })
+        ]
     }
 }
 
@@ -1260,6 +1291,7 @@ class Engine {
                 "clamp": [null, null],
                 "active": false
             },
+            "currentClickboxes": [],
             "localDB": null,
             "heldClickbox": null,
             "heldClickboxOffset": Vector.two(0, 0),
@@ -1405,7 +1437,7 @@ class Engine {
         })
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
             this.data.showClickboxes = !this.data.showClickboxes;
-            console.log(this.spriteMap)
+            this.swapScenes("overwrite");
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyU", async () => {
@@ -2107,11 +2139,11 @@ class Engine {
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-34"), -1), "idle");
 
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-35"), -1), "red");
-        sceneData.saves.clickboxes[1].extraData = { "stopgoColor": "red" }
+        //sceneData.saves.clickboxes[1].extraData = { "stopgoColor": "red" }
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-37"), -1), "green");
-        sceneData.saves.clickboxes[2].extraData = { "stopgoColor": "green" }
+        //sceneData.saves.clickboxes[2].extraData = { "stopgoColor": "green" }
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-39"), -1), "blue");
-        sceneData.saves.clickboxes[3].extraData = { "stopgoColor": "blue" }
+        //sceneData.saves.clickboxes[3].extraData = { "stopgoColor": "blue" }
 
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-36", "garden-art-38", "garden-art-40"), 0.8), "talk");
         const stopgo = this.createSprite(new Rect2D(Vector.two(0, 0.07), 1, 1), stopgo_animator, "saves");
@@ -2156,6 +2188,14 @@ class Engine {
         setupSave(30, Vector.two(0, 0),    0.02,  30, 0);
         setupSave(31, Vector.two(0.25, 0), 0.013, 40, 1);
         setupSave(32, Vector.two(0.5, 0),  0.017, 25, 2);
+
+        let overwrite_door_anim = new Animator();
+        overwrite_door_anim.addAnim(new Animation(this.loader.imageSet("garden-art-46"), -1), "idle")
+        overwrite_door_anim.addAnim(new Animation(this.loader.imageSet("garden-art-47"), -1), "left")
+        overwrite_door_anim.addAnim(new Animation(this.loader.imageSet("garden-art-48"), -1), "right")
+        const overwrite_door = this.createSprite(new Rect2D(Vector.two(0, 0), 1, 1), overwrite_door_anim, "overwrite");
+        this.spriteMap.overwrite_door = overwrite_door;
+        overwrite_door_anim.changeAnim("idle")
     }
 
     createSprite(rect, animator, scene) {
@@ -2833,20 +2873,23 @@ class Engine {
             return;
         }
         if(!this.data.hands.active) {
-            const d = {};
             if(!this.data.blockClickboxes) {
+                let seen = []
                 sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active).forEach(c => {
                     const bb = c.getBounds(bounds);
                     if(Maths.rectRect(this.mouse.pos.x-5, this.mouse.pos.y-5, this.mouse.w, this.mouse.h, bb.x, bb.y, bb.w, bb.h)) {
                         document.body.style.cursor = c.cursor;
-                        if(c.extraData.stopgoColor != null && d.stopgo == null) {
-                            this.spriteMap.stopgo.anim.resetAndChangeAnim(c.extraData.stopgoColor)
-                            d.stopgo = true;
-                        }
+                        if(c.extraData.hoverFn != null) c.extraData.hoverFn(this)
+                        if(!this.data.currentClickboxes.includes(c.id)) this.data.currentClickboxes.push(c.id);
+                        seen.push(c.id);
                     }
                 }); 
+                sceneData[this.data.scene].clickboxes.concat(this.globalClickboxes).filter(c => c.active && !seen.includes(c.id) && this.data.currentClickboxes.includes(c.id)).forEach(c => {
+                    this.data.currentClickboxes.splice(this.data.currentClickboxes.indexOf(c.id), 1);
+                    if(c.extraData.exitFn != null) c.extraData.exitFn(this)
+                });
             }
-            if(!d.stopgo) this.spriteMap.stopgo.anim.resetAndChangeAnim("idle")
+            //if(!d.stopgo) this.spriteMap.stopgo.anim.resetAndChangeAnim("idle")
         } else if(!this.data.promptObject.active) {
             if(!this.data.blockClickboxes) {
                 this.globalClickboxes.filter(c => c.active).forEach(c => {
