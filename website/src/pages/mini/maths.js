@@ -5,6 +5,10 @@
  * copyright 2026
 */
 
+export const rangedRandom = (min, max) => {
+    return Math.random() * (max - min) + min;
+}
+
 export class Shape2D {
     constructor(pos) {
         this.pos = pos;
@@ -24,6 +28,7 @@ export class Rect2D extends Shape2D {
         else { throw new Error("no impl found for a Rect2D -> Shape2D collision") }
     }
 }
+export const getRandomPointInRect = (rect) => { return Vector.two(rangedRandom(rect.pos.x, rect.pos.x+rect.w).toFixed(2), rangedRandom(rect.pos.y, rect.pos.y+rect.h).toFixed(2)) } // assumes that position and w/h use same number format
 
 export class Circle2D extends Shape2D {
     constructor(pos, r) {

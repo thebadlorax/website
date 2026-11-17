@@ -40,7 +40,7 @@ import {
     asyncIDBwaitForTransactionCompletion, gzipCompressUInt8, gzipDecompressUInt8,
     generateRandomString
 } from "../mini/mini-common.js";
-import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices } from "../mini/maths.js";
+import { Vector, Maths, Rect2D, PhysicsContext2D, PhysicsSquare2D, getSquareAsVertices, getRandomPointInRect } from "../mini/maths.js";
 import { getApiLink, clamp, formatSeconds, formatNumber, checkIfDisabled } from "../common.js";
 
 if(window.localStorage.getItem("user") == null) {
@@ -545,6 +545,11 @@ class Animation {
 
     get() {
         return this.frames[this.frame];
+    }
+
+    repeats(flag) {
+        this.repeat = flag;
+        return this;
     }
 }
 
@@ -1096,10 +1101,16 @@ const sceneData = {
             ctx.drawImage(eng.loader.getImage("garden-art-45"), 0, 0, 512, 512, bb.x, bb.y, bb.w, bb.h);
         },
         "clickboxes": [
-            new Clickbox(new Rect2D(Vector.two(0.5, 0.28), 0.1, 0.3), (eng) => { 
+            new Clickbox(new Rect2D(Vector.two(0.4, 0.22), 0.1, 0.4), (eng) => { 
+                console.log("yo");
+            }).withHoverFn((eng) => {
                 eng.spriteMap.overwrite_door.anim.changeAnim("left"); 
-                eng.openRandomDialogueFromList(ALL_DIALOGUE.shopkeep.idle);
-            })
+            }).withExitFn((eng) => { eng.spriteMap.overwrite_door.anim.resetAndChangeAnim("idle") }),
+            new Clickbox(new Rect2D(Vector.two(0.52, 0.22), 0.12, 0.4), (eng) => { 
+                console.log("yo");
+            }).withHoverFn((eng) => {
+                eng.spriteMap.overwrite_door.anim.changeAnim("right"); 
+            }).withExitFn((eng) => { eng.spriteMap.overwrite_door.anim.resetAndChangeAnim("idle") })
         ]
     }
 }
@@ -2139,11 +2150,8 @@ class Engine {
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-34"), -1), "idle");
 
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-35"), -1), "red");
-        //sceneData.saves.clickboxes[1].extraData = { "stopgoColor": "red" }
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-37"), -1), "green");
-        //sceneData.saves.clickboxes[2].extraData = { "stopgoColor": "green" }
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-39"), -1), "blue");
-        //sceneData.saves.clickboxes[3].extraData = { "stopgoColor": "blue" }
 
         stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-36", "garden-art-38", "garden-art-40"), 0.8), "talk");
         const stopgo = this.createSprite(new Rect2D(Vector.two(0, 0.07), 1, 1), stopgo_animator, "saves");
@@ -2196,6 +2204,54 @@ class Engine {
         const overwrite_door = this.createSprite(new Rect2D(Vector.two(0, 0), 1, 1), overwrite_door_anim, "overwrite");
         this.spriteMap.overwrite_door = overwrite_door;
         overwrite_door_anim.changeAnim("idle")
+
+        
+        const ee_create = (x, y) => {
+            let anim = new Animator();
+            anim.addAnim(new Animation(this.loader.imageSet("garden-art-49"), -1), "idle")
+            anim.addAnim(new Animation(this.loader.imageSet("garden-art-52", "garden-art-51", "garden-art-50", "garden-art-49"), 0.2).repeats(false), "open")
+            anim.addAnim(new Animation(this.loader.imageSet("garden-art-49", "garden-art-50", "garden-art-51", "garden-art-52"), 0.1).repeats(false), "close")
+            const e = this.createSprite(new Rect2D(Vector.two(x, y), 1, 1), anim, "overwrite");
+
+            e.extraData.opacity = (0.1+Math.random()*0.2);
+            e.extraData.time = 0;
+            e.extraData.next = Math.floor(Math.random()*5);
+            e.extraData.renderFn = (ctx) => {
+                const bb = e.getBounds(this.getBoundingBox());
+
+                ctx.save()
+                ctx.globalAlpha = e.extraData.opacity;
+                ctx.drawImage(anim.get(), bb.pos.x,  bb.pos.y,  bb.w,  bb.h);
+                ctx.restore();
+            }
+            e.extraData.updateFn = (delta) => {
+                e.extraData.time += delta;
+    
+                if(e.extraData.time > e.extraData.next) {
+                    if(anim.current_key == "open") anim.resetAndChangeAnim("close")
+                    else anim.resetAndChangeAnim("open")
+    
+                    e.extraData.time = 0;
+                    e.extraData.next = Math.floor(Math.random()*5);
+                }
+            }
+            anim.changeAnim("close")
+
+            return e;
+        }
+
+        const top_rect =    new Rect2D(Vector.two(-0.4, -0.5), 0.8, 0.2);
+        const bottom_rect = new Rect2D(Vector.two(-0.4, 0.3), 0.8, 0.2);
+
+        const ee_pos = [
+            getRandomPointInRect(top_rect),
+            getRandomPointInRect(top_rect),
+            getRandomPointInRect(bottom_rect),
+            getRandomPointInRect(bottom_rect),
+        ]
+
+        console.log(ee_pos.map(e => e.toString()))
+        ee_create(ee_pos[0].x, ee_pos[0].y); ee_create(ee_pos[1].x, ee_pos[1].y); ee_create(ee_pos[2].x, ee_pos[2].y); ee_create(ee_pos[3].x, ee_pos[3].y)
     }
 
     createSprite(rect, animator, scene) {
