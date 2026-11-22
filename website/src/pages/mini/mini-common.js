@@ -37,6 +37,14 @@ export class Loader {
         })
         return a;
     }
+
+    fromList(images) {
+        let a = [];
+        images.forEach(i => {
+            a.push(this.getImage(i))
+        })
+        return a;
+    }
 };
 
 export const generateRandomString = (length) => {

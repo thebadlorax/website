@@ -455,6 +455,7 @@ class DirtSimulation {
     }
     
     async deserializeBinary(rawData) {
+        if(rawData == null) return
         const data = await gzipDecompressUInt8(rawData);
         const reader = new DataReader(data);
         const width = reader.readUint8();
@@ -525,13 +526,13 @@ class Animation {
         this.frame = frame;
     }
 
-    progress(delta) {
+    progress(delta, eng) {
         this.timer += delta;
         if(this.timer > this.speed) {
             this.timer = 0;
             if(this.frame+1 >= this.frames.length) {
                 if(this.onComplete != null && !this.hasCompleted) {
-                    this.onComplete();
+                    this.onComplete(eng);
                     this.hasCompleted = true;
                 }
                 if(this.repeat) {
@@ -573,9 +574,9 @@ class Animator {
         this.resetAnim(key, this.current_key); 
         this.changeAnim(key);
     }
-    update(delta) {
+    update(delta, eng) {
         if(this.current.speed == -1) return;
-        this.current.progress(delta);
+        this.current.progress(delta, eng);
     }
     get() {
         if(this.current == null) return;
@@ -609,12 +610,12 @@ class Sprite {
         this.anim.progress(delta);
     }
 
-    render(ctx, bounds) {
+    render(ctx, bounds, eng) {
         if(this.hidden) return;
         const bb = this.getBounds(bounds);
         const off = this.extraData.renderOffset;
         if(this.extraData.renderFn != null) {
-            this.extraData.renderFn(ctx, bounds);
+            this.extraData.renderFn(ctx, bounds, eng);
             return;
         }
         ctx.drawImage(this.anim.get(), bb.pos.x + off.x, bb.pos.y + off.y, bb.w, bb.h);
@@ -708,6 +709,124 @@ class Clickbox {
     }
 }
 
+class Item {
+    constructor(id, metadata={}) {
+        this.id = id;
+        this.metadata = metadata;
+    }
+
+    serialize() {
+        return JSON.stringify({
+            "id": this.id,
+            "metadata": this.metadata
+        })
+    }
+    static fromSerialized(data) {
+        return new Item(data.id, data.metadata)
+    }
+}
+class Save {
+    static settings_index = {
+        AUTOSAVE_INTERVAL: 0,
+        DO_AUTOSAVES: 1,
+        HIDE_NOTIFICATIONS: 2,
+        TRANSPARENT_NOTIFICATIONS: 3,
+        DO_CLOUDS: 4,
+        SCENE_TRANSITION_SPEED: 5,
+        DO_CURSOR_EFFECTS: 6,
+        OPTIMIZE_DIRT: 7,
+        PHYSICS_ITERATIONS: 8,
+        GLOW_EFFECTS: 9,
+        ANTIALIASING: 10,
+        DO_CLOUD_SAVES: 11
+    }
+    static PERFORMANCE_SETTINGS = {
+        0: null,
+        1: null,
+        2: null,
+        3: null,
+        4: false,
+        5: null,
+        6: false,
+        7: true,
+        8: 1,
+        9: false,
+        10: null,
+        11: null
+    }
+    static DEFAULT_SETTINGS = () => {return [
+        60,
+        true,
+        false,
+        false,
+        true,
+        400,
+        true,
+        false,
+        10,
+        true,
+        false,
+        Save.DOES_CLOUD_SAVES()
+    ]}
+    static DOES_CLOUD_SAVES = () => window.localStorage.getItem("garden_doLocalSaving") == null;
+    constructor() {
+        this.dirt = null;
+        this.inventory = [];
+
+        this.statistics = {
+            playtime: 0,
+            hands_opened: 0,
+            clicks: 0,
+            dialogues_opened: 0,
+            days_passed: 0
+        };
+
+        this.time = Engine.STARTING_TIME;
+
+        this.settings = Save.DEFAULT_SETTINGS();
+    }
+
+    optimizeSettingsForPerformance() { Object.values(Save.PERFORMANCE_SETTINGS).forEach((s, i) => { if(s != null) this.settings[i] = s })};
+
+    addItemToInventory(item) { this.inventory.push(item) };
+    removeItemFromInventory(item) { this.inventory.splice(this.inventory.indexOf(item)) };
+
+    async serialize(eng) {
+        await this.refreshValuesFromEngine(eng);
+        return await gzipCompressString(JSON.stringify({
+            "dirt": this.dirt.toBase64(),
+            "settings": this.settings,
+            "statistics": this.statistics,
+            "time": this.time
+        }));
+    }
+    static async fromSerialized(data) {
+        const json = JSON.parse(await gzipDecompressString(data));
+        const save = new Save();
+        if(json.dirt != null) save.dirt = Uint8Array.fromBase64(json.dirt);
+        save.settings = json.settings;
+        save.refreshLocalSaving();
+        save.inventory.forEach(i => save.inventory.push(Item.fromSerialized(i)))
+        save.statistics = json.statistics;
+        save.time = json.time;
+        return save;
+    }
+
+    refreshLocalSaving() { this.settings[11] = Save.DOES_CLOUD_SAVES() }
+
+    async refreshValuesInEngine(eng) {
+        if(this.dirt == null) eng.dirt.simulation.resetArrays();
+        else await eng.dirt.simulation.deserializeBinary(this.dirt);
+        eng.dirt.timeout_timer = 1;
+        eng.data.time = this.time;
+    }
+    async refreshValuesFromEngine(eng) {
+        this.dirt = await eng.dirt.simulation.serializeBinary();
+        this.time = eng.data.time;
+    }
+}
+
+// DATA
 const ALL_DIALOGUE = {
     "shopkeep": {
         "idle": [
@@ -899,7 +1018,6 @@ const ALL_DIALOGUE = {
         ]
     } 
 }
-
 const plantData = {
     "grass": {
         "seeds": {
@@ -907,7 +1025,6 @@ const plantData = {
         }
     }
 }
-
 const SAVE_CLICKBOX_ONCLICK = (eng, slot, lines) => {
     if(eng.data.save_information.selected_slot == slot) {
         eng.spriteMap.stopgo.anim.changeAnim("talk"); 
@@ -943,17 +1060,19 @@ const SAVE_CLICKBOX_ONCLICK = (eng, slot, lines) => {
         "lines": lines,
         "fns": { 
             "onEnd": async (eng) => { 
+                const local_data = await eng.getLocalSaveInformation();
+                const cloud_data = await eng.getCloudSaveInformation();
+                const conflicts = local_data.saves[slot].exists && cloud_data.saves[slot].exists;
+                if(conflicts) {
+                    const times = [local_data.saves[slot].time, cloud_data.saves[slot].time];
+                    const local_is_newer = times[0] > times[1];
+
+                    eng.data.overwrite_text = `${local_is_newer ? `local` : `cloud`} save is newer`;
+                    eng.swapScenes("overwrite");
+                    return;
+                }
+
                 eng.swapScenes("garden", null, true, () => new Promise(async (resolve, reject) => {
-                    const local_data = await eng.getLocalSaveInformation();
-                    const cloud_data = await eng.getCloudSaveInformation();
-                    const conflicts = local_data.saves[slot].exists && cloud_data.saves[slot].exists;
-                    if(conflicts) {
-                        const times = [local_data.saves[slot].time, cloud_data.saves[slot].time];
-                        const local_is_newer = times[0] > times[1];
-
-                        alert(`save conflict: ${local_is_newer ? `local` : `cloud`} save is newer`)
-                    }
-
                     await eng.swapSave(slot);  
                     await eng.refreshSave();
                     eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
@@ -998,6 +1117,62 @@ const sceneData = {
             new Clickbox(new Rect2D(Vector.two(0.33, 0.28), 0.1, 0.1), (eng) => { 
                 eng.spriteMap.door.anim.changeAnim("open")
             }).withCursorStyle("alias")
+        ],
+        "sprites": [
+            {
+                "id": "door",
+                "rect": new Rect2D(Vector.two(-0.125, -0.165), 1, 1),
+                "animations": [
+                    {
+                        "key": "idle",
+                        "images": ["garden-art-15"],
+                        "speed": -1
+                    },
+                    {
+                        "key": "open",
+                        "onComplete": (eng) => {
+                            eng.swapScenes("shop", () => { eng.spriteMap.door.anim.resetAnim("open"); eng.spriteMap.door.anim.changeAnim("idle") });
+                        },
+                        "images": ["garden-art-16", "garden-art-17", "garden-art-18"],
+                        "speed": 0.1,
+                        "repeat": false
+                    }
+                ]
+            },
+            {
+                "id": "down_arrow",
+                "rect": new Rect2D(Vector.two(0.17, 0.2), 0.8, 0.8),
+                "animations": [
+                    {
+                        "key": "idle",
+                        "images": ["garden-art-19", "garden-art-20", "garden-art-21", "garden-art-22", "garden-art-21", "garden-art-20", "garden-art-19"],
+                        "speed": 0.13
+                    }
+                ],
+                "hidden": true
+            },
+            {
+                "id": "hands",
+                "rect": new Rect2D(Vector.two(0, 1), 1, 1),
+                "animations": [
+                    {
+                        "key": "idle",
+                        "images": ["garden-art-26"],
+                        "speed": -1
+                    }
+                ],
+                "updateFn": (delta, eng) => {
+                    const hands = eng.spriteMap.hands;
+                    if(eng.data.hands.yVel != null) {
+                        hands.rect.pos.y = clamp(hands.rect.pos.y + delta*eng.data.hands.yVel, eng.data.hands.clamp[0], eng.data.hands.clamp[1])
+                    }
+                },
+                "renderFn": (ctx, bb, eng) => {
+                    const hands = eng.spriteMap.hands;
+                    const bounds = hands.getBounds(eng.getBoundingBox());
+                    ctx.drawImage(hands.anim.get(), bounds.pos.x, bounds.pos.y, bounds.w, bounds.h);
+                }
+            }
         ]
     },
     "shop": {
@@ -1023,7 +1198,25 @@ const sceneData = {
             "down": (eng) => {
                 eng.swapScenes("garden")
             }
-        }
+        },
+        "sprites": [
+            {
+                "id": "shopkeep",
+                "rect": new Rect2D(Vector.two(0.05, -0.162), 1, 1),
+                "animations": [
+                    {
+                        "key": "idle",
+                        "images": ["garden-art-11", "garden-art-12", "garden-art-13", "garden-art-14"],
+                        "speed": 12
+                    },
+                    {
+                        "key": "talk",
+                        "images": ["garden-art-08", "garden-art-09", "garden-art-10", "garden-art-09"],
+                        "speed": 0.3
+                    }
+                ]
+            }
+        ]
     },
     "saves": {
         "renderFn": (eng) => {
@@ -1091,7 +1284,40 @@ const sceneData = {
                     eng.data.hands.yVel = -100;
                 })
             }
-        }
+        },
+        "sprites": [
+            {
+                "id": "stopgo",
+                "rect": new Rect2D(Vector.two(0, 0.07), 1, 1),
+                "animations": [
+                    {
+                        "key": "idle",
+                        "images": ["garden-art-34"],
+                        "speed": -1
+                    },
+                    {
+                        "key": "red",
+                        "images": ["garden-art-35"],
+                        "speed": -1
+                    },
+                    {
+                        "key": "green",
+                        "images": ["garden-art-37"],
+                        "speed": -1
+                    },
+                    {
+                        "key": "blue",
+                        "images": ["garden-art-39"],
+                        "speed": -1
+                    },
+                    {
+                        "key": "talk",
+                        "images": ["garden-art-36", "garden-art-38", "garden-art-40"],
+                        "speed": 0.8
+                    },
+                ]
+            },
+        ]
     },
     "overwrite": {
         "renderFn": (eng) => {
@@ -1099,6 +1325,16 @@ const sceneData = {
             const bb = eng.getBoundingBox();
     
             ctx.drawImage(eng.loader.getImage("garden-art-45"), 0, 0, 512, 512, bb.x, bb.y, bb.w, bb.h);
+
+            if(eng.data.overwrite_text != null) {
+                ctx.fillStyle = `rgba(255, 255, 255, 1)`;
+                ctx.font = `normal ${bb.w*Engine.DIALOGUE_FONT_SCALING}px Jersey20`;
+                const pos = Vector.two(
+                    bb.x+(bb.w*0.05), 
+                    bb.y+(bb.h*0.3)
+                );
+                ctx.fillText(eng.data.overwrite_text, pos.x, pos.y)
+            }
         },
         "clickboxes": [
             new Clickbox(new Rect2D(Vector.two(0.4, 0.22), 0.1, 0.4), (eng) => { 
@@ -1112,121 +1348,6 @@ const sceneData = {
                 eng.spriteMap.overwrite_door.anim.changeAnim("right"); 
             }).withExitFn((eng) => { eng.spriteMap.overwrite_door.anim.resetAndChangeAnim("idle") })
         ]
-    }
-}
-
-class Item {
-    constructor(id, metadata={}) {
-        this.id = id;
-        this.metadata = metadata;
-    }
-
-    serialize() {
-        return JSON.stringify({
-            "id": this.id,
-            "metadata": this.metadata
-        })
-    }
-    static fromSerialized(data) {
-        return new Item(data.id, data.metadata)
-    }
-}
-class Save {
-    static settings_index = {
-        AUTOSAVE_INTERVAL: 0,
-        DO_AUTOSAVES: 1,
-        HIDE_NOTIFICATIONS: 2,
-        TRANSPARENT_NOTIFICATIONS: 3,
-        DO_CLOUDS: 4,
-        SCENE_TRANSITION_SPEED: 5,
-        DO_CURSOR_EFFECTS: 6,
-        OPTIMIZE_DIRT: 7,
-        PHYSICS_ITERATIONS: 8,
-        GLOW_EFFECTS: 9,
-        ANTIALIASING: 10,
-        DO_CLOUD_SAVES: 11
-    }
-    static PERFORMANCE_SETTINGS = {
-        0: null,
-        1: null,
-        2: null,
-        3: null,
-        4: false,
-        5: null,
-        6: false,
-        7: true,
-        8: 1,
-        9: false,
-        10: null,
-        11: null
-    }
-    static DEFAULT_SETTINGS = () => {return [
-        60,
-        true,
-        false,
-        false,
-        true,
-        400,
-        true,
-        false,
-        10,
-        true,
-        false,
-        true
-    ]}
-    constructor() {
-        this.dirt = null;
-        this.inventory = [];
-
-        this.statistics = {
-            playtime: 0,
-            hands_opened: 0,
-            clicks: 0,
-            dialogues_opened: 0,
-            days_passed: 0
-        };
-
-        this.time = Engine.STARTING_TIME;
-
-        this.settings = Save.DEFAULT_SETTINGS();
-    }
-
-    optimizeSettingsForPerformance() { Object.values(Save.PERFORMANCE_SETTINGS).forEach((s, i) => { if(s != null) this.settings[i] = s })};
-
-    addItemToInventory(item) { this.inventory.push(item) };
-    removeItemFromInventory(item) { this.inventory.splice(this.inventory.indexOf(item)) };
-
-    async serialize(eng) {
-        await this.refreshValuesFromEngine(eng);
-        return await gzipCompressString(JSON.stringify({
-            "dirt": this.dirt.toBase64(),
-            "settings": this.settings,
-            "statistics": this.statistics,
-            "time": this.time
-        }));
-    }
-    static async fromSerialized(data) {
-        const json = JSON.parse(await gzipDecompressString(data));
-        const save = new Save();
-        save.dirt = Uint8Array.fromBase64(json.dirt);
-        save.settings = json.settings;
-        if(window.localStorage.getItem("garden_doLocalSaving")) save.settings[11] = false;
-        else save.settings[11] = true;
-        save.inventory.forEach(i => save.inventory.push(Item.fromSerialized(i)))
-        save.statistics = json.statistics;
-        save.time = json.time;
-        return save;
-    }
-
-    async refreshValuesInEngine(eng) {
-        await eng.dirt.simulation.deserializeBinary(this.dirt);
-        if(this.dirt == null) eng.dirt.simulation.resetArrays();
-        eng.dirt.timeout_timer = 1;
-        eng.data.time = this.time;
-    }
-    async refreshValuesFromEngine(eng) {
-        this.dirt = await eng.dirt.simulation.serializeBinary();
-        this.time = eng.data.time;
     }
 }
 
@@ -1302,6 +1423,7 @@ class Engine {
                 "clamp": [null, null],
                 "active": false
             },
+            "overwrite_text": "nothing",
             "currentClickboxes": [],
             "localDB": null,
             "heldClickbox": null,
@@ -1411,8 +1533,8 @@ class Engine {
         this.ctx.mozImageSmoothingEnabled = false;
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
-        await this.initIndexedDB(); // used to only init if local saves were on, now it's always on
-        this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU", "KeyP"]);
+        await this.initIndexedDB();
+        this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU", "KeyP", "KeyO"]);
         this.keyboard.setFunctionOnKeyPress("Space", () => {
             if(this.data.scene != "garden") return;
             this.toggleHands();
@@ -1446,9 +1568,12 @@ class Engine {
         this.keyboard.setFunctionOnKeyPress("KeyP", async () => {
             this.data.timePaused = !this.data.timePaused;
         })
+        this.keyboard.setFunctionOnKeyPress("KeyO", async () => {
+            if(this.data.scene == "overwrite") this.swapScenes("garden");
+            else this.swapScenes("overwrite")
+        })
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
             this.data.showClickboxes = !this.data.showClickboxes;
-            this.swapScenes("overwrite");
         })
 
         this.keyboard.setFunctionOnKeyPress("KeyU", async () => {
@@ -1601,7 +1726,7 @@ class Engine {
                 ctx.fillStyle = "black";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = `${bb.w*0.025}px Jersey20`;
+                ctx.font = `${bb.w*0.03}px Jersey20`;
                 ctx.rotate(-wipe_save.angle);
                 ctx.fillText("wipe save", invHalf+(wipe_save.size/2), invHalf+(wipe_save.size/2));
                 ctx.restore();
@@ -1710,7 +1835,7 @@ class Engine {
                 ctx.fillStyle = "black";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = `${bb.w*0.015}px Jersey20`;
+                ctx.font = `${bb.w*0.022}px Jersey20`;
                 ctx.rotate(-download_local_save.angle);
                 ctx.fillText("download save", invHalf+(download_local_save.size/2), invHalf+(download_local_save.size/2));
                 ctx.restore();
@@ -1733,7 +1858,7 @@ class Engine {
                 ctx.fillStyle = "black";
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.font = `${bb.w*0.018}px Jersey20`;
+                ctx.font = `${bb.w*0.022}px Jersey20`;
                 ctx.rotate(-import_local_save.angle);
                 ctx.fillText("import save", invHalf+(import_local_save.size/2), invHalf+(import_local_save.size/2));
                 ctx.restore();
@@ -2039,11 +2164,12 @@ class Engine {
         if(this.data.dialogue.line >= this.data.dialogue.data.lines.length) await this.closeDialogue();
     }
     async closeDialogue() {
-        if(this.data.dialogue.data.fns.onEnd != null) await this.data.dialogue.data.fns.onEnd(this);
+        const fn = this.data.dialogue.data.fns.onEnd;
         this.data.dialogue.data = null;
         this.data.dialogue.line = 0;
         this.data.dialogue.active = false;
         this.setMovementBlocking(false);
+        if(fn != null) await fn(this);
     }
 
     spawnNotification(title, subtitle, lifetime, opts = {
@@ -2079,31 +2205,28 @@ class Engine {
     }
 
     setupSprites() {
-        let door_animator = new Animator();
-        let open_anim = new Animation(this.loader.imageSet("garden-art-16", "garden-art-17", "garden-art-18"), 0.1);
-        open_anim.repeat = false;
-        open_anim.onComplete = () => {
-            this.swapScenes("shop", () => { open_anim.reset(); door_animator.changeAnim("idle") });
-        }
-        door_animator.addAnim(open_anim, "open")
-        
-        door_animator.addAnim(new Animation(this.loader.imageSet("garden-art-15"), -1), "idle");
-        const door = this.createSprite(new Rect2D(Vector.two(-0.125, -0.165), 1, 1), door_animator, "garden");
-        this.spriteMap.door = door;
-        door.anim.changeAnim("idle");
+        Object.entries(sceneData).forEach(e => {
+            const scene = e[0];
+            const data = e[1];
 
-        let shopkeep_animator = new Animator();
-        shopkeep_animator.addAnim(new Animation(this.loader.imageSet("garden-art-11", "garden-art-12", "garden-art-13", "garden-art-14"), 12), "idle")
-        shopkeep_animator.addAnim(new Animation(this.loader.imageSet("garden-art-08", "garden-art-09", "garden-art-10", "garden-art-09"), 0.3), "talk")
-        const shopkeep = this.createSprite(new Rect2D(Vector.two(0.05, -0.162), 1, 1), shopkeep_animator, "shop");
-        this.spriteMap.shopkeep = shopkeep;
-        shopkeep_animator.changeAnim("idle")
+            if(data.sprites == null) return;
 
-        let down_arrow_animator = new Animator();
-        down_arrow_animator.addAnim(new Animation(this.loader.imageSet("garden-art-19", "garden-art-20", "garden-art-21", "garden-art-22", "garden-art-21", "garden-art-20", "garden-art-19"), 0.13), "idle")
-        const down_arrow = this.createSprite(new Rect2D(Vector.two(0.17, 0.2), 0.8, 0.8), down_arrow_animator, "");
-        down_arrow_animator.changeAnim("idle")
-        this.spriteMap.down_arrow = down_arrow;
+            data.sprites.forEach(s => {
+                const animator = new Animator();
+                s.animations.forEach(a => {
+                    const anim = new Animation(this.loader.fromList(a.images), a.speed).repeats(a.repeat ?? true);
+                    if(a.onComplete != null) anim.onComplete = a.onComplete;
+                    animator.addAnim(anim, a.key);
+                })
+                const sprite = this.createSprite(s.rect, animator, scene).isHidden(s.hidden ?? false);
+
+                if(s.updateFn != null) sprite.extraData.updateFn = s.updateFn;
+                if(s.renderFn != null) sprite.extraData.renderFn = s.renderFn;
+
+                this.spriteMap[s.id] = sprite;
+                sprite.anim.changeAnim(s.startAnim ?? "idle")
+            })
+        })
 
         let seed_animator = new Animator();
         Object.values(plantData).forEach((p, i) => {
@@ -2130,33 +2253,6 @@ class Engine {
             }
         }
         this.spriteMap.seed = seed;
-
-        let hand_animator = new Animator();
-        hand_animator.addAnim(new Animation(this.loader.imageSet("garden-art-26"), -1), "idle");
-        const hands = this.createSprite(new Rect2D(Vector.two(0, 1), 1, 1), hand_animator, "garden");
-        hand_animator.changeAnim("idle");
-        this.spriteMap.hands = hands;
-        hands.extraData.updateFn = (delta) => {
-            if(this.data.hands.yVel != null) {
-                hands.rect.pos.y = clamp(hands.rect.pos.y + delta*this.data.hands.yVel, this.data.hands.clamp[0], this.data.hands.clamp[1])
-            }
-        }
-        hands.extraData.renderFn = (ctx) => {
-            const bb = hands.getBounds(this.getBoundingBox());
-            ctx.drawImage(hands.anim.get(), bb.pos.x, bb.pos.y, bb.w, bb.h);
-        }
-
-        let stopgo_animator = new Animator();
-        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-34"), -1), "idle");
-
-        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-35"), -1), "red");
-        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-37"), -1), "green");
-        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-39"), -1), "blue");
-
-        stopgo_animator.addAnim(new Animation(this.loader.imageSet("garden-art-36", "garden-art-38", "garden-art-40"), 0.8), "talk");
-        const stopgo = this.createSprite(new Rect2D(Vector.two(0, 0.07), 1, 1), stopgo_animator, "saves");
-        this.spriteMap.stopgo = stopgo;
-        stopgo_animator.changeAnim("idle");
 
         const colors = ["#b26161", "#569353", "#748ebc"];
         const setupSave = (art, pos, amp, speed, slot) => {
@@ -2204,14 +2300,14 @@ class Engine {
         const overwrite_door = this.createSprite(new Rect2D(Vector.two(0, 0), 1, 1), overwrite_door_anim, "overwrite");
         this.spriteMap.overwrite_door = overwrite_door;
         overwrite_door_anim.changeAnim("idle")
-
         
-        const ee_create = (x, y) => {
+        const ee_create = (rect) => {
+            const p = getRandomPointInRect(rect);
             let anim = new Animator();
             anim.addAnim(new Animation(this.loader.imageSet("garden-art-49"), -1), "idle")
             anim.addAnim(new Animation(this.loader.imageSet("garden-art-52", "garden-art-51", "garden-art-50", "garden-art-49"), 0.2).repeats(false), "open")
             anim.addAnim(new Animation(this.loader.imageSet("garden-art-49", "garden-art-50", "garden-art-51", "garden-art-52"), 0.1).repeats(false), "close")
-            const e = this.createSprite(new Rect2D(Vector.two(x, y), 1, 1), anim, "overwrite");
+            const e = this.createSprite(new Rect2D(Vector.two(p.x, p.y), 1, 1), anim, "overwrite");
 
             e.extraData.opacity = (0.1+Math.random()*0.2);
             e.extraData.time = 0;
@@ -2240,18 +2336,12 @@ class Engine {
             return e;
         }
 
-        const top_rect =    new Rect2D(Vector.two(-0.4, -0.5), 0.8, 0.2);
-        const bottom_rect = new Rect2D(Vector.two(-0.4, 0.3), 0.8, 0.2);
+        const top_rect =    new Rect2D(Vector.two(-0.4, -0.45), 0.8, 0.15);
+        const bottom_rect = new Rect2D(Vector.two(-0.4, 0.25), 0.8, 0.15);
 
-        const ee_pos = [
-            getRandomPointInRect(top_rect),
-            getRandomPointInRect(top_rect),
-            getRandomPointInRect(bottom_rect),
-            getRandomPointInRect(bottom_rect),
-        ]
-
-        console.log(ee_pos.map(e => e.toString()))
-        ee_create(ee_pos[0].x, ee_pos[0].y); ee_create(ee_pos[1].x, ee_pos[1].y); ee_create(ee_pos[2].x, ee_pos[2].y); ee_create(ee_pos[3].x, ee_pos[3].y)
+        const ee_group_create = (rect, count) => { let e = new Array(); for(let x = 0; x < count; x++) e.push(ee_create(rect)); return e; }
+        const evil_eyes = [...ee_group_create(bottom_rect, 1+Math.floor(Math.random()*2)), ...ee_group_create(top_rect, 2+Math.floor(Math.random()*2))]
+        this.spriteMap.evil_eyes = evil_eyes;
     }
 
     createSprite(rect, animator, scene) {
@@ -2321,9 +2411,10 @@ class Engine {
         if(mvment.down != null) {
             this.down_clickbox.active = true;
             this.spriteMap.down_arrow.scene = this.data.scene;
+            this.spriteMap.down_arrow.hidden = false;
         } else {
             this.down_clickbox.active = false;
-            this.spriteMap.down_arrow.scene = "";
+            this.spriteMap.down_arrow.hidden = true;
         }
     }
 
@@ -2507,7 +2598,7 @@ class Engine {
 
         sceneData[this.data.scene].renderFn(this, this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 0));
         if(this.data.scenetime == 6 && this.data.scene == "garden") ctx.filter = "brightness(50%)"
-        this.allSprites.filter(s => s.scene == this.data.scene && s.layer > 0 && s.layer != 100).sort((a, b) => a.layer - b.layer).forEach(s => s.render(ctx, bb));
+        this.allSprites.filter(s => s.scene == this.data.scene && s.layer > 0 && s.layer != 100).sort((a, b) => a.layer - b.layer).forEach(s => s.render(ctx, bb, this));
         if(this.data.dialogue.active) {
             const dialogue_rect = new Rect2D(
                 Vector.two(
@@ -2534,7 +2625,7 @@ class Engine {
         ctx.drawImage(this.dirt.canvas, bb.x, bb.y + (this.spriteMap.hands.rect.pos.y*bb.h), bb.w, bb.h);
         ctx.drawImage(this.physics.canvas, bb.x, bb.y);
 
-        this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 100).forEach(s => s.render(ctx, bb));
+        this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 100).forEach(s => s.render(ctx, bb, this));
 
         if(this.data.promptObject.active) {
             ctx.save();
@@ -2597,7 +2688,7 @@ class Engine {
             ctx.restore();
         }
 
-        this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 101).forEach(s => s.render(ctx, bb));
+        this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 101).forEach(s => s.render(ctx, bb, this));
         ctx.filter = `none`;
 
         if(!this.save.settings[Save.settings_index.HIDE_NOTIFICATIONS]) {
@@ -2637,7 +2728,7 @@ class Engine {
         ctx.clearRect(0, bb.y, bb.x, bb.h);
         ctx.clearRect(bb.x + bb.w, bb.y, ctx.canvas.width, bb.h);
 
-        this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 102).forEach(s => s.render(ctx, bb));
+        this.allSprites.filter(s => s.scene == this.data.scene && s.layer == 102).forEach(s => s.render(ctx, bb, this));
 
         this.screenEffects.forEach(e => {
             switch(e.type) {
@@ -2837,8 +2928,8 @@ class Engine {
             };
         }
 
-        this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => s.anim.update(delta));
-        this.allSprites.forEach(s => s.extraData.updateFn(delta)); // todo: make this not run on every sprite ever?
+        this.allSprites.filter(s => s.scene == this.data.scene).forEach(s => s.anim.update(delta, this));
+        this.allSprites.forEach(s => s.extraData.updateFn(delta, this)); // todo: make this not run on every sprite ever?
         
         this.physics.simulation.physicsObjects.forEach(o => {
             if(bounds.h - o.pos.y < o.size*-1.1) this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(o), 1)
@@ -3149,7 +3240,6 @@ class Engine {
             }
             else {
                 this.data.save_information = await this.getLocalSaveInformation();
-                console.log(this.data.save_information)
                 resolve();
             }
         })

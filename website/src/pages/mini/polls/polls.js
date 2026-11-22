@@ -70,7 +70,7 @@ create_button.addEventListener("click", () => {
     finishButton.style.cursor = "not-allowed"
     finishButton.title = ">2 choices needed"
     finishButton.style.width = "10vw";
-    finishButton.style.height = "30px";
+    finishButton.style.height = "100%";
     finishButton.style.marginLeft = "1vw"
     finishButton.addEventListener("click", async () => {
         if(finishButton.disabled) return;

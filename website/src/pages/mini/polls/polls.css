@@ -64,8 +64,8 @@ body {
     height: 45%;
 
     border: 2px black solid;
-    border-radius: 40px; 
-    corner-shape: squircle; 
+    /*border-radius: 40px; 
+    corner-shape: squircle; */
     overflow: hidden;
 
     background-repeat:repeat;
@@ -102,6 +102,8 @@ body {
     font-size: 3.5vw;
     font-weight: 200;
     margin-top: 0%;
+    margin-bottom: 0%;
+
     width: fit-content;
     cursor: pointer;
 }
