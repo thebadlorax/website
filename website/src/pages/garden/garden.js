@@ -1076,17 +1076,18 @@ const SAVE_CLICKBOX_ONCLICK = (eng, slot, lines) => {
         "fns": { 
             "onEnd": async (eng) => { 
                 const s = () => {
+                    eng.data.blockClickboxes = true;
                     eng.swapScenes("garden", null, true, () => new Promise(async (resolve, reject) => {
                         await eng.swapSave(slot);  
                         await eng.refreshSave();
                         eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
+                        eng.data.blockClickboxes = false;
                         resolve();
                     }));
                 }
                 const local_data = await eng.getLocalSaveInformation();
                 const cloud_data = await eng.getCloudSaveInformation();
 
-                console.log(local_data.selected_slot, cloud_data.selected_slot)
                 const conflicts = local_data.saves[slot].exists && cloud_data.saves[slot].exists;
                 if(conflicts) {
                     const times = [local_data.saves[slot].time, cloud_data.saves[slot].time];
@@ -1372,10 +1373,12 @@ const sceneData = {
                 // cloud
                 const slot = eng.data.overwrite_slot;
                 eng.swapScenes("garden", null, true, () => new Promise(async (resolve, reject) => {
+                    eng.data.blockClickboxes = true;
                     await eng.swapSave(slot); 
                     eng.setLocalSavingVariables(false); // turn off cloud saving
                     await eng.refreshSave();
                     await eng.uploadSaveData();
+                    eng.data.blockClickboxes = false;
                     resolve();
                 }));
             }).withHoverFn((eng) => {
@@ -1385,10 +1388,12 @@ const sceneData = {
                 // local
                 const slot = eng.data.overwrite_slot;
                 eng.swapScenes("garden", null, true, () => new Promise(async (resolve, reject) => {
+                    eng.data.blockClickboxes = true;
                     await eng.swapSave(slot); 
                     eng.setLocalSavingVariables(true); // turn off cloud saving
                     await eng.refreshSave();
                     await eng.uploadSaveData();
+                    eng.data.blockClickboxes = false;
                     resolve();
                 }));
             }).withHoverFn((eng) => {
@@ -1583,7 +1588,7 @@ class Engine {
         this.ctx.imageSmoothingEnabled = false;
         this.refreshBounds();
         await this.initIndexedDB();
-        this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU", "KeyP", "KeyO"]);
+        this.keyboard.listenForEvents(["Space", "KeyS", "KeyC", "KeyD", "KeyU", "KeyP"]);
         this.keyboard.setFunctionOnKeyPress("Space", () => {
             if(this.data.scene != "garden") return;
             this.toggleHands();
@@ -1616,13 +1621,6 @@ class Engine {
         });
         this.keyboard.setFunctionOnKeyPress("KeyP", async () => {
             this.data.timePaused = !this.data.timePaused;
-        })
-        this.keyboard.setFunctionOnKeyPress("KeyO", async () => {
-            if(this.data.scene == "overwrite") return;
-
-            this.data.overwrite_slot = 0;
-            this.data.overwrite_text = `${true ? `local` : `cloud`} save is newer`;
-            this.swapScenes("overwrite");
         })
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
             this.data.showClickboxes = !this.data.showClickboxes;
@@ -3115,6 +3113,7 @@ class Engine {
         this.physics.simulation.physicsObjects = new Array();
     }
 
+    // save functions
     uploadLocalSave(time) {
         return new Promise(async (resolve, reject) => {
             await this.refreshSaveInformation();
@@ -3128,6 +3127,7 @@ class Engine {
             });
 
             req.onsuccess = () => {
+                this.refreshSaveInformation();
                 resolve();
             }
 
@@ -3135,8 +3135,6 @@ class Engine {
                 console.log(err)
                 reject(err);
             }
-
-            //resolve();
         })
     }
     uploadCloudSave(time) {
@@ -3154,9 +3152,7 @@ class Engine {
                 });
                 await this.refreshSaveInformation();
                 resolve();
-            } catch (err) {
-                reject(err);
-            }
+            } catch (err) { reject(err) }
         })
     }
     uploadSaveData() {
@@ -3164,9 +3160,8 @@ class Engine {
             const time = Date.now();
             try {
                 if(window.localStorage.getItem("garden_doLocalSaving")) { // the orders need to be correct so the overwrite menu doesn't show up
-                    try { await this.uploadCloudSave(time) } catch {
-                        console.warn("unable to sync cloud saves, you're probably running this offline");
-                    }; // if you're offline, it'll just do nothing
+                    // saving feels snappier when on main if not awaited
+                    this.uploadCloudSave(time).catch((err) => { console.warn(`unable to sync local save to cloud, probably playing offline. \nerror: ${err}`) })
                     await this.uploadLocalSave(time);
                 } else {
                     await this.uploadLocalSave(time);
