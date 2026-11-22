@@ -8,6 +8,7 @@
 
 /* TODO:
  * compress settings portion of the save file
+ * seed the color picker of each grid slot in the dirt simulation to keep it the same when you refresh
  * move sprite init out of setupSprites() / init() and into sceneData
  * maybe start splitting stuff into multiple files
  * make it so effects can wait until a promise is completed, so saves can have an actual loading screen instead of just swapping in view
@@ -740,6 +741,20 @@ class Save {
         ANTIALIASING: 10,
         DO_CLOUD_SAVES: 11
     }
+    static SETTINGS_DISPLAY_NAMES = [
+        "autosave interval",
+        "autosaving",
+        "hide notifications",
+        "transparent notifs",
+        "clouds",
+        "transition speed",
+        "cursor effects",
+        "dirt performance mode",
+        "physics iterations",
+        "glow effects",
+        "antialiasing",
+        "cloud saves"
+    ]
     static PERFORMANCE_SETTINGS = {
         0: null,
         1: null,
@@ -1060,24 +1075,40 @@ const SAVE_CLICKBOX_ONCLICK = (eng, slot, lines) => {
         "lines": lines,
         "fns": { 
             "onEnd": async (eng) => { 
+                const s = () => {
+                    eng.swapScenes("garden", null, true, () => new Promise(async (resolve, reject) => {
+                        await eng.swapSave(slot);  
+                        await eng.refreshSave();
+                        eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
+                        resolve();
+                    }));
+                }
                 const local_data = await eng.getLocalSaveInformation();
                 const cloud_data = await eng.getCloudSaveInformation();
+
+                console.log(local_data.selected_slot, cloud_data.selected_slot)
                 const conflicts = local_data.saves[slot].exists && cloud_data.saves[slot].exists;
                 if(conflicts) {
                     const times = [local_data.saves[slot].time, cloud_data.saves[slot].time];
-                    const local_is_newer = times[0] > times[1];
+                    if(times[0] == times[1]) {
+                        s(); return;
+                    }
+                    const local_is_newer = times[0] < times[1];
 
+                    if(local_is_newer && window.localStorage.getItem("garden_doLocalSaving")) { 
+                        s(); return; 
+                    }
+                    if(!local_is_newer && !window.localStorage.getItem("garden_doLocalSaving")) { 
+                        s(); return; 
+                    }
+
+                    eng.data.overwrite_slot = slot;
                     eng.data.overwrite_text = `${local_is_newer ? `local` : `cloud`} save is newer`;
                     eng.swapScenes("overwrite");
                     return;
                 }
 
-                eng.swapScenes("garden", null, true, () => new Promise(async (resolve, reject) => {
-                    await eng.swapSave(slot);  
-                    await eng.refreshSave();
-                    eng.spriteMap.stopgo.anim.resetAndChangeAnim("idle"); 
-                    resolve();
-                }));
+                s()
             }
         }
     })
@@ -1337,13 +1368,29 @@ const sceneData = {
             }
         },
         "clickboxes": [
-            new Clickbox(new Rect2D(Vector.two(0.4, 0.22), 0.1, 0.4), (eng) => { 
-                console.log("yo");
+            new Clickbox(new Rect2D(Vector.two(0.4, 0.22), 0.1, 0.4), async (eng) => { 
+                // cloud
+                const slot = eng.data.overwrite_slot;
+                eng.swapScenes("garden", null, true, () => new Promise(async (resolve, reject) => {
+                    await eng.swapSave(slot); 
+                    eng.setLocalSavingVariables(false); // turn off cloud saving
+                    await eng.refreshSave();
+                    await eng.uploadSaveData();
+                    resolve();
+                }));
             }).withHoverFn((eng) => {
                 eng.spriteMap.overwrite_door.anim.changeAnim("left"); 
             }).withExitFn((eng) => { eng.spriteMap.overwrite_door.anim.resetAndChangeAnim("idle") }),
             new Clickbox(new Rect2D(Vector.two(0.52, 0.22), 0.12, 0.4), (eng) => { 
-                console.log("yo");
+                // local
+                const slot = eng.data.overwrite_slot;
+                eng.swapScenes("garden", null, true, () => new Promise(async (resolve, reject) => {
+                    await eng.swapSave(slot); 
+                    eng.setLocalSavingVariables(true); // turn off cloud saving
+                    await eng.refreshSave();
+                    await eng.uploadSaveData();
+                    resolve();
+                }));
             }).withHoverFn((eng) => {
                 eng.spriteMap.overwrite_door.anim.changeAnim("right"); 
             }).withExitFn((eng) => { eng.spriteMap.overwrite_door.anim.resetAndChangeAnim("idle") })
@@ -1353,7 +1400,9 @@ const sceneData = {
 
 class Engine {
     static STARTING_TIME = 190*1000;
+
     static SAVE_COOLDOWN = 2000;
+    static SAVE_EXTENSION = "wonderfulandbeautifulsaveextension";
 
     static VERSION_OVERLAY_SIZE = 0.0125;
     static VERSION_OVERLAY_OPACITY = 0.2;
@@ -1569,8 +1618,11 @@ class Engine {
             this.data.timePaused = !this.data.timePaused;
         })
         this.keyboard.setFunctionOnKeyPress("KeyO", async () => {
-            if(this.data.scene == "overwrite") this.swapScenes("garden");
-            else this.swapScenes("overwrite")
+            if(this.data.scene == "overwrite") return;
+
+            this.data.overwrite_slot = 0;
+            this.data.overwrite_text = `${true ? `local` : `cloud`} save is newer`;
+            this.swapScenes("overwrite");
         })
         this.keyboard.setFunctionOnKeyPress("KeyD", async () => {
             this.data.showClickboxes = !this.data.showClickboxes;
@@ -1671,7 +1723,7 @@ class Engine {
                     ctx.textBaseline = "middle"
                     ctx.font = `${bb.w*0.016}px Jersey20`
                     ctx.rotate(-o.angle);
-                    ctx.fillText(Object.keys(Save.settings_index)[a], invHalf+(o.size/2), invHalf+(o.size/3))
+                    ctx.fillText(Save.SETTINGS_DISPLAY_NAMES[a], invHalf+(o.size/2), invHalf+(o.size/3))
                     ctx.font = `${bb.w*0.03}px Jersey20`;
                     ctx.fillText(this.save.settings[a], invHalf+(o.size/2), invHalf+(o.size/1.5))
                     ctx.restore();
@@ -1686,16 +1738,9 @@ class Engine {
                                     break;
                                 }
                                 case 11: {
-                                    await this.uploadSaveData();
-                                    if(this.save.settings[a]) {
-                                        this.spawnNotification("disabling local saving", "this applies to all saves", 6*1000, { "color": "rgba(255, 255, 255, 1)" })
-                                        this.setLocalSavingVariables(false);
-                                    }
-                                    else {
-                                        this.setLocalSavingVariables(true);
-                                        this.spawnNotification("enabling local saving", "this applies to all saves", 6*1000, { "color": "rgba(255, 255, 255, 1)" })
-                                        await this.initIndexedDB();
-                                    }
+                                    //await this.uploadSaveData();
+                                    this.spawnNotification(`${this.save.settings[a] ? "disabling" : "enabling"} local saving`, "this applies to all saves", 6*1000, { "color": "rgba(255, 255, 255, 1)" })
+                                    this.setLocalSavingVariables(!this.save.settings[a]);
                                     await this.uploadSaveData();
                                     break;
                                 }
@@ -1740,26 +1785,15 @@ class Engine {
                 this.data.wantsToWipe = false;
                 this.spawnNotification("wiping save", "", 1*1000, { "color": "rgba(155, 40, 40, 1)", fontSizes: [0.15, 0.06] })
 
-                const user = JSON.parse(window.localStorage.getItem("user"));
-                const req = await fetch(getApiLink("/garden/saves/wipe"), {
-                    method: "POST",
-                    body: JSON.stringify({
-                        "name": user.account.name,
-                        "pass": user.account.pass
-                    })
-                });
-                const json = await req.json();
-                let next_save = null;
-                let notif_text = [null, null]
-                if(json.remaining_saves.length == 0) {
-                    next_save = this.data.save_information.selected_slot;
-                    notif_text[0] = "new save made";
-                    notif_text[1] = `no other saves were found`
-                }
-                else {
-                    next_save = json.remaining_saves.sort()[0];
+                const next_save = await this.wipeSave(this.data.save_information.selected_slot);
+                const changed = next_save != this.data.save_information.selected_slot;
+                let notif_text = [null, null];
+                if(changed) {
                     notif_text[0] = "swapped saves";
                     notif_text[1] = `slot ${next_save+1} had data`
+                } else {
+                    notif_text[0] = "new save made";
+                    notif_text[1] = `no other saves were found`
                 }
 
                 this.physics.simulation.physicsObjects.splice(this.physics.simulation.physicsObjects.indexOf(wipe_save), 1);
@@ -2229,9 +2263,7 @@ class Engine {
         })
 
         let seed_animator = new Animator();
-        Object.values(plantData).forEach((p, i) => {
-            seed_animator.addAnim(new Animation(this.loader.imageSet(p.seeds.art), -1), Object.keys(plantData)[i]) 
-        })
+        Object.values(plantData).forEach((p, i) => seed_animator.addAnim(new Animation(this.loader.imageSet(p.seeds.art), -1), Object.keys(plantData)[i]));
         const seed = this.createSprite(new Rect2D(Vector.two(0, 0), 0.5, 0.5), seed_animator, "garden").isHidden();
         seed_animator.changeAnim(Object.keys(seed_animator.animations)[0])
         seed.layer = 100;
@@ -2337,7 +2369,7 @@ class Engine {
         }
 
         const top_rect =    new Rect2D(Vector.two(-0.4, -0.45), 0.8, 0.15);
-        const bottom_rect = new Rect2D(Vector.two(-0.4, 0.25), 0.8, 0.15);
+        const bottom_rect = new Rect2D(Vector.two(-0.4, 0.28), 0.8, 0.12);
 
         const ee_group_create = (rect, count) => { let e = new Array(); for(let x = 0; x < count; x++) e.push(ee_create(rect)); return e; }
         const evil_eyes = [...ee_group_create(bottom_rect, 1+Math.floor(Math.random()*2)), ...ee_group_create(top_rect, 2+Math.floor(Math.random()*2))]
@@ -2382,9 +2414,12 @@ class Engine {
 
     refreshAntiAliasing() { this.setAntialiasing(this.save.settings[10]) }
     setAntialiasing(flag=true) {
-        this.ctx.webkitImageSmoothingEnabled = flag;
-        this.ctx.mozImageSmoothingEnabled = flag;
-        this.ctx.imageSmoothingEnabled = flag;
+        const ctxs = [this.ctx, this.dirt.simulation.ctx, this.physics.ctx]
+        ctxs.forEach(ctx => {
+            ctx.webkitImageSmoothingEnabled = flag;
+            ctx.mozImageSmoothingEnabled = flag;
+            ctx.imageSmoothingEnabled = flag;
+        })
     }
 
     resize() {
@@ -3079,9 +3114,34 @@ class Engine {
         this.data.notifications = new Array();
         this.physics.simulation.physicsObjects = new Array();
     }
-    uploadSaveData() {
+
+    uploadLocalSave(time) {
         return new Promise(async (resolve, reject) => {
-            if(!window.localStorage.getItem("garden_doLocalSaving")) { // cloud save
+            await this.refreshSaveInformation();
+            const data = await this.save.serialize(this);
+            const transaction = this.data.localDB.transaction("saves", "readwrite");
+            const objectStore = transaction.objectStore("saves")
+            const req = objectStore.put({
+                "slot": this.data.save_information.selected_slot,
+                "data": data,
+                "time": time
+            });
+
+            req.onsuccess = () => {
+                resolve();
+            }
+
+            req.onerror = (err) => {
+                console.log(err)
+                reject(err);
+            }
+
+            //resolve();
+        })
+    }
+    uploadCloudSave(time) {
+        return new Promise(async (resolve, reject) => {
+            try {
                 const user = JSON.parse(window.localStorage.getItem("user"));
                 await fetch(getApiLink("/garden/saves/set"), {
                     method: "POST",
@@ -3089,36 +3149,41 @@ class Engine {
                         "name": user.account.name,
                         "pass": user.account.pass,
                         "save": await this.save.serialize(this),
-                        "time": Date.now()
+                        "time": time
                     })
                 });
                 await this.refreshSaveInformation();
                 resolve();
-            } else { // local save
-                await this.refreshSaveInformation();
-                const data = await this.save.serialize(this);
-                const transaction = this.data.localDB.transaction("saves", "readwrite");
-                const objectStore = transaction.objectStore("saves")
-                const req = objectStore.put({
-                    "slot": parseInt(window.localStorage.getItem("garden_selectedSlot") ?? "0"),
-                    "data": data,
-                    "time": Date.now()
-                });
-    
-                req.onsuccess = () => {
-                    resolve();
-                }
-    
-                req.onerror = (err) => {
-                    console.log(err)
-                    reject(err);
-                }
+            } catch (err) {
+                reject(err);
             }
         })
     }
+    uploadSaveData() {
+        return new Promise(async (resolve, reject) => {
+            const time = Date.now();
+            try {
+                if(window.localStorage.getItem("garden_doLocalSaving")) { // the orders need to be correct so the overwrite menu doesn't show up
+                    try { await this.uploadCloudSave(time) } catch {
+                        console.warn("unable to sync cloud saves, you're probably running this offline");
+                    }; // if you're offline, it'll just do nothing
+                    await this.uploadLocalSave(time);
+                } else {
+                    await this.uploadLocalSave(time);
+                    await this.uploadCloudSave(time);
+                }
+                
+                resolve();
+            } catch (err) {
+                reject(err)
+            }
+            
+        })
+    }
+
     async downloadLocalSave(supressNotifications=false) {
         const data = await this.save.serialize(this);
-        downloadBlob(data, `gardenslot${this.data.save_information.selected_slot}_(${new Date().toLocaleDateString()}).wonderfulandbeautifulsaveextension`, "text/plain");
+        downloadBlob(data, `gardenslot${this.data.save_information.selected_slot}_(${new Date().toLocaleDateString()}).${Engine.SAVE_EXTENSION}`, "text/plain");
         if(!supressNotifications) this.spawnNotification("downloaded save", `keep it safe!`, 5*1000, { "color": "rgba(255, 255, 255, 1)"});
     }
     async importLocalSave() {
@@ -3136,6 +3201,7 @@ class Engine {
             this.spawnNotification("imported save", `no save scumming!`, 3*1000, { "color": "rgba(255, 255, 255, 1)"});
         })
     }
+
     fetchSaveData() {
         return new Promise(async (resolve, reject) => {
             if(window.localStorage.getItem("garden_doLocalSaving")) {
@@ -3247,29 +3313,69 @@ class Engine {
 
     swapSave(slot) {
         return new Promise(async (resolve, reject) => {
-            if(window.localStorage.getItem("garden_doLocalSaving")) {
-                window.localStorage.setItem("garden_selectedSlot", slot)
-                resolve();
-            } else {
-                const user = JSON.parse(window.localStorage.getItem("user"));
-                await fetch(getApiLink("/garden/saves/setSlot"), {
-                    method: "POST",
-                    body: JSON.stringify({
-                        "name": user.account.name,
-                        "pass": user.account.pass,
-                        "save_slot": slot
-                    })
-                });
-                resolve();
-            }
+            window.localStorage.setItem("garden_selectedSlot", slot)
+            if(window.localStorage.getItem("garden_doLocalSaving")) resolve();
+
+            const user = JSON.parse(window.localStorage.getItem("user"));
+            await fetch(getApiLink("/garden/saves/setSlot"), {
+                method: "POST",
+                body: JSON.stringify({
+                    "name": user.account.name,
+                    "pass": user.account.pass,
+                    "save_slot": slot
+                })
+            });
+            resolve();
             
         })
     }
-    wipeSave() {
-        // wipesave impl for local db
-        // how do i make it so id you swap to local saving, make a new save file, swap to a different one and activate cloud saving, that it'll upload properly?
-        // -> local vs cloud save overwrite option?
 
+    wipeCloudSave(slot) {
+        return new Promise(async (resolve, reject) => {
+            const user = JSON.parse(window.localStorage.getItem("user"));
+            const req = await fetch(getApiLink("/garden/saves/wipe"), {
+                method: "POST",
+                body: JSON.stringify({
+                    "name": user.account.name,
+                    "pass": user.account.pass,
+                    "slot": slot
+                })
+            });
+            const json = await req.json();
+
+            resolve(json.remaining_saves)
+        })
+    }
+    wipeLocalSave(slot) {
+        return new Promise(async (resolve, reject) => {
+            const transaction = this.data.localDB.transaction("saves", "readwrite");
+            const objectStore = transaction.objectStore("saves")
+            const req = objectStore.delete(slot);
+
+            req.onsuccess = async () => {
+                const si = await this.getLocalSaveInformation();
+                const remaining_saves = si.saves.filter(s => s.exists).map(s => si.saves.indexOf(s));
+                resolve(remaining_saves)
+            }
+
+            req.onerror = (err) => {
+                console.error(err)
+                reject(null);
+            };
+        })
+    }
+    wipeSave(slot) {
+        return new Promise(async (resolve, reject) => {
+            let remaining_saves = null;
+            if(!window.localStorage.getItem("garden_doLocalSaving")) remaining_saves = await this.wipeCloudSave(slot);
+            else remaining_saves = await this.wipeLocalSave(slot);
+            
+            let next_save = null;
+            if(remaining_saves.length == 0) next_save = this.data.save_information.selected_slot;
+            else next_save = remaining_saves.sort()[0];
+
+            resolve(next_save);
+        })
     }
 
     setLocalSavingVariables(flag) {

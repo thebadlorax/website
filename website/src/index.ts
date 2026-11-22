@@ -1147,9 +1147,11 @@ const server = Bun.serve({
             
             if(!user) return corsResponse(null, { status: 401 });
 
+            const slot = json.slot;
+
             let data = await db.fetch("garden") ?? { "player_data": {} };
             let pd = data.player_data[user.account.id] ?? { "saves": [null, null, null], "selected_slot": 0 }
-            pd.saves[pd.selected_slot] = null;
+            pd.saves[slot] = null;
             data.player_data[user.account.id] = pd;
             db.modify("garden", data);
             return corsResponse(JSON.stringify({
