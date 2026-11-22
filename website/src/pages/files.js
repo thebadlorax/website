@@ -5,6 +5,10 @@ let con_x, con_y;
 
 const renameOverlay = document.getElementById("rename-overlay");
 const renameInput = document.getElementById("rename-input");
+const renameConfirmButton = document.getElementById("confirmRename");
+renameConfirmButton.addEventListener("click", async () => { await confirmRename() })
+const renameCancelButton = document.getElementById("cancelRename");
+renameCancelButton.addEventListener("click", async () => { await cancelRename() })
 let renameTargetPath = null;
 
 const file_size_p = document.getElementById("file-size")

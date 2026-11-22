@@ -388,7 +388,7 @@ const server = Bun.serve({
             if (!cdFileName) return corsResponse(null, { status: 400 });
             filePath = cdFileName.split("=")[1];
             if (!filePath) return corsResponse(null, { status: 400 });
-            filePath = filePath.replaceAll(".", "").replaceAll("/", "")
+            //filePath = filePath.replaceAll(".", "").replaceAll("/", "")
             if(filePath.includes("tutorial.txt")) return corsResponse(null, { status: 403 }); 
             const newNamecd = cd.split(";")[2];
             let newName = newNamecd?.split("=")[1];
