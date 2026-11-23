@@ -102,9 +102,10 @@ class GridRenderer {
             ctx.stroke();
         }
 
+        const mouseGridPos = eng.mouseToWorld();
         this.drawText(`cam: (${eng.cameraPos.x.toFixed(0)}, ${eng.cameraPos.y.toFixed(0)})`, 0, 0)
-        this.drawText(`mouse: (${eng.mousePos.x}, ${eng.mousePos.y})`, 0, this.pixelsToScaled(0, GridRenderer.TEXT_SIZE).y)
-        this.drawText(`step interval: ${formatSeconds(eng.stepInterval)}`, 0, this.pixelsToScaled(0, GridRenderer.TEXT_SIZE*2).y)
+        this.drawText(`mouse: (${mouseGridPos.x}, ${mouseGridPos.y})`, 0, this.pixelsToScaled(0, GridRenderer.TEXT_SIZE+10).y)
+        this.drawText(`step interval: ${formatSeconds(eng.stepInterval)}`, 0, this.pixelsToScaled(0, (GridRenderer.TEXT_SIZE+10)*2).y)
     }
 }
 
@@ -155,15 +156,9 @@ class Automaton {
         else this.grid.delete(key);
     }
 
-    async init() {
-        const canvas = this.ctx.canvas;
 
-        const jersey20 = new FontFace('Jersey20', `url("/res/Jersey20-Regular.ttf")`);
-        try {
-            const loadedFont = await jersey20.load();
-            document.fonts.add(loadedFont);
-            console.log('loaded jersey 20 into browser fonts');
-        } catch (error) { console.error(`jersey 20 load failed: \n${error}`) }
+    eventInit() {
+        const canvas = this.ctx.canvas;
 
         window.addEventListener("resize", () => { this._resize() });
     
@@ -184,7 +179,10 @@ class Automaton {
         });
     
         window.addEventListener("mouseup", e => {
-            if (e.button == 0) this.mousePressed = false;
+            if (e.button == 0) {
+                this.mousePressed = false;
+                this.lastPlacedPos = null;
+            }
             if (e.button == 1 || e.button == 2) this.panDragging = false;
         });
 
@@ -193,15 +191,17 @@ class Automaton {
                 case " ": {
                     this.paused = !this.paused; break;
                 }
-                case "ArrowUp": {
+                case "ArrowUp": 
+                case "ArrowRight": {
                     this.stepInterval += 10; break
                 }
-                case "ArrowDown": {
+                case "ArrowDown": 
+                case "ArrowLeft": {
                     if(this.stepInterval > 10) this.stepInterval -= 10; 
                     break;
                 }
                 default: {
-                    console.log(e.key)
+                    //console.log(e.key)
                 }
             }
         });
@@ -243,17 +243,53 @@ class Automaton {
     
             this.cameraPos.xySetIp(worldX - mx / (this.CELLSIZE * this.zoom), worldY - my / (this.CELLSIZE * this.zoom));
         }, { passive: false });
+    }
+    async init() {
+        const jersey20 = new FontFace('Jersey20', `url("/res/Jersey20-Regular.ttf")`);
+        try {
+            const loadedFont = await jersey20.load();
+            document.fonts.add(loadedFont);
+            console.log('loaded jersey 20 into browser fonts');
+        } catch (error) { console.error(`jersey 20 load failed: \n${error}`) }
+
+        this.eventInit();
     
         window.requestAnimationFrame(this.tick.bind(this));
     }
 
-    mousePlace() {
+    mouseToWorld() {
         const rect = this.ctx.canvas.getBoundingClientRect();
     
         const gx = Math.floor(this.cameraPos.x + (this.mousePos.x - rect.left) / (this.CELLSIZE * this.zoom));
         const gy = Math.floor(this.cameraPos.y + (this.mousePos.y - rect.top) / (this.CELLSIZE * this.zoom));
+
+        return Vector.two(gx, gy)
+    }
+    mousePlace() {
+        const pos = this.mouseToWorld();
     
-        this.set(gx, gy, 1);
+        if (!this.lastPlacedPos) {
+            this.set(Math.floor(pos.x), Math.floor(pos.y), 1);
+            this.lastPlacedPos = pos;
+            return;
+        }
+    
+        const dx = pos.x - this.lastPlacedPos.x;
+        const dy = pos.y - this.lastPlacedPos.y;
+    
+        const distance = Math.max(Math.abs(dx), Math.abs(dy));
+        const steps = Math.ceil(distance);
+    
+        for (let i = 0; i <= steps; i++) {
+            const t = steps === 0 ? 0 : i / steps;
+    
+            const x = Math.floor(this.lastPlacedPos.x + dx * t);
+            const y = Math.floor(this.lastPlacedPos.y + dy * t);
+    
+            this.set(x, y, 1);
+        }
+    
+        this.lastPlacedPos = pos;
     }
 
     stepAutomaton() {
