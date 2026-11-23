@@ -262,3 +262,10 @@ export function asyncIDBwaitForTransactionCompletion(transaction) {
       transaction.onabort = () => reject(transaction.error);
     });
 }
+
+export const countLetterInString = (str, target) => {
+    let count = 0;
+    for (const char of str) if (char === target) count++;
+    return count;
+}
+  
