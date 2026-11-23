@@ -3178,7 +3178,7 @@ class Engine {
 
     async downloadLocalSave(supressNotifications=false) {
         const data = await this.save.serialize(this);
-        downloadBlob(data, `gardenslot${this.data.save_information.selected_slot}_(${new Date().toLocaleDateString()}).${Engine.SAVE_EXTENSION}`, "text/plain");
+        downloadBlob(data, `(${new Date().toLocaleDateString()})_gardenslot${this.data.save_information.selected_slot}.${Engine.SAVE_EXTENSION}`, "text/plain");
         if(!supressNotifications) this.spawnNotification("downloaded save", `keep it safe!`, 5*1000, { "color": "rgba(255, 255, 255, 1)"});
     }
     async importLocalSave() {
