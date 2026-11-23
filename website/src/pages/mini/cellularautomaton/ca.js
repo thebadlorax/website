@@ -4,10 +4,16 @@
  * copyright 2026
 */
 
+// ripped the sand simulation and converted it into a grid based automato
+
+// todo:
+// * add custom rule manager? (like automaton rules, maybe through user json?)
+
 import { Vector } from "../maths.js";
+import { formatSeconds } from "../../common.js";
 
 class GridRenderer {
-    static TEXT_SIZE = 15;
+    static TEXT_SIZE = 30;
     constructor(ctx, engine) {
         this.ctx = ctx;
         this.eng = engine;
@@ -25,10 +31,20 @@ class GridRenderer {
         }
     }
 
+    pixelsToScaled(x, y) {
+        const width = this.ctx.canvas.width;
+        const height = this.ctx.canvas.height;
+
+        return {
+            "x": x / width,
+            "y": y / height
+        }
+    }
+
     drawText(text, x, y) {
         const ctx = this.ctx;
 
-        ctx.font = `${GridRenderer.TEXT_SIZE}px monospace`;
+        ctx.font = `${GridRenderer.TEXT_SIZE}px jersey20`;
         let td = ctx.measureText(text);
         const text_pos = this.scaledToPixels(x, y, 0.1, 0.1);
         ctx.fillStyle = "black"
@@ -87,6 +103,8 @@ class GridRenderer {
         }
 
         this.drawText(`cam: (${eng.cameraPos.x.toFixed(0)}, ${eng.cameraPos.y.toFixed(0)})`, 0, 0)
+        this.drawText(`mouse: (${eng.mousePos.x}, ${eng.mousePos.y})`, 0, this.pixelsToScaled(0, GridRenderer.TEXT_SIZE).y)
+        this.drawText(`step interval: ${formatSeconds(eng.stepInterval)}`, 0, this.pixelsToScaled(0, GridRenderer.TEXT_SIZE*2).y)
     }
 }
 
@@ -137,8 +155,16 @@ class Automaton {
         else this.grid.delete(key);
     }
 
-    init() {
+    async init() {
         const canvas = this.ctx.canvas;
+
+        const jersey20 = new FontFace('Jersey20', `url("/res/Jersey20-Regular.ttf")`);
+        try {
+            const loadedFont = await jersey20.load();
+            document.fonts.add(loadedFont);
+            console.log('loaded jersey 20 into browser fonts');
+        } catch (error) { console.error(`jersey 20 load failed: \n${error}`) }
+
         window.addEventListener("resize", () => { this._resize() });
     
         canvas.addEventListener("contextmenu", e => { e.preventDefault() });
@@ -163,7 +189,21 @@ class Automaton {
         });
 
         window.addEventListener("keydown", e => {
-            if (e.key == " ") this.paused = !this.paused;
+            switch(e.key) {
+                case " ": {
+                    this.paused = !this.paused; break;
+                }
+                case "ArrowUp": {
+                    this.stepInterval += 10; break
+                }
+                case "ArrowDown": {
+                    if(this.stepInterval > 10) this.stepInterval -= 10; 
+                    break;
+                }
+                default: {
+                    console.log(e.key)
+                }
+            }
         });
     
         window.addEventListener("mousemove", e => {
@@ -263,7 +303,7 @@ class Automaton {
     
         if (this.accumulator >= this.stepInterval) {
             this.update();
-            this.accumulator -= this.stepInterval;
+            this.accumulator = 0; //-= this.stepInterval;
         }
     
         this.renderer.render();
@@ -280,4 +320,4 @@ const c = document.getElementById("canvas");
 c.width = window.innerWidth;
 c.height = window.innerHeight;
 const engine = new Automaton(c.getContext("2d"));
-engine.init();
+await engine.init();

@@ -1361,6 +1361,7 @@ const server = Bun.serve({
 
           case "/mini/particles": return corsResponse(Bun.file("src/pages/mini/particles/particles.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/mini/polls": return corsResponse(Bun.file("src/pages/mini/polls/polls.html"), { headers: { "Content-Type": "text/html" } }); 
+          case "/mini/cellularautomata": return corsResponse(Bun.file("src/pages/mini/cellularautomaton/ca.html"), { headers: { "Content-Type": "text/html" } }); 
           
           case "/archive/emulator": return corsResponse(Bun.file("src/pages/mini/emulator/emulator.html"), { headers: { "Content-Type": "text/html" } }); 
           case "/archive/sand": return corsResponse(Bun.file("src/pages/mini/sand/sand.html"), { headers: { "Content-Type": "text/html" } }); 
