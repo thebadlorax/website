@@ -138,10 +138,6 @@ class Automaton {
         this.accumulator = 0;
         this.stepInterval = 150;
 
-        this.set(20, 20, 1);
-        this.set(21, 20, 1);
-        this.set(22, 20, 1);
-
         this._resize();
     }
 
@@ -244,15 +240,32 @@ class Automaton {
             this.cameraPos.xySetIp(worldX - mx / (this.CELLSIZE * this.zoom), worldY - my / (this.CELLSIZE * this.zoom));
         }, { passive: false });
     }
-    async init() {
+    initStartingCells() {
+        // blinker
+        this.set(20, 20, 1);
+        this.set(21, 20, 1);
+        this.set(22, 20, 1);
+
+        // glider
+        this.set(30, 20, 1);
+        this.set(31, 19, 1);
+        this.set(29, 18, 1);
+        this.set(30, 18, 1);
+        this.set(31, 18, 1);
+    }
+    async loadFont() {
         const jersey20 = new FontFace('Jersey20', `url("/res/Jersey20-Regular.ttf")`);
         try {
             const loadedFont = await jersey20.load();
             document.fonts.add(loadedFont);
             console.log('loaded jersey 20 into browser fonts');
         } catch (error) { console.error(`jersey 20 load failed: \n${error}`) }
+    }
+    async init() {
+        await this.loadFont();
 
         this.eventInit();
+        this.initStartingCells();
     
         window.requestAnimationFrame(this.tick.bind(this));
     }
